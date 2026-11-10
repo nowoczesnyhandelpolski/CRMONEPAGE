@@ -1,0 +1,22 @@
+<svg viewBox="0 0 640 740" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kalendarz pod choinką, przykład">
+  <defs>
+    <linearGradient id="g2-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e8eef0"/><stop offset="1" stop-color="#d9e0dc"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="740" fill="url(#g2-bg)"/>
+  <!-- tree -->
+  <polygon points="320,80 200,280 440,280" fill="#2d6a4f"/>
+  <polygon points="320,180 180,400 460,400" fill="#1e5a40"/>
+  <polygon points="320,300 160,540 480,540" fill="#164a34"/>
+  <rect x="304" y="540" width="32" height="50" fill="#5a3d2b"/>
+  <circle cx="280" cy="220" r="8" fill="#ff5a00"/>
+  <circle cx="360" cy="260" r="7" fill="#e22718"/>
+  <circle cx="250" cy="340" r="8" fill="#f4d35e"/>
+  <circle cx="390" cy="380" r="8" fill="#ff5a00"/>
+  <circle cx="300" cy="460" r="7" fill="#fff"/>
+  <!-- gift box calendar simplified -->
+  <rect x="200" y="560" width="240" height="130" rx="16" fill="#f7f1ea" stroke="#d4cbc0"/>
+  <rect x="308" y="560" width="24" height="130" fill="#ff5a00"/>
+  <text x="320" y="635" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-weight="800" font-size="18" fill="#3a3530">2026</text>
+</svg>

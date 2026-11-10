@@ -1,2 +1,6 @@
 User-agent: *
+Allow: /p/
+Allow: /sitemap.xml
 Disallow: /
+
+Sitemap: https://panel.nowoczesnyhandelpolski.pl/sitemap.xml

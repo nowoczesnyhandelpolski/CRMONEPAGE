@@ -1,0 +1,15 @@
+<svg viewBox="0 0 640 740" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pudełko z wstążką, przykład">
+  <defs>
+    <linearGradient id="g4-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f7f1ea"/><stop offset="1" stop-color="#e8dfd4"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="740" fill="url(#g4-bg)"/>
+  <rect x="110" y="240" width="420" height="340" rx="28" fill="#fffdfb" stroke="#d4cbc0" stroke-width="3"/>
+  <rect x="300" y="240" width="40" height="340" fill="#ff5a00"/>
+  <rect x="110" y="390" width="420" height="40" fill="#ff5a00"/>
+  <path d="M320 180c-36 28-70 40-70 70 0 30 32 36 70 12 38 24 70 18 70-12 0-30-34-42-70-70z" fill="#ff5a00"/>
+  <circle cx="320" cy="268" r="22" fill="#ff5a00"/>
+  <circle cx="320" cy="268" r="9" fill="#fff6ee"/>
+  <text x="320" y="620" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-weight="800" font-size="28" letter-spacing="2" fill="#3a3530">GOTOWY PREZENT</text>
+</svg>

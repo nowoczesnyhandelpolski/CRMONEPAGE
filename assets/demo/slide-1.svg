@@ -1,0 +1,190 @@
+<svg viewBox="0 0 640 740" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kalendarz adwentowy z autkami 2026, przykład">
+  <defs>
+    <linearGradient id="g0-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6efe7"/>
+      <stop offset="1" stop-color="#e8dfd4"/>
+    </linearGradient>
+    <linearGradient id="g0-box" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffdfb"/>
+      <stop offset="1" stop-color="#efe6db"/>
+    </linearGradient>
+    <linearGradient id="g0-rib" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff5a00"/>
+      <stop offset="1" stop-color="#d7480d"/>
+    </linearGradient>
+    <filter id="g0-sh" x="-20%" y="-10%" width="140%" height="130%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#1c1917" flood-opacity=".16"/>
+    </filter>
+  </defs>
+  <rect width="640" height="740" rx="0" fill="url(#g0-bg)"/>
+  <ellipse cx="320" cy="700" rx="210" ry="18" fill="#1c1917" opacity=".1"/>
+  <g filter="url(#g0-sh)">
+    <rect x="86" y="78" width="468" height="600" rx="28" fill="url(#g0-box)" stroke="#d4cbc0" stroke-width="2"/>
+    <!-- lid / header -->
+    <rect x="86" y="78" width="468" height="78" rx="28" fill="#f7f1ea"/>
+    <rect x="86" y="132" width="468" height="24" fill="#f7f1ea"/>
+    <!-- ribbon -->
+    <rect x="300" y="78" width="40" height="600" fill="url(#g0-rib)" opacity=".92"/>
+    <path d="M320 52c-22 18-40 26-40 44 0 18 18 22 40 8 22 14 40 10 40-8 0-18-18-26-40-44z" fill="#ff5a00"/>
+    <circle cx="320" cy="102" r="16" fill="#ff5a00"/>
+    <circle cx="320" cy="102" r="7" fill="#fff6ee"/>
+    <text x="320" y="128" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-weight="800" font-size="18" letter-spacing="3" fill="#3a3530">ADWENT 2026</text>
+    
+            <g>
+              <rect x="118" y="168" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="147.0" y="209.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">7</text>
+            </g>
+            <g>
+              <rect x="186" y="168" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="215.0" y="209.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">19</text>
+            </g>
+            <g>
+              <rect x="254" y="168" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="283.0" y="209.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">3</text>
+            </g>
+            <g>
+              <rect x="322" y="168" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="351.0" y="209.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">24</text>
+            </g>
+            <g>
+              <rect x="390" y="168" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="419.0" y="209.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">11</text>
+            </g>
+            <g>
+              <rect x="458" y="168" width="58" height="72" rx="7" fill="#f3ebe3" stroke="#d4cbc0"/>
+              <rect x="464" y="196" width="46" height="36" rx="4" fill="#efe6da"/>
+              <!-- mini car -->
+              <g transform="translate(468,204)">
+                <rect x="4" y="8" width="30" height="10" rx="3" fill="#c0392b"/>
+                <rect x="10" y="2" width="16" height="8" rx="2" fill="#c0392b"/>
+                <circle cx="11" cy="18" r="4" fill="#2a2724"/>
+                <circle cx="27" cy="18" r="4" fill="#2a2724"/>
+                <circle cx="11" cy="18" r="1.6" fill="#d9d4cc"/>
+                <circle cx="27" cy="18" r="1.6" fill="#d9d4cc"/>
+              </g>
+              <text x="466" y="184" font-size="11" font-weight="700" fill="#8a847c" font-family="Manrope,sans-serif">1</text>
+            </g>
+            <g>
+              <rect x="118" y="250" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="147.0" y="291.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">15</text>
+            </g>
+            <g>
+              <rect x="186" y="250" width="58" height="72" rx="7" fill="#f3ebe3" stroke="#d4cbc0"/>
+              <rect x="192" y="278" width="46" height="36" rx="4" fill="#efe6da"/>
+              <!-- mini car -->
+              <g transform="translate(196,286)">
+                <rect x="4" y="8" width="30" height="10" rx="3" fill="#2d6a4f"/>
+                <rect x="10" y="2" width="16" height="8" rx="2" fill="#2d6a4f"/>
+                <circle cx="11" cy="18" r="4" fill="#2a2724"/>
+                <circle cx="27" cy="18" r="4" fill="#2a2724"/>
+                <circle cx="11" cy="18" r="1.6" fill="#d9d4cc"/>
+                <circle cx="27" cy="18" r="1.6" fill="#d9d4cc"/>
+              </g>
+              <text x="194" y="266" font-size="11" font-weight="700" fill="#8a847c" font-family="Manrope,sans-serif">8</text>
+            </g>
+            <g>
+              <rect x="254" y="250" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="283.0" y="291.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">22</text>
+            </g>
+            <g>
+              <rect x="322" y="250" width="58" height="72" rx="7" fill="#f3ebe3" stroke="#d4cbc0"/>
+              <rect x="328" y="278" width="46" height="36" rx="4" fill="#efe6da"/>
+              <!-- mini car -->
+              <g transform="translate(332,286)">
+                <rect x="4" y="8" width="30" height="10" rx="3" fill="#1c3f94"/>
+                <rect x="10" y="2" width="16" height="8" rx="2" fill="#1c3f94"/>
+                <circle cx="11" cy="18" r="4" fill="#2a2724"/>
+                <circle cx="27" cy="18" r="4" fill="#2a2724"/>
+                <circle cx="11" cy="18" r="1.6" fill="#d9d4cc"/>
+                <circle cx="27" cy="18" r="1.6" fill="#d9d4cc"/>
+              </g>
+              <text x="330" y="266" font-size="11" font-weight="700" fill="#8a847c" font-family="Manrope,sans-serif">5</text>
+            </g>
+            <g>
+              <rect x="390" y="250" width="58" height="72" rx="7" fill="#f3ebe3" stroke="#d4cbc0"/>
+              <rect x="396" y="278" width="46" height="36" rx="4" fill="#efe6da"/>
+              <!-- mini car -->
+              <g transform="translate(400,286)">
+                <rect x="4" y="8" width="30" height="10" rx="3" fill="#7a1f2b"/>
+                <rect x="10" y="2" width="16" height="8" rx="2" fill="#7a1f2b"/>
+                <circle cx="11" cy="18" r="4" fill="#2a2724"/>
+                <circle cx="27" cy="18" r="4" fill="#2a2724"/>
+                <circle cx="11" cy="18" r="1.6" fill="#d9d4cc"/>
+                <circle cx="27" cy="18" r="1.6" fill="#d9d4cc"/>
+              </g>
+              <text x="398" y="266" font-size="11" font-weight="700" fill="#8a847c" font-family="Manrope,sans-serif">18</text>
+            </g>
+            <g>
+              <rect x="458" y="250" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="487.0" y="291.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">14</text>
+            </g>
+            <g>
+              <rect x="118" y="332" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="147.0" y="373.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">2</text>
+            </g>
+            <g>
+              <rect x="186" y="332" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="215.0" y="373.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">21</text>
+            </g>
+            <g>
+              <rect x="254" y="332" width="58" height="72" rx="7" fill="#f3ebe3" stroke="#d4cbc0"/>
+              <rect x="260" y="360" width="46" height="36" rx="4" fill="#efe6da"/>
+              <!-- mini car -->
+              <g transform="translate(264,368)">
+                <rect x="4" y="8" width="30" height="10" rx="3" fill="#ff5a00"/>
+                <rect x="10" y="2" width="16" height="8" rx="2" fill="#ff5a00"/>
+                <circle cx="11" cy="18" r="4" fill="#2a2724"/>
+                <circle cx="27" cy="18" r="4" fill="#2a2724"/>
+                <circle cx="11" cy="18" r="1.6" fill="#d9d4cc"/>
+                <circle cx="27" cy="18" r="1.6" fill="#d9d4cc"/>
+              </g>
+              <text x="262" y="348" font-size="11" font-weight="700" fill="#8a847c" font-family="Manrope,sans-serif">12</text>
+            </g>
+            <g>
+              <rect x="322" y="332" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="351.0" y="373.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">9</text>
+            </g>
+            <g>
+              <rect x="390" y="332" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="419.0" y="373.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">16</text>
+            </g>
+            <g>
+              <rect x="458" y="332" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="487.0" y="373.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">6</text>
+            </g>
+            <g>
+              <rect x="118" y="414" width="58" height="72" rx="7" fill="#f3ebe3" stroke="#d4cbc0"/>
+              <rect x="124" y="442" width="46" height="36" rx="4" fill="#efe6da"/>
+              <!-- mini car -->
+              <g transform="translate(128,450)">
+                <rect x="4" y="8" width="30" height="10" rx="3" fill="#2c3e50"/>
+                <rect x="10" y="2" width="16" height="8" rx="2" fill="#2c3e50"/>
+                <circle cx="11" cy="18" r="4" fill="#2a2724"/>
+                <circle cx="27" cy="18" r="4" fill="#2a2724"/>
+                <circle cx="11" cy="18" r="1.6" fill="#d9d4cc"/>
+                <circle cx="27" cy="18" r="1.6" fill="#d9d4cc"/>
+              </g>
+              <text x="126" y="430" font-size="11" font-weight="700" fill="#8a847c" font-family="Manrope,sans-serif">23</text>
+            </g>
+            <g>
+              <rect x="186" y="414" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="215.0" y="455.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">4</text>
+            </g>
+            <g>
+              <rect x="254" y="414" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="283.0" y="455.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">17</text>
+            </g>
+            <g>
+              <rect x="322" y="414" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="351.0" y="455.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">13</text>
+            </g>
+            <g>
+              <rect x="390" y="414" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="419.0" y="455.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">10</text>
+            </g>
+            <g>
+              <rect x="458" y="414" width="58" height="72" rx="7" fill="#fffdf9" stroke="#d7cfc4"/>
+              <text x="487.0" y="455.0" text-anchor="middle" font-size="16" font-weight="800" fill="#3a3530" font-family="Barlow Condensed,sans-serif">20</text>
+            </g>
+  </g>
+</svg>
