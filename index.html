@@ -249,6 +249,9 @@ select.pill::before{display:none}
 .f input,.f select,.f textarea{border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:9px 11px;width:100%}
 .f textarea{min-height:76px;resize:vertical}
 .f input:focus,.f select:focus,.f textarea:focus{outline:2px solid color-mix(in srgb,var(--accent) 60%,transparent);border-color:var(--accent)}
+.opanels{display:grid;gap:16px}.opanel{overflow:hidden}.opanel-h{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line);font-size:16px}.opanel .modal-b{grid-template-columns:repeat(4,1fr)}.opanel .f.full{grid-column:1/-1}
+@media (max-width:1100px){.opanel .modal-b{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.opanel .modal-b{grid-template-columns:1fr}}
 .calc{grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--accent-2) 10%,var(--surface-2));font-size:14px}
 
 .toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:60}
@@ -373,7 +376,9 @@ const I = {
 const ic = (n, s=18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
 
 /* ---------- domain ---------- */
-const ORDER_ST = [["nowe","Nowe","var(--info)"],["zamowione","Zamówione u dostawcy","var(--violet)"],["wyslane","Wysłane","var(--warn)"],["dostarczone","Dostarczone","var(--good)"],["problem","Problem","var(--bad)"],["zwrot","Zwrot","var(--grey)"]];
+const ORDER_ST = [["nowe","Nowe","var(--info)"],["zamowione","W realizacji","var(--violet)"],["wyslane","Wysłane","var(--warn)"],["problem","Problem","var(--bad)"],["zwrot","Zwrot","var(--grey)"]];
+/* status zamówienia: brak lub nieznany (np. dawne "dostarczone") → Nowe */
+const ost = o => ORDER_ST.some(x=>x[0]===o.status) ? o.status : "nowe";
 const PAY_ST = [["oczekuje","Płatność: oczekuje","var(--warn)"],["oplacone","Opłacone","var(--good)"],["anulowane","Płatność anulowana","var(--grey)"],["zwrocone","Zwrot płatności","var(--bad)"]];
 const PROD_ST = [["winner","Winner","var(--good)"],["test","Test","var(--info)"],["stop","Wstrzymany","var(--grey)"]];
 const TASK_ST = [["todo","Do zrobienia","var(--info)"],["doing","W trakcie","var(--warn)"],["done","Zrobione","var(--good)"]];
@@ -456,7 +461,7 @@ let SB = null, channel = null, mode = "loading", readOnly = false, loadNote = ""
 const LINK = location.hash + "&" + location.search;
 const LINK_TYPE = (LINK.match(/type=([a-z_]+)/) || [])[1] || "";
 const LINK_ERR = decodeURIComponent(((LINK.match(/error_description=([^&]+)/) || [])[1] || "").replace(/\+/g," "));
-const UI = { orderFilter:"all", orderOwner:"all", q:{}, taskOwner:"all", period:"month", prodFilter:"all" };
+const UI = { orderFilter:"nowe", orderOwner:"all", q:{}, taskOwner:"all", period:"month", prodFilter:"all" };
 let me = ls.get("crm_me","p1");
 
 const DEFAULT_TEAM = {p1:"Ja",p2:"Michał",p3:"Agata"};
@@ -560,7 +565,7 @@ function scheduleRender(){ if(rq) return; rq = requestAnimationFrame(()=>{ rq = 
 const readyFns = [];
 const badgeFns = [];
 function navBadges(){
-  const openOrders = arr("orders").filter(o => ["nowe","zamowione","problem"].includes(o.status)).length;
+  const openOrders = arr("orders").filter(o => ["nowe","zamowione","problem"].includes(ost(o))).length;
   const openTasks = arr("tasks").filter(t => t.status !== "done" && t.owner === me).length;
   const badge = { zamowienia: openOrders, zadania: openTasks };
   for (const fn of badgeFns) { try { Object.assign(badge, fn() || {}); } catch (e) { console.error(e); } }
@@ -703,8 +708,11 @@ function render(){
 
   const focus = document.activeElement && document.activeElement.id ? {id:document.activeElement.id, s:document.activeElement.selectionStart} : null;
   const bannerHtml = (mode==="loading" && !loadNote ? `<div class="banner" style="border-color:var(--line);background:var(--surface)">Wczytuję dane…</div>` : "") + (loadNote ? `<div class="banner">${esc(loadNote)}</div>` : "") + (readOnly ? `<div class="banner">Masz dostęp tylko do podglądu. Żeby dodawać i edytować, poproś właściciela o rolę edytora.</div>` : "");
+  const dirty = [...document.querySelectorAll("form.ofrm[data-dirty]")].map(f => [f.dataset.oid, [...new FormData(f).entries()]]);
   const body = (VIEW_FNS[v] || vDash)();
   $("#main").innerHTML = bannerHtml + body;
+  dirty.forEach(([oid, entries]) => { const f = document.querySelector(`form.ofrm[data-oid="${CSS.escape(oid)}"]`); if(!f) return; f.dataset.dirty = "1"; entries.forEach(([k,val]) => { const el = f.elements[k]; if(el) el.value = val; }); });
+  document.querySelectorAll("form.ofrm").forEach(updCalcIn);
   if(focus){ const el = document.getElementById(focus.id); if(el && el.tagName === "INPUT"){ el.focus(); try{ el.setSelectionRange(focus.s, focus.s); }catch(e){} } }
   if(v === "zadania") wireDnD();
 }
@@ -725,7 +733,7 @@ function vDash(){
   const revenue = live.reduce((s,o)=>s+num(o.price),0);
   const profit = live.reduce((s,o)=>s+profitOf(o),0);
   const margin = revenue ? profit/revenue*100 : 0;
-  const delivered = orders.filter(o=>o.status==="dostarczone").length;
+  const shipped = orders.filter(o=>ost(o)==="wyslane").length;
 
   const st = S.settings || {};
   const goal = num(st.goal) || 10000, goalType = st.goalType === "revenue" ? "revenue" : "profit";
@@ -764,7 +772,7 @@ function vDash(){
      ${kpi("Przychód", fmtZl(revenue), `${fmtN(live.length)} zamówień`, "var(--accent-2)")}
      ${kpi("Zysk na czysto", fmtZl(profit), "po koszcie towaru, wysyłki i reklam", profit>=0?"var(--good)":"var(--bad)")}
      ${kpi("Średnia marża", `${margin.toFixed(1).replace(".",",")}%`, margin>=30?"zdrowo":"warto podnieść ceny lub zbić koszty", margin>=30?"var(--good)":"var(--warn)")}
-     ${kpi("Dostarczone", fmtN(delivered), `zwroty: ${orders.filter(o=>o.status==="zwrot").length}`, "var(--accent)")}
+     ${kpi("Wysłane", fmtN(shipped), `zwroty: ${orders.filter(o=>o.status==="zwrot").length}`, "var(--accent)")}
    </section>
    <section class="grid dash2" style="margin-bottom:16px">
      <div class="card pad">
@@ -814,15 +822,15 @@ function profitChart(){
 }
 function pipeline(orders){
   const n = orders.length || 1;
-  const bar = ORDER_ST.map(([k,,c]) => { const c2 = orders.filter(o=>o.status===k).length; return c2 ? `<i style="width:${c2/n*100}%;background:${c}" title="${k}"></i>` : ""; }).join("");
-  const chips = ORDER_ST.map(([k,l,c]) => `<button class="chip" data-goto-orders="${k}"><span class="dot" style="background:${c}"></span>${l} <span class="muted num">${orders.filter(o=>o.status===k).length}</span></button>`).join("");
+  const bar = ORDER_ST.map(([k,,c]) => { const c2 = orders.filter(o=>ost(o)===k).length; return c2 ? `<i style="width:${c2/n*100}%;background:${c}" title="${k}"></i>` : ""; }).join("");
+  const chips = ORDER_ST.map(([k,l,c]) => `<button class="chip" data-goto-orders="${k}"><span class="dot" style="background:${c}"></span>${l} <span class="muted num">${orders.filter(o=>ost(o)===k).length}</span></button>`).join("");
   return `<div class="pipe">${orders.length?bar:`<i style="width:100%;background:var(--line)"></i>`}</div><div class="chips">${chips}</div>`;
 }
 function attention(){
   const items = [];
   const t = TODAY();
   arr("orders").filter(o=>o.status==="problem").forEach(o => items.push({c:"var(--bad)", t:`Problem z zamówieniem #${o.number||"?"}`, s:`${nameOf("customers",o.customerId)} · ${nameOf("products",o.productId)}`, act:`data-edit="orders:${o.id}"`, who:o.owner}));
-  arr("orders").filter(o=>o.status==="nowe" && o.date && daysBetween(o.date,t)>=1).forEach(o => items.push({c:"var(--info)", t:`#${o.number||"?"} czeka na zamówienie u dostawcy`, s:`od ${daysBetween(o.date,t)} ${daysBetween(o.date,t)===1?"dnia":"dni"}`, act:`data-edit="orders:${o.id}"`, who:o.owner}));
+  arr("orders").filter(o=>ost(o)==="nowe" && o.date && daysBetween(o.date,t)>=1).forEach(o => items.push({c:"var(--info)", t:`#${o.number||"?"} czeka na realizację`, s:`od ${daysBetween(o.date,t)} ${daysBetween(o.date,t)===1?"dnia":"dni"}`, act:`data-edit="orders:${o.id}"`, who:o.owner}));
   arr("tasks").filter(x=>x.status!=="done" && x.due && x.due < t).forEach(x => items.push({c:"var(--warn)", t:`Po terminie: ${x.title||"zadanie"}`, s:`termin ${fmtDate(x.due)}`, act:`data-edit="tasks:${x.id}"`, who:x.owner}));
   arr("products").filter(p=>p.status!=="stop" && num(p.price)>0 && (num(p.price)-num(p.cost)-num(p.shipping))/num(p.price) < .3).forEach(p => items.push({c:"var(--violet)", t:`Niska marża: ${p.name}`, s:`${(((num(p.price)-num(p.cost)-num(p.shipping))/num(p.price))*100).toFixed(0)}% — sprawdź cenę`, act:`data-edit="products:${p.id}"`, who:p.owner}));
   if(!items.length) return `<div class="empty"><b>Czysto!</b>Nic nie płonie. Idealny moment, żeby przetestować nowy produkt.</div>`;
@@ -853,11 +861,12 @@ function ago(ts){ const m = Math.round((Date.now()-num(ts))/6e4); if(m<1) return
 function vOrders(){
   let list = arr("orders").sort((a,b)=> (b.date||"").localeCompare(a.date||"") || String(b.number).localeCompare(String(a.number),"pl",{numeric:true}));
   const all = list;
-  if(UI.orderFilter!=="all") list = list.filter(o=>o.status===UI.orderFilter);
+  if(!ORDER_ST.some(x=>x[0]===UI.orderFilter)) UI.orderFilter = "nowe";
+  list = list.filter(o=>ost(o)===UI.orderFilter);
   if(UI.orderOwner!=="all") list = list.filter(o=>o.owner===UI.orderOwner);
   list = list.filter(o => match("orders", o.number, nameOf("customers",o.customerId), nameOf("products",o.productId), o.tracking, o.notes));
   const sumP = list.filter(counts).reduce((s,o)=>s+profitOf(o),0), sumR = list.filter(counts).reduce((s,o)=>s+num(o.price),0);
-  const chips = [["all","Wszystkie","var(--ink)"],...ORDER_ST].map(([k,l,c]) => `<button class="chip" data-ofilter="${k}" aria-pressed="${UI.orderFilter===k}">${k!=="all"?`<span class="dot" style="background:${c}"></span>`:""}${l} <span class="num" style="opacity:.6">${k==="all"?all.length:all.filter(o=>o.status===k).length}</span></button>`).join("");
+  const chips = ORDER_ST.map(([k,l,c]) => `<button class="chip" data-ofilter="${k}" aria-pressed="${UI.orderFilter===k}"><span class="dot" style="background:${c}"></span>${l} <span class="num" style="opacity:.6">${all.filter(o=>ost(o)===k).length}</span></button>`).join("");
   const own = `<select class="btn sm" data-oowner aria-label="Opiekun"><option value="all">Wszyscy opiekunowie</option>${team().map(p=>`<option value="${p.k}" ${UI.orderOwner===p.k?"selected":""}>${esc(p.name)}</option>`).join("")}</select>`;
   const rows = list.map(o => { const pr = profitOf(o); return `<tr data-edit="orders:${o.id}">
       <td class="strong num">#${esc(o.number||"—")}${demoTag(o)}${o.source?`<div class="small muted">${esc(o.source)}${o.page_slug?` · /p/${esc(o.page_slug)}`:""}</div>`:""}</td><td class="muted num">${fmtDate(o.date)}</td>
@@ -868,12 +877,38 @@ function vOrders(){
   return topbar("Zamówienia", `Od kliknięcia klienta do paczki pod drzwiami. Zysk liczy się sam.`, newBtn("orders","Nowe zamówienie")) +
     `<div class="toolbar">${searchBox("orders","Szukaj: numer, klient, produkt, przesyłka…")}${own}<span class="muted small">Widoczne: przychód <b class="num">${fmtZl(sumR)}</b> · zysk <b class="num">${fmtZl(sumP)}</b></span></div>
      <div class="chips" style="margin-bottom:14px">${chips}</div>
-     <div class="card">${list.length ? `<div class="tbl-wrap"><table><thead><tr><th>Nr</th><th>Data</th><th>Klient</th><th>Produkt</th><th class="r">Wartość</th><th class="r">Zysk</th><th>Status</th><th>Opiekun</th><th>Przesyłka</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState("orders", all.length ? "Nic nie pasuje do filtrów." : "Pierwsze zamówienie to zawsze święto. Dodaj je!")}</div>`;
+     ${UI.orderFilter==="nowe" && list.length ? `<div class="opanels">${list.map(orderPanel).join("")}</div>` : `<div class="card">${list.length ? `<div class="tbl-wrap"><table><thead><tr><th>Nr</th><th>Data</th><th>Klient</th><th>Produkt</th><th class="r">Wartość</th><th class="r">Zysk</th><th>Status</th><th>Opiekun</th><th>Przesyłka</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState("orders", UI.orderFilter==="nowe" ? (all.length ? "Brak nowych zamówień. Wszystko ogarnięte!" : "Pierwsze zamówienie to zawsze święto. Dodaj je!") : "Brak zamówień z tym statusem.")}</div>`}`;
+}
+/* pełny panel zamówienia (zakładka Nowe) — edycja w miejscu */
+function orderPanel(o){
+  const pfx = "o-"+o.id+"-";
+  const fields = SCHEMA.orders.fields.map(f => f.t==="calc" ? `<div class="calc" data-calc></div>` : field(f, o, pfx)).join("");
+  return `<form class="card opanel ofrm" data-oid="${esc(o.id)}" novalidate>
+    <div class="opanel-h"><div><b class="num">#${esc(o.number||"—")}</b>${demoTag(o)} <span class="muted small">${fmtDate(o.date)}${o.source?` · ${esc(o.source)}`:""}</span></div>
+      <div class="row">${avatar(o.owner,26)}<span class="num ${profitOf(o)>=0?"pos":"neg"}">${fmtZl(profitOf(o))}</span></div></div>
+    <div class="modal-b">${fields}</div>
+    <div class="modal-f"><button type="button" class="btn" data-edit="orders:${esc(o.id)}">Otwórz w oknie</button><div class="row"><button type="button" class="btn" data-ostatus="${esc(o.id)}:zamowione">Przenieś do „W realizacji”</button><button type="submit" class="btn primary">Zapisz zmiany</button></div></div>
+  </form>`;
+}
+function updCalcIn(frm){
+  const g = k => num((frm.querySelector(`[name="${k}"]`)||{}).value);
+  const p = g("price"), pr = p - g("cost") - g("shipping") - g("ads"), m = p ? pr/p*100 : 0;
+  const el = frm.querySelector("[data-calc]"); if(!el) return;
+  el.innerHTML = `<span>Zysk: <b class="num ${pr>=0?"pos":"neg"}">${fmtZl(pr)}</b></span><span>Marża: <b class="num">${m.toFixed(1).replace(".",",")}%</b></span>`;
+}
+async function submitInline(frm){
+  const id = frm.dataset.oid, prev = S.orders[id]; if(!prev) return;
+  const fd = new FormData(frm), data = {...prev};
+  SCHEMA.orders.fields.forEach(f => { if(f.t==="calc") return; let v = fd.get(f.k); v = v == null ? "" : String(v).trim(); data[f.k] = f.t==="number" ? (v==="" ? "" : num(v)) : v; });
+  if(!data.number){ toast("Uzupełnij numer zamówienia."); return; }
+  delete frm.dataset.dirty;
+  if(!(await put("orders", id, data))) return;
+  if(prev.status!==data.status) afterOrderStatus(data, prev.status); else { logAct(`Zmiana: #${data.number}`); toast("Zapisano"); }
 }
 function statusSelect(col, r){
   const list = col==="orders"?ORDER_ST:col==="products"?PROD_ST:col==="shops"?SHOP_ST:BOT_ST;
-  const o = opt(list, r.status);
-  return `<select class="pill" style="--c:${o[2]}" data-quick="${col}:${r.id}" aria-label="Zmień status">${list.map(([k,l]) => `<option value="${k}" ${k===r.status?"selected":""}>${l}</option>`).join("")}</select>`;
+  const cur = col==="orders" ? ost(r) : r.status, o = opt(list, cur);
+  return `<select class="pill" style="--c:${o[2]}" data-quick="${col}:${r.id}" aria-label="Zmień status">${list.map(([k,l]) => `<option value="${k}" ${k===cur?"selected":""}>${l}</option>`).join("")}</select>`;
 }
 function emptyState(col, msg){ return `<div class="empty"><b>${msg}</b><div style="margin-top:10px">${newBtn(col,"Dodaj "+SCHEMA[col].one,false)}</div></div>`; }
 
@@ -989,6 +1024,7 @@ function nextOrderNo(){ const n = arr("orders").map(o=>parseInt(String(o.number)
 function openForm(col, id){
   const sc = SCHEMA[col]; const rec = id ? S[col][id] : null;
   const r = rec ? {...rec} : {...DEFAULTS[col], owner:me};
+  if(col==="orders") r.status = ost(r);
   if(!rec && col==="orders"){ r.number = nextOrderNo(); r.date = TODAY(); }
   if(!rec && col==="tasks"){ r.due = ""; }
   modalCtx = {col, id: id || uid(col.slice(0,2)), isNew: !rec, prev: rec};
@@ -1000,9 +1036,9 @@ function openForm(col, id){
   </form>`);
   if(col==="orders") updCalc();
 }
-function field(f, r){
+function field(f, r, pfx="f-"){
   const v = r[f.k] ?? "";
-  const id = "f-" + f.k;
+  const id = pfx + f.k;
   const wrap = (inner) => `<div class="f ${f.full?"full":""}"><label for="${id}">${f.l}</label>${inner}</div>`;
   switch(f.t){
     case "calc": return `<div class="calc" id="calc"></div>`;
@@ -1032,7 +1068,6 @@ async function submitForm(){
   if(!data[req]){ const el = $("#f-"+req); if(el){ el.focus(); el.setCustomValidity("Uzupełnij to pole"); el.reportValidity(); setTimeout(()=>el.setCustomValidity(""),1500); } return; }
   if(isNew) data.createdAt = Date.now();
   if(col==="tasks"){ if(data.status==="done" && (!prev || prev.status!=="done")) data.doneAt = Date.now(); if(data.status!=="done") data.doneAt = null; }
-  if(col==="orders" && data.status==="dostarczone" && (!prev || prev.status!=="dostarczone")) data.deliveredAt = Date.now();
   const okk = await put(col, id, data);
   if(!okk) return;
   closeModal();
@@ -1049,15 +1084,14 @@ async function submitForm(){
 }
 function afterOrderStatus(o, old){
   logAct(`Zamówienie #${o.number} → ${opt(ORDER_ST,o.status)[1]}`);
-  if(o.status==="dostarczone"){ celebrate(); toast(`Paczka #${o.number} u klienta! ${fmtZl(profitOf(o))} zysku w kieszeni.`); }
-  else if(o.status==="wyslane") toast(`#${o.number} w drodze. Klient czeka z niecierpliwością!`);
+  if(o.status==="wyslane") toast(`#${o.number} w drodze. Klient czeka z niecierpliwością!`);
   else if(o.status==="problem") toast(`Oznaczono problem przy #${o.number}. Ogarniemy to!`);
+  else if(o.status==="zamowione") toast(`#${o.number} w realizacji.`);
   else toast("Status zmieniony");
 }
 async function quickStatus(col, id, status){
   const r = S[col][id]; if(!r || r.status===status) return;
   const next = {...r, status};
-  if(col==="orders" && status==="dostarczone") next.deliveredAt = Date.now();
   if(await put(col, id, next)){ if(col==="orders") afterOrderStatus(next, r.status); else logAct(`${r.name} → ${status}`); }
   else scheduleRender();
 }
@@ -1185,7 +1219,7 @@ document.addEventListener("click", e => {
     $("#nav").innerHTML = navHtml(view(), navBadges());
     return;
   }
-  const t = e.target.closest("[data-nav],[data-new],[data-edit],[data-act],[data-period],[data-ofilter],[data-pfilter],[data-towner],[data-goto-orders],[data-move],[data-stop]");
+  const t = e.target.closest("[data-nav],[data-new],[data-edit],[data-act],[data-period],[data-ofilter],[data-pfilter],[data-towner],[data-goto-orders],[data-move],[data-stop],[data-ostatus]");
   if(!t) { if(e.target === $("#scrim")) closeModal(); return; }
   if(t.dataset.stop !== undefined && !e.target.closest("[data-move]")) return;
   if(t.dataset.nav){ location.hash = t.dataset.nav; return; }
@@ -1194,6 +1228,7 @@ document.addEventListener("click", e => {
   if(t.dataset.edit){ const [c,id] = t.dataset.edit.split(":"); if(S[c][id]) openForm(c,id); return; }
   if(t.dataset.period){ UI.period = t.dataset.period; render(); return; }
   if(t.dataset.ofilter){ UI.orderFilter = t.dataset.ofilter; render(); return; }
+  if(t.dataset.ostatus){ const [id,st] = t.dataset.ostatus.split(":"); const f = t.closest("form.ofrm"); if(f) delete f.dataset.dirty; quickStatus("orders", id, st); return; }
   if(t.dataset.pfilter){ UI.prodFilter = t.dataset.pfilter; render(); return; }
   if(t.dataset.towner){ UI.taskOwner = t.dataset.towner; render(); return; }
   if(t.dataset.gotoOrders){ UI.orderFilter = t.dataset.gotoOrders; location.hash = "zamowienia"; return; }
@@ -1207,11 +1242,13 @@ document.addEventListener("keydown", e => {
 document.addEventListener("input", e => {
   if(e.target.dataset.q !== undefined){ UI.q[e.target.dataset.q] = e.target.value; render(); }
   if(e.target.closest("#frm") && modalCtx && modalCtx.col==="orders") updCalc();
+  const of = e.target.closest("form.ofrm"); if(of){ of.dataset.dirty = "1"; updCalcIn(of); }
 });
 document.addEventListener("change", e => {
   const t = e.target;
   if(t.id === "meSel"){ me = t.value; ls.set("crm_me", me); render(); return; }
   if(t.dataset.quick){ const [c,id] = t.dataset.quick.split(":"); quickStatus(c, id, t.value); return; }
+  const of = t.closest("form.ofrm"); if(of){ of.dataset.dirty = "1"; updCalcIn(of); return; }
   if(t.matches("[data-oowner]")){ UI.orderOwner = t.value; render(); return; }
   if(t.id === "f-productId" && modalCtx && modalCtx.col==="orders"){
     const p = byId("products", t.value); if(!p) return; const q = num($("#f-qty").value) || 1;
@@ -1221,7 +1258,7 @@ document.addEventListener("change", e => {
     updCalc();
   }
 });
-document.addEventListener("submit", e => { e.preventDefault(); const id = e.target.id; if(id==="frm") submitForm(); else if(id==="frmS"){ if(document.activeElement && document.activeElement.id==="oa-key") openaiAction("save"); else submitSettings(); } else if(id==="gLogin") doLogin(e.target); else if(id==="gForgot") doForgot(e.target); else if(id==="gNew") doNewPass(e.target); else if(id==="frmP") submitPass(e.target); });
+document.addEventListener("submit", e => { e.preventDefault(); const id = e.target.id; if(id==="frm") submitForm(); else if(e.target.classList.contains("ofrm")) submitInline(e.target); else if(id==="frmS"){ if(document.activeElement && document.activeElement.id==="oa-key") openaiAction("save"); else submitSettings(); } else if(id==="gLogin") doLogin(e.target); else if(id==="gForgot") doForgot(e.target); else if(id==="gNew") doNewPass(e.target); else if(id==="frmP") submitPass(e.target); });
 
 /* ---------- toasts & confetti ---------- */
 function toast(msg){ if(window.NHP_BRAND) NHP_BRAND.sound("pop"); const el = document.createElement("div"); el.className = "toast"; el.textContent = msg; $("#toasts").appendChild(el); setTimeout(()=>el.remove(), 3600); }
