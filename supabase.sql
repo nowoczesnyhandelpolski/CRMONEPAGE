@@ -821,3 +821,170 @@ create policy media_permit_insert on storage.objects
   for insert to anon
   with check (bucket_id = 'media' and public.media_upload_allowed(name));
 
+-- Klucz OpenAI: tylko szyfrogram. Brak polityk SELECT. Panel dostaje last4 przez funkcję statusu.
+create table if not exists public.openai_connection (
+  id smallint primary key default 1 check (id = 1),
+  cipher text not null,
+  iv text not null,
+  last4 text not null,
+  text_model text not null,
+  image_model text not null,
+  proof text not null,
+  updated_at timestamptz not null default now(),
+  updated_by uuid
+);
+alter table public.openai_connection enable row level security;
+revoke all on public.openai_connection from anon, authenticated;
+grant all on public.openai_connection to service_role;
+
+create or replace function public.openai_connection_status()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v public.openai_connection%rowtype;
+begin
+  if not public.is_team() then
+    raise exception 'Brak uprawnień zespołu. Ten e-mail nie jest na liście allowed_emails.' using errcode = '42501';
+  end if;
+  select * into v from public.openai_connection where id = 1;
+  if not found then
+    return jsonb_build_object('has_key', false, 'last4', '', 'text_model', 'gpt-5-mini', 'image_model', 'gpt-image-1');
+  end if;
+  return jsonb_build_object(
+    'has_key', true,
+    'last4', v.last4,
+    'text_model', v.text_model,
+    'image_model', v.image_model
+  );
+end;
+$$;
+
+create or replace function public.openai_connection_save(
+  p_cipher text,
+  p_iv text,
+  p_last4 text,
+  p_text_model text,
+  p_image_model text,
+  p_proof text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_team() then
+    raise exception 'Brak uprawnień zespołu. Ten e-mail nie jest na liście allowed_emails.' using errcode = '42501';
+  end if;
+  if p_cipher is null or p_cipher !~ '^[A-Za-z0-9+/]+=*$' or length(p_cipher) < 16 or length(p_cipher) > 8000 then
+    raise exception 'Zły szyfrogram.';
+  end if;
+  if p_iv is null or p_iv !~ '^[A-Za-z0-9+/]+=*$' or length(p_iv) < 8 or length(p_iv) > 64 then
+    raise exception 'Zły wektor szyfrowania.';
+  end if;
+  if p_last4 is null or p_last4 !~ '^[A-Za-z0-9]{4}$' then
+    raise exception 'Zła końcówka klucza.';
+  end if;
+  if p_text_model is null or p_text_model !~ '^[A-Za-z0-9._:-]{1,64}$' then
+    raise exception 'Zła nazwa modelu tekstu.';
+  end if;
+  if p_image_model is null or p_image_model !~ '^[A-Za-z0-9._:-]{1,64}$' then
+    raise exception 'Zła nazwa modelu zdjęć.';
+  end if;
+  if p_proof is null or p_proof !~ '^[0-9a-f]{64}$' then
+    raise exception 'Zły dowód szyfrowania.';
+  end if;
+  insert into public.openai_connection (id, cipher, iv, last4, text_model, image_model, proof, updated_by)
+  values (1, p_cipher, p_iv, p_last4, p_text_model, p_image_model, p_proof, auth.uid())
+  on conflict (id) do update set
+    cipher = excluded.cipher,
+    iv = excluded.iv,
+    last4 = excluded.last4,
+    text_model = excluded.text_model,
+    image_model = excluded.image_model,
+    proof = excluded.proof,
+    updated_by = excluded.updated_by,
+    updated_at = now();
+end;
+$$;
+
+create or replace function public.openai_connection_models(p_text_model text, p_image_model text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_team() then
+    raise exception 'Brak uprawnień zespołu. Ten e-mail nie jest na liście allowed_emails.' using errcode = '42501';
+  end if;
+  if p_text_model is null or p_text_model !~ '^[A-Za-z0-9._:-]{1,64}$' then
+    raise exception 'Zła nazwa modelu tekstu.';
+  end if;
+  if p_image_model is null or p_image_model !~ '^[A-Za-z0-9._:-]{1,64}$' then
+    raise exception 'Zła nazwa modelu zdjęć.';
+  end if;
+  update public.openai_connection
+     set text_model = p_text_model, image_model = p_image_model, updated_at = now(), updated_by = auth.uid()
+   where id = 1;
+  if not found then
+    raise exception 'Najpierw zapisz klucz OpenAI.';
+  end if;
+end;
+$$;
+
+create or replace function public.openai_connection_clear()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_team() then
+    raise exception 'Brak uprawnień zespołu. Ten e-mail nie jest na liście allowed_emails.' using errcode = '42501';
+  end if;
+  delete from public.openai_connection where id = 1;
+end;
+$$;
+
+-- Szyfrogram tylko dla wywołania z dowodem sha256(NHP_ENC_KEY). Sam dowód nie odszyfrowuje klucza.
+create or replace function public.openai_connection_cipher(p_proof text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v public.openai_connection%rowtype;
+begin
+  if not public.is_team() then
+    raise exception 'Brak uprawnień zespołu. Ten e-mail nie jest na liście allowed_emails.' using errcode = '42501';
+  end if;
+  if p_proof is null or p_proof !~ '^[0-9a-f]{64}$' then
+    raise exception 'Brak dostępu do zapisanego klucza.' using errcode = '42501';
+  end if;
+  select * into v from public.openai_connection where id = 1;
+  if not found then
+    return null;
+  end if;
+  if v.proof is distinct from p_proof then
+    raise exception 'Brak dostępu do zapisanego klucza.' using errcode = '42501';
+  end if;
+  return jsonb_build_object('cipher', v.cipher, 'iv', v.iv, 'text_model', v.text_model, 'image_model', v.image_model);
+end;
+$$;
+
+revoke all on function public.openai_connection_status() from public, anon;
+revoke all on function public.openai_connection_save(text, text, text, text, text, text) from public, anon;
+revoke all on function public.openai_connection_models(text, text) from public, anon;
+revoke all on function public.openai_connection_clear() from public, anon;
+revoke all on function public.openai_connection_cipher(text) from public, anon;
+grant execute on function public.openai_connection_status() to authenticated, service_role;
+grant execute on function public.openai_connection_save(text, text, text, text, text, text) to authenticated, service_role;
+grant execute on function public.openai_connection_models(text, text) to authenticated, service_role;
+grant execute on function public.openai_connection_clear() to authenticated, service_role;
+grant execute on function public.openai_connection_cipher(text) to authenticated, service_role;
+

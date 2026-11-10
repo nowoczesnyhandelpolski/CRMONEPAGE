@@ -1,4 +1,5 @@
 import { CORS, json, readJson } from "../../_util.js";
+import { handleOpenAI, scrubSecrets } from "../../../lib/openai-secret.mjs";
 import { mintApiKey, sha256Hex, userRpc } from "../../../lib/supabase-rest.mjs";
 
 function parts(context) {
@@ -23,10 +24,14 @@ export async function onRequest(context) {
       await userRpc(context.request, context.env, "revoke_api_key", { p_id: path[1] });
       return json({ ok: true }, 200, CORS);
     }
+    if (path[0] === "openai") {
+      const body = await handleOpenAI(context.request, context.env, path.slice(1));
+      return json(body, 200, CORS);
+    }
     return json({ ok: false, error: "Nie ma takiej ścieżki." }, 404, CORS);
   } catch (err) {
     const status = err.status || 500;
-    const message = String(err.message || "Nie udało się zapisać klucza.").slice(0, 300);
+    const message = scrubSecrets(err.message || "Nie udało się zapisać klucza.", [context.env?.OPENAI_API_KEY, context.env?.NHP_ENC_KEY]).slice(0, 300);
     console.log(JSON.stringify({ msg: "panel_error", status, error: message }));
     return json({ ok: false, error: message }, status >= 400 && status < 600 ? status : 500, CORS);
   }

@@ -1,5 +1,6 @@
 import { json, readJson } from "../../_util.js";
 import { applyCopyToPage, copyPrompt, COPY_SCHEMA, photoPrompt, scenesForTier } from "../../../lib/copy-prompt.mjs";
+import { resolveOpenAIConfig, scrubSecrets } from "../../../lib/openai-secret.mjs";
 import { cleanSiteData } from "../../../lib/site-model.mjs";
 import { supabaseProject, supabaseRest, teamUser } from "../../../lib/supabase-rest.mjs";
 import { tierById } from "../../../lib/tiers.mjs";
@@ -51,32 +52,26 @@ async function sourceFor(env, body) {
   };
 }
 
-async function runText(env, source) {
-  if (!env.OPENAI_API_KEY) {
-    const err = new Error("Brak OPENAI_API_KEY w sekretach Cloudflare.");
-    err.status = 500;
-    throw err;
-  }
-  const model = String(env.OPENAI_MODEL || "gpt-5-mini");
+async function runText(ai, source) {
   const res = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
-    headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" },
+    headers: { authorization: `Bearer ${ai.apiKey}`, "content-type": "application/json" },
     body: JSON.stringify({
-      model,
+      model: ai.textModel,
       input: copyPrompt(source),
       text: { format: { type: "json_schema", name: "copy", strict: true, schema: COPY_SCHEMA } }
     })
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error(data.error?.message || "OpenAI nie zwróciło tekstu.");
+    const err = new Error(scrubSecrets(data.error?.message || "OpenAI nie zwróciło tekstu.", [ai.apiKey]));
     err.status = 502;
     throw err;
   }
   let copy;
   try { copy = JSON.parse(textFrom(data)); }
   catch { const err = new Error("Model nie zwrócił JSON."); err.status = 502; throw err; }
-  return { copy, model };
+  return { copy, model: ai.textModel };
 }
 
 async function uploadBytes(env, path, bytes, mime) {
@@ -93,7 +88,7 @@ async function uploadBytes(env, path, bytes, mime) {
   return `${url}/storage/v1/object/public/media/${path}`;
 }
 
-async function runImage(env, source, scene) {
+async function runImage(env, ai, source, scene) {
   const src = (source.images || []).find((u) => /^https?:\/\//.test(u));
   if (!src) {
     const err = new Error("Brak zdjęcia źródłowego do edycji.");
@@ -109,7 +104,7 @@ async function runImage(env, source, scene) {
     throw err;
   }
   const fd = new FormData();
-  const model = String(env.OPENAI_IMAGE_MODEL || "gpt-image-1");
+  const model = ai.imageModel;
   fd.append("model", model);
   fd.append("prompt", photoPrompt(scene, source.catalog_name));
   fd.append("image", new Blob([buf], { type: mime }), "produkt.jpg");
@@ -120,12 +115,12 @@ async function runImage(env, source, scene) {
   fd.append("n", "1");
   const res = await fetch("https://api.openai.com/v1/images/edits", {
     method: "POST",
-    headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` },
+    headers: { authorization: `Bearer ${ai.apiKey}` },
     body: fd
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data?.data?.[0]?.b64_json) {
-    const err = new Error(data?.error?.message || "OpenAI nie zwróciło zdjęcia.");
+    const err = new Error(scrubSecrets(data?.error?.message || "OpenAI nie zwróciło zdjęcia.", [ai.apiKey]));
     err.status = 502;
     throw err;
   }
@@ -195,6 +190,7 @@ function publicJob(row) {
 
 export async function onRequest(context) {
   const { request, env } = context;
+  const held = [];
   try {
     const user = await teamUser(request, env);
     if (!user) return json({ ok: false, error: "Zaloguj się na konto zespołu." }, 401);
@@ -217,7 +213,9 @@ export async function onRequest(context) {
         return json({ ok: true, job: publicJob({ ...job, status, result }) });
       }
       try {
-        const image = await runImage(env, job.payload.source, scene);
+        const ai = await resolveOpenAIConfig(env, request);
+        held.push(ai.apiKey);
+        const image = await runImage(env, ai, job.payload.source, scene);
         const file = `${job.id}/${scene.id}.webp`;
         const url = await uploadBytes(env, file, image.bytes, "image/webp");
         await attachImage(env, job, url);
@@ -251,7 +249,9 @@ export async function onRequest(context) {
       if (!tier) return json({ ok: false, error: "Wybierz poziom S1, S1 Pro albo S1 Max." }, 400);
       const loaded = await sourceFor(env, body);
       if (!loaded.page && !loaded.product) return json({ ok: false, error: "Wskaż stronę albo produkt." }, 400);
-      const { copy, model } = await runText(env, loaded.source);
+      const ai = await resolveOpenAIConfig(env, request);
+      held.push(ai.apiKey);
+      const { copy, model } = await runText(ai, loaded.source);
       const scenes = scenesForTier(tier);
       const result = { copy, video: tier.video && !scenes.length ? "panel" : tier.video ? "after_images" : "off", images: [] };
       const status = scenes.length ? "running" : "ready";
@@ -280,7 +280,9 @@ export async function onRequest(context) {
     return json({ ok: false, error: "Nie ma takiej ścieżki." }, 404);
   } catch (err) {
     const status = err.status || 500;
-    console.log(JSON.stringify({ msg: "generate_error", status, error: String(err.message || err).slice(0, 240) }));
-    return json({ ok: false, error: err.message || "Generacja nie powiodła się." }, status >= 500 ? (err.status || 500) : status);
+    const message = scrubSecrets(err.message || "Generacja nie powiodła się.", [...held, env.OPENAI_API_KEY, env.NHP_ENC_KEY]).slice(0, 300);
+    held.length = 0;
+    console.log(JSON.stringify({ msg: "generate_error", status, error: message.slice(0, 240) }));
+    return json({ ok: false, error: message }, status >= 500 ? (err.status || 500) : status);
   }
 }

@@ -97,6 +97,7 @@ a{color:var(--accent)}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 
 .btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);padding:9px 15px;border-radius:12px;font-weight:600;cursor:pointer;transition:transform .12s ease,background .15s,box-shadow .15s,color .15s}
+.btn:disabled{opacity:.45;cursor:not-allowed}
 .btn:hover{background:var(--surface-2)}
 .btn:active{transform:translateY(1px)}
 .btn.primary{background:var(--navy);border-color:var(--navy);color:#fff;box-shadow:inset 0 -4px 0 var(--red),0 6px 16px -4px rgba(19,41,75,.45);padding-bottom:11px}
@@ -1076,10 +1077,12 @@ function openSettings(){
       <div class="f"><label for="s-goal">Cel miesięczny (zł)</label><input id="s-goal" name="goal" inputmode="decimal" value="${esc(st.goal||10000)}"></div>
       <div class="f"><label for="s-gt">Cel liczymy jako</label><select id="s-gt" name="goalType"><option value="profit" ${st.goalType!=="revenue"?"selected":""}>Zysk na czysto</option><option value="revenue" ${st.goalType==="revenue"?"selected":""}>Przychód</option></select></div>
       <div class="f full"><label>Przykładowe dane</label><div class="row"><span class="small muted">${demoCount ? `${demoCount} wpisów oznaczonych jako „przykład”. Usuń je, gdy zaczniecie wpisywać prawdziwe dane.` : "Brak przykładowych danych. Wszystko tu jest Wasze."}</span>${demoCount?`<button type="button" class="btn danger sm" data-act="cleardemo">Usuń przykładowe dane</button>`:""}</div></div>
+      <div class="f full" id="openaiBox"><p class="small muted">Ładuję połączenie z OpenAI…</p></div>
       <div class="f full"><label>Konto</label><span class="small muted">Zalogowano jako <b>${esc(sessionEmail)}</b>. Dane są we wspólnej bazie, zmiany wspólników widać na żywo.</span></div>
     </div>
     <div class="modal-f"><span></span><div class="row"><button type="button" class="btn" data-act="close">Anuluj</button><button type="submit" class="btn primary">Zapisz</button></div></div>
   </form>`);
+  refreshOpenAIBox();
 }
 async function submitSettings(){
   const fd = new FormData($("#frmS"));
@@ -1087,6 +1090,55 @@ async function submitSettings(){
   await putSettings({team:t, emails:em, goal: num(fd.get("goal")) || 10000, goalType: fd.get("goalType")==="revenue"?"revenue":"profit"});
   autoMe();
   closeModal(); toast("Ustawienia zapisane");
+}
+function paintOpenAI(data){
+  const box = $("#openaiBox");
+  if(!box) return;
+  const text = data.text_model || "gpt-5-mini";
+  const image = data.image_model || "gpt-image-1";
+  const mask = data.has_key && data.mask ? data.mask : "";
+  box.innerHTML = `<label>Połączenie z OpenAI</label>
+    <p class="small muted">${mask ? `Zapisany klucz: <b>${esc(mask)}</b>. Pełny klucz nie wraca do przeglądarki.` : "Klucz nie jest zapisany. Po zapisie zobaczysz tylko końcówkę, na przykład sk-…abcd."} Generacja użyje OPENAI_API_KEY z Cloudflare, jeśli jest ustawiony. W przeciwnym razie użyje klucza z tego pola.</p>
+    ${data.message ? `<p class="banner" id="openaiNote">${esc(data.message)}</p>` : `<p class="small" id="openaiNote"></p>`}
+    <div class="f"><label for="oa-key">Klucz API</label><input id="oa-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…"></div>
+    <div class="f"><label for="oa-text">Model tekstu</label><input id="oa-text" value="${esc(text)}" autocomplete="off" spellcheck="false"></div>
+    <div class="f"><label for="oa-image">Model zdjęć</label><input id="oa-image" value="${esc(image)}" autocomplete="off" spellcheck="false"></div>
+    <div class="row">
+      <button type="button" class="btn primary sm" data-act="openai-save" ${data.enc_ready===false?"disabled":""}>Zapisz klucz</button>
+      <button type="button" class="btn sm" data-act="openai-test">Sprawdź połączenie</button>
+      <button type="button" class="btn danger sm" data-act="openai-delete" ${data.has_key?"":"disabled"}>Usuń klucz</button>
+    </div>`;
+}
+async function refreshOpenAIBox(){
+  const box = $("#openaiBox");
+  if(!box) return;
+  try {
+    const { panelFetch } = await import("./lib/panel-api.mjs");
+    paintOpenAI(await panelFetch(SB, "/api/panel/openai"));
+  } catch (e) {
+    paintOpenAI({ enc_ready: false, has_key: false, text_model: "gpt-5-mini", image_model: "gpt-image-1", message: e.message || "Nie udało się odczytać połączenia." });
+  }
+}
+async function openaiAction(kind){
+  const key = ($("#oa-key") && $("#oa-key").value || "").trim();
+  const text_model = ($("#oa-text") && $("#oa-text").value || "").trim();
+  const image_model = ($("#oa-image") && $("#oa-image").value || "").trim();
+  if(kind==="delete" && !confirm("Usunąć zapisany klucz OpenAI?")) return;
+  const note = $("#openaiNote");
+  try {
+    const { panelFetch } = await import("./lib/panel-api.mjs");
+    let data;
+    if(kind==="delete") data = await panelFetch(SB, "/api/panel/openai", { method: "DELETE" });
+    else if(kind==="test") data = await panelFetch(SB, "/api/panel/openai/test", { method: "POST", body: key ? { api_key: key, text_model, image_model } : { text_model, image_model } });
+    else data = await panelFetch(SB, "/api/panel/openai", { method: "POST", body: { api_key: key, text_model, image_model } });
+    toast(data.message || "Gotowe");
+    if(kind==="test"){ if(note) note.textContent = data.message || ""; }
+    else await refreshOpenAIBox();
+  } catch (e) {
+    const msg = e.message || "Nie udało się.";
+    toast(msg);
+    if(note) note.textContent = msg;
+  }
 }
 async function clearDemo(){
   const btn = $("#modal [data-act='cleardemo']");
@@ -1144,7 +1196,7 @@ document.addEventListener("click", e => {
   if(t.dataset.towner){ UI.taskOwner = t.dataset.towner; render(); return; }
   if(t.dataset.gotoOrders){ UI.orderFilter = t.dataset.gotoOrders; location.hash = "zamowienia"; return; }
   const a = t.dataset.act;
-  if(a==="close") closeModal(); else if(a==="settings") openSettings(); else if(a==="del") confirmDelete(); else if(a==="cleardemo") clearDemo(); else if(a==="logout") SB.auth.signOut(); else if(a==="setpass") openPass();
+  if(a==="close") closeModal(); else if(a==="settings") openSettings(); else if(a==="del") confirmDelete(); else if(a==="cleardemo") clearDemo(); else if(a==="logout") SB.auth.signOut(); else if(a==="setpass") openPass(); else if(a==="openai-save") openaiAction("save"); else if(a==="openai-test") openaiAction("test"); else if(a==="openai-delete") openaiAction("delete");
 });
 document.addEventListener("keydown", e => {
   if(e.key === "Escape" && $("#scrim").classList.contains("open")) closeModal();
@@ -1167,7 +1219,7 @@ document.addEventListener("change", e => {
     updCalc();
   }
 });
-document.addEventListener("submit", e => { e.preventDefault(); const id = e.target.id; if(id==="frm") submitForm(); else if(id==="frmS") submitSettings(); else if(id==="gLogin") doLogin(e.target); else if(id==="gForgot") doForgot(e.target); else if(id==="gNew") doNewPass(e.target); else if(id==="frmP") submitPass(e.target); });
+document.addEventListener("submit", e => { e.preventDefault(); const id = e.target.id; if(id==="frm") submitForm(); else if(id==="frmS"){ if(document.activeElement && document.activeElement.id==="oa-key") openaiAction("save"); else submitSettings(); } else if(id==="gLogin") doLogin(e.target); else if(id==="gForgot") doForgot(e.target); else if(id==="gNew") doNewPass(e.target); else if(id==="frmP") submitPass(e.target); });
 
 /* ---------- toasts & confetti ---------- */
 function toast(msg){ if(window.NHP_BRAND) NHP_BRAND.sound("pop"); const el = document.createElement("div"); el.className = "toast"; el.textContent = msg; $("#toasts").appendChild(el); setTimeout(()=>el.remove(), 3600); }
