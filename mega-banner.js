@@ -142,6 +142,7 @@
       <div class="mg-tools">
         <button type="button" data-mg="wind">🌬️ <span>Więcej wiatru!</span></button>
         <button type="button" data-mg="party">🎆 <span>Fajerwerki</span></button>
+        <button type="button" data-mg="drive" aria-pressed="false">🚐 <span>Prowadź!</span></button>
         <button type="button" data-mg="fold" aria-expanded="true">🙈 <span>Schowaj</span></button>
       </div>
       <div class="mg-ticker" aria-hidden="true"><div>${SLOGANS.concat(SLOGANS).map(s => `<span>${s}</span>`).join("")}</div></div>`;
@@ -152,7 +153,8 @@
     let wind = Math.min(WINDS.length - 1, parseInt(store.get("nhp_mega_wind", "2"), 10) || 0);
     let W = 0, H = 0, dpr = 1, t0 = performance.now(), running = true, visible = true;
     const confetti = [], sparks = [], stars = [];
-    let van = { x: -300, nextAt: performance.now() + 2500 };
+    let van = { x: -300, nextAt: performance.now() + 2500, drive: false, vx: 0, jy: 0, vy: 0, face: 1, honk: 0 };
+    const dk = { left: false, right: false };
     let nextFirework = performance.now() + 1200;
 
     function setWind(i) {
@@ -213,13 +215,28 @@
     confettiBurst(reduced ? 0 : 50);
 
     function drawVan(now) {
-      if (now < van.nextAt) return;
-      van.x += 6 + wind * 2.5;
+      if (van.drive) {
+        if (dk.left) { van.vx = Math.max(-9, van.vx - .6); van.face = -1; }
+        if (dk.right) { van.vx = Math.min(9, van.vx + .6); van.face = 1; }
+        if (!dk.left && !dk.right) van.vx *= .93;
+        van.x += van.vx;
+        if (van.x < -100) van.x = W + 10; if (van.x > W + 10) van.x = -100;
+        van.vy += .7; van.jy += van.vy; if (van.jy > 0) { van.jy = 0; van.vy = 0; }
+      } else {
+        if (now < van.nextAt) return;
+        van.x += 6 + wind * 2.5;
+      }
+      ctx.save();
+      if (van.drive) { ctx.translate(van.x + 46, van.jy); ctx.scale(van.face, 1); ctx.translate(-(van.x + 46), 0); }
+      if (van.honk > 0) { van.honk--; ctx.fillStyle = "#ffd34d"; ctx.font = "900 22px Poppins, system-ui, sans-serif"; ctx.save(); ctx.translate(van.x + 100, H - 90); ctx.scale(van.face, 1); ctx.fillText("TRĄBI! 📯", 0, 0); ctx.restore(); }
       const y = H - 62, x = van.x;
+      const fast = !van.drive || Math.abs(van.vx) > 3;
       // smuga rakietowa
-      const tr = ctx.createLinearGradient(x - 140, 0, x, 0);
-      tr.addColorStop(0, "rgba(255,120,0,0)"); tr.addColorStop(1, "rgba(255,200,60,.9)");
-      ctx.fillStyle = tr; ctx.beginPath(); ctx.moveTo(x - 140, y + 8); ctx.lineTo(x, y + 2); ctx.lineTo(x, y + 18); ctx.closePath(); ctx.fill();
+      if (fast) {
+        const tr = ctx.createLinearGradient(x - 140, 0, x, 0);
+        tr.addColorStop(0, "rgba(255,120,0,0)"); tr.addColorStop(1, "rgba(255,200,60,.9)");
+        ctx.fillStyle = tr; ctx.beginPath(); ctx.moveTo(x - 140, y + 8); ctx.lineTo(x, y + 2); ctx.lineTo(x, y + 18); ctx.closePath(); ctx.fill();
+      }
       // furgonetka
       ctx.fillStyle = "#ffffff"; ctx.fillRect(x, y - 4, 70, 26);
       ctx.fillStyle = "#C8102E"; ctx.fillRect(x, y + 9, 70, 6);
@@ -232,7 +249,8 @@
       const wv = Math.sin(now / 60) * 3;
       ctx.fillStyle = "#fff"; ctx.fillRect(x + 6, y - 26 + wv * .3, 16, 5);
       ctx.fillStyle = "#C8102E"; ctx.fillRect(x + 6, y - 21 + wv * .3, 16, 5);
-      if (van.x > W + 200) { van.x = -300; van.nextAt = now + 6000 + Math.random() * 8000; }
+      ctx.restore();
+      if (!van.drive && van.x > W + 200) { van.x = -300; van.nextAt = now + 6000 + Math.random() * 8000; }
     }
 
     function frame(now) {
@@ -313,6 +331,44 @@
       setWind((wind + 1) % WINDS.length); whoosh();
       if (wind === WINDS.length - 1) { el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); }
       if (reduced) drawStatic();
+    });
+    const driveBtn = el.querySelector('[data-mg="drive"]');
+    function honk() {
+      van.honk = 40;
+      if (!soundOn()) return;
+      try { const A = window.AudioContext || window.webkitAudioContext; const a = new A(); [392, 523].forEach(f => { const o = a.createOscillator(), g = a.createGain(); o.type = "square"; o.frequency.value = f; g.gain.setValueAtTime(.06, a.currentTime); g.gain.exponentialRampToValueAtTime(.001, a.currentTime + .45); o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + .5); }); setTimeout(() => a.close(), 800); } catch (e) {}
+    }
+    function setDrive(on) {
+      van.drive = on; driveBtn.setAttribute("aria-pressed", String(on));
+      driveBtn.innerHTML = on ? "🅿️ <span>Parkuj</span>" : "🚐 <span>Prowadź!</span>";
+      dk.left = dk.right = false;
+      if (on) { van.x = W / 2 - 46; van.vx = 0; van.jy = 0; van.vy = 0; van.face = 1; el.classList.remove("mini"); start(); flash("⬅️➡️ jazda · ⬆️/Spacja skok · H klakson · Esc parking"); }
+      else { van.x = -300; van.nextAt = performance.now() + 3000; }
+    }
+    function flash(t) { const m = el.querySelector(".mg-wind"); if (!m) return; const o = m.textContent; m.textContent = t; m.style.opacity = 1; setTimeout(() => { m.textContent = o; m.style.opacity = ""; }, 3500); }
+    driveBtn.addEventListener("click", () => setDrive(!van.drive));
+    const typing = e => { const t = e.target; return t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)); };
+    document.addEventListener("keydown", e => {
+      if (!van.drive || typing(e) || (document.getElementById("arc") && document.getElementById("arc").classList.contains("open"))) return;
+      const k = e.key;
+      if (k === "ArrowLeft" || k === "a" || k === "A") dk.left = true;
+      else if (k === "ArrowRight" || k === "d" || k === "D") dk.right = true;
+      else if ((k === "ArrowUp" || k === " " || k === "w" || k === "W") && !e.repeat) { if (van.jy === 0) { van.vy = -13; whoosh(); } }
+      else if (k === "h" || k === "H") honk();
+      else if (k === "Escape") setDrive(false);
+      else if (k === "ArrowDown") {}
+      else return;
+      e.preventDefault();
+    });
+    document.addEventListener("keyup", e => {
+      if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") dk.left = false;
+      if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") dk.right = false;
+    });
+    cv.addEventListener("pointerdown", e => {
+      if (!van.drive) return;
+      const r = cv.getBoundingClientRect(), px = (e.clientX - r.left) / r.width * W;
+      if (Math.abs(px - (van.x + 46)) < 60) { if (van.jy === 0) van.vy = -13; honk(); }
+      else { van.vx = px > van.x ? 8 : -8; van.face = px > van.x ? 1 : -1; }
     });
     const foldBtn = el.querySelector('[data-mg="fold"]');
     function setFold(mini) {
