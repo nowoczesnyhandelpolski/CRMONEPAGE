@@ -4,6 +4,8 @@ Wspólny panel firmy (dropshipping) i generator jednostronicowych kart produktó
 
 Cały interfejs jest po polsku.
 
+Motyw panelu wynika z logo: granat `#13294B`, biel i czerwień `#C8102E`, krój Poppins. Biało-czerwona wstęga wraca w nawigacji, przyciskach, paskach postępu i banerach. Każdy widok ma animowaną scenę (mapa dostaw, taśma paczek, statek z kontenerami, półki, klienci, sklep z botem i inne), logowanie ma ekran z mapą i jadącą furgonetką, a po zalogowaniu wyświetla się krótkie intro z logo. Dźwięki panelu (zamówienie, zadanie, powiadomienie) są syntezowane w przeglądarce i można je wyłączyć przyciskiem „Dźwięki”. Przy ustawieniu systemowym „ogranicz ruch” animacje się wyłączają.
+
 ## Co jest w środku
 
 Panel (`index.html`, logowanie e-mail + hasło):
@@ -49,6 +51,8 @@ Nie ma wiecznego licznika promocji. Zdanie o wysyłce mówi, ile zostało do god
 - `index.html` — panel
 - `generator.js` — widok Generator stron, Leady, Wiadomości
 - `prompty.js` + `lib/prompt-builder.mjs` — Generator promptów
+- `brand.js` — sceny SVG, ekran logowania, intro, dźwięki
+- `assets/brand/` — logo (kolorowe i białe) oraz ikona/favicon
 - `config.js` — adres Supabase i klucz **publishable** (publiczny z założenia)
 - `lib/` — czyszczenie danych, szablon, walidacja zamówień (wspólne dla testów i Functions)
 - `functions/` — Pages Functions
