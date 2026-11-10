@@ -444,8 +444,8 @@ const SCHEMA = {
     {k:"number",l:"Nr zamówienia",t:"text"},{k:"date",l:"Data",t:"date"},
     {k:"customerId",l:"Klient",t:"ref",ref:"customers"},{k:"productId",l:"Produkt",t:"ref",ref:"products"},
     {k:"shopId",l:"Sklep",t:"ref",ref:"shops"},{k:"qty",l:"Ilość (szt.)",t:"number"},
-    {k:"price",l:"Wartość sprzedaży (zł)",t:"number"},{k:"cost",l:"Koszt produktu (zł)",t:"number"},
-    {k:"shipping",l:"Koszt wysyłki (zł)",t:"number"},{k:"ads",l:"Reklama i prowizje (zł)",t:"number"},
+    {k:"price",l:"Kwota wpłacona przez klienta (zł, razem z wysyłką)",t:"number"},{k:"ship_paid",l:"W tym wysyłka zapłacona przez klienta (zł)",t:"number"},
+    {k:"cost",l:"Koszt produktu (zł)",t:"number"},{k:"shipping",l:"Nasz koszt wysyłki (zł)",t:"number"},{k:"ads",l:"Reklama i prowizje (zł)",t:"number"},
     {k:"calc",t:"calc"},
     {k:"status",l:"Status",t:"select",opts:ORDER_ST},{k:"owner",l:"Opiekun",t:"person"},
     {k:"tracking",l:"Numer przesyłki",t:"text"},{k:"carrier",l:"Przewoźnik",t:"text"},
@@ -523,6 +523,8 @@ const byId = (c,id) => (id && S[c][id]) || null;
 const nameOf = (c,id) => { const r = byId(c,id); return r ? (r.name || r.number || r.title || "—") : "—"; };
 
 /* ---------- money ---------- */
+/* ile klient zapłacił za wysyłkę; strony one-page zapisują ją w polu shipping (wliczoną w price) */
+const shipPaidOf = o => o.ship_paid !== undefined && o.ship_paid !== "" ? num(o.ship_paid) : (o.source === "One-page" ? num(o.shipping) : 0);
 const profitOf = o => num(o.price) - num(o.cost) - num(o.shipping) - num(o.ads);
 const counts = o => o.status !== "zwrot";
 function inPeriod(d, p){
@@ -972,7 +974,7 @@ function vOrders(){
       <td><span class="onum num">${esc(o.number||"—")}</span>${demoTag(o)}${o.source?`<div class="small muted">${esc(o.source)}${o.page_slug?` · /p/${esc(o.page_slug)}`:""}</div>`:""}</td>
       <td><div class="strong">${esc(nameOf("customers",o.customerId))}</div>${o.buyer_email||o.buyer_phone?`<div class="small muted">${esc(o.buyer_email||o.buyer_phone)}</div>`:""}</td>
       <td class="oitems">${items(o)}</td>
-      <td class="r"><div class="num strong">${fmtZl2(o.price)}</div><div class="small num ${pr>=0?"pos":"neg"}">${pr>=0?"+":""}${fmtZl2(pr)}</div></td>
+      <td class="r"><div class="num strong" title="Kwota wpłacona przez klienta">${fmtZl2(o.price)}</div>${shipPaidOf(o)?`<div class="small muted num">w tym wysyłka ${fmtZl2(shipPaidOf(o))}</div>`:""}<div class="small num ${pr>=0?"pos":"neg"}">zysk ${pr>=0?"+":""}${fmtZl2(pr)}</div></td>
       <td><span class="obadge" style="--c:${st[2]}">${esc(st[1])}</span>${shipInfo(o)?`<div class="small oship">${shipInfo(o)}</div>`:""}${o.tracking?`<div class="small muted num">${esc(o.tracking)}</div>`:""}</td>
       <td class="oicons">${o.payment_status?`<span class="oic" style="--c:${opt(PAY_ST,o.payment_status)[2]}" title="${esc(opt(PAY_ST,o.payment_status)[1])}">zł</span>`:""}${o.tracking?`<span class="oic" style="--c:var(--good)" title="Numer przesyłki: ${esc(o.tracking)}">T</span>`:""}${o.notes?`<span class="oic" style="--c:var(--info)" title="${esc(o.notes)}">i</span>`:""}${avatar(o.owner,24)}</td>
       <td class="odate"><div class="num">${fmtDate(o.date)}</div>${statusAt?`<div class="small num olink" title="Zmiana statusu">${statusAt}</div>`:""}</td>
@@ -985,7 +987,7 @@ function vOrders(){
        ${tools}
        ${list.length ? `<div class="tbl-wrap"><table class="otable"><thead><tr>
          <th class="ock"><input type="checkbox" data-osel-page ${pageAll?"checked":""} aria-label="Zaznacz całą stronę"></th><th></th>
-         <th>Numer<div class="th2">(źródło)</div></th><th>Klient<div class="th2">(kontakt)</div></th><th>Przedmioty</th><th class="r">Kwota<div class="th2">(zysk)</div></th>
+         <th>Numer<div class="th2">(źródło)</div></th><th>Klient<div class="th2">(kontakt)</div></th><th>Przedmioty</th><th class="r">Kwota wpłacona<div class="th2">(z wysyłką · zysk)</div></th>
          <th>Status<div class="th2">(wysyłka)</div></th><th></th><th>Data złożenia<div class="th2">(w statusie)</div></th>
        </tr></thead><tbody>${rows}</tbody></table></div>` : emptyState("orders", all.length ? "Nic nie pasuje do filtrów." : "Pierwsze zamówienie to zawsze święto. Dodaj je!")}
      </section>`;
@@ -1005,7 +1007,7 @@ function updCalcIn(frm){
   const g = k => num((frm.querySelector(`[name="${k}"]`)||{}).value);
   const p = g("price"), pr = p - g("cost") - g("shipping") - g("ads"), m = p ? pr/p*100 : 0;
   const el = frm.querySelector("[data-calc]"); if(!el) return;
-  el.innerHTML = `<span>Zysk: <b class="num ${pr>=0?"pos":"neg"}">${fmtZl(pr)}</b></span><span>Marża: <b class="num">${m.toFixed(1).replace(".",",")}%</b></span>`;
+  el.innerHTML = `<span>Klient zapłacił: <b class="num">${fmtZl2(p)}</b>${g("ship_paid")?` <span class="muted">(w tym wysyłka ${fmtZl2(g("ship_paid"))})</span>`:""}</span><span>Zysk: <b class="num ${pr>=0?"pos":"neg"}">${fmtZl(pr)}</b></span><span>Marża: <b class="num">${m.toFixed(1).replace(".",",")}%</b></span>`;
 }
 async function submitInline(frm){
   const id = frm.dataset.oid, prev = S.orders[id]; if(!prev) return;
@@ -1164,12 +1166,21 @@ function field(f, r, pfx="f-"){
     default: return wrap(`<input id="${id}" name="${f.k}" value="${esc(v)}" autocomplete="off">`);
   }
 }
+/* wartość produktu × ilość + wysyłka od klienta = kwota wpłacona (dopóki ktoś nie wpisze jej ręcznie) */
+function orderAutofill(frm, changed){
+  const E = n => frm.elements[n]; const p = byId("products", E("productId") && E("productId").value);
+  const q = num(E("qty") && E("qty").value) || 1, sp = num(E("ship_paid") && E("ship_paid").value);
+  if(p && E("cost") && (!E("cost").value || E("cost").dataset.auto)){ E("cost").value = Math.round(num(p.cost)*q*100)/100 || ""; E("cost").dataset.auto = "1"; }
+  if(p && changed==="productId" && E("shipping") && !E("shipping").value && num(p.shipping)) E("shipping").value = num(p.shipping);
+  const pr = E("price"); if(!pr) return;
+  if(p && (!pr.value || pr.dataset.auto)){ pr.value = Math.round((num(p.price)*q + sp)*100)/100; pr.dataset.auto = "1"; }
+}
 function updCalc(){
   const g = k => num(($("#f-"+k)||{}).value);
   const p = g("price"), pr = p - g("cost") - g("shipping") - g("ads");
   const m = p ? pr/p*100 : 0;
   const el = $("#calc"); if(!el) return;
-  el.innerHTML = `<span>Zysk: <b class="num ${pr>=0?"pos":"neg"}">${fmtZl(pr)}</b></span><span>Marża: <b class="num">${m.toFixed(1).replace(".",",")}%</b></span><span class="muted">${pr>0 && m>=30 ? "Ładnie!" : pr>0 ? "Na plusie, ale marża mogłaby być wyższa." : "Na minusie — sprawdź koszty."}</span>`;
+  el.innerHTML = `<span>Klient zapłacił: <b class="num">${fmtZl2(p)}</b>${g("ship_paid")?` <span class="muted">(w tym wysyłka ${fmtZl2(g("ship_paid"))})</span>`:""}</span><span>Zysk: <b class="num ${pr>=0?"pos":"neg"}">${fmtZl(pr)}</b></span><span>Marża: <b class="num">${m.toFixed(1).replace(".",",")}%</b></span><span class="muted">${pr>0 && m>=30 ? "Ładnie!" : pr>0 ? "Na plusie, ale marża mogłaby być wyższa." : "Na minusie — sprawdź koszty."}</span>`;
 }
 async function submitForm(){
   const {col, id, isNew, prev} = modalCtx;
@@ -1357,21 +1368,17 @@ document.addEventListener("keydown", e => {
 document.addEventListener("input", e => {
   if(e.target.dataset.q !== undefined){ UI.q[e.target.dataset.q] = e.target.value; render(); }
   if(e.target.closest("#frm") && modalCtx && modalCtx.col==="orders") updCalc();
+  if(["price","cost"].includes(e.target.name)) delete e.target.dataset.auto;
   const of = e.target.closest("form.ofrm"); if(of){ of.dataset.dirty = "1"; updCalcIn(of); }
 });
 document.addEventListener("change", e => {
   const t = e.target;
   if(t.id === "meSel"){ me = t.value; ls.set("crm_me", me); render(); return; }
   if(t.dataset.quick){ const [c,id] = t.dataset.quick.split(":"); quickStatus(c, id, t.value); return; }
-  const of = t.closest("form.ofrm"); if(of){ of.dataset.dirty = "1"; updCalcIn(of); return; }
+  const of = t.closest("form.ofrm"); if(of){ of.dataset.dirty = "1"; if(["productId","qty","ship_paid"].includes(t.name)) orderAutofill(of, t.name); updCalcIn(of); return; }
   if(t.matches("[data-oowner]")){ UI.orderOwner = t.value; render(); return; }
-  if(t.id === "f-productId" && modalCtx && modalCtx.col==="orders"){
-    const p = byId("products", t.value); if(!p) return; const q = num($("#f-qty").value) || 1;
-    if(!$("#f-price").value) $("#f-price").value = num(p.price)*q;
-    if(!$("#f-cost").value) $("#f-cost").value = num(p.cost)*q;
-    if(!$("#f-shipping").value && num(p.shipping)) $("#f-shipping").value = num(p.shipping);
-    updCalc();
-  }
+  const ofm = t.form && (t.form.id === "frm" && modalCtx && modalCtx.col==="orders" ? t.form : t.form.classList.contains("ofrm") ? t.form : null);
+  if(ofm && ["productId","qty","ship_paid"].includes(t.name)){ orderAutofill(ofm, t.name); if(ofm.id==="frm") updCalc(); else updCalcIn(ofm); }
 });
 document.addEventListener("submit", e => { e.preventDefault(); const id = e.target.id; if(id==="frm") submitForm(); else if(e.target.classList.contains("ofrm")) submitInline(e.target); else if(id==="frmS"){ if(document.activeElement && document.activeElement.id==="oa-key") openaiAction("save"); else submitSettings(); } else if(id==="gLogin") doLogin(e.target); else if(id==="gForgot") doForgot(e.target); else if(id==="gNew") doNewPass(e.target); else if(id==="frmP") submitPass(e.target); });
 
@@ -1425,7 +1432,7 @@ async function obulk(cmd){
   const what = k==="status" ? `→ ${opt(ORDER_ST,v)[1]}` : k==="owner" ? `→ ${pname(v)}` : v==="1" ? "oznaczone gwiazdką" : "bez gwiazdki";
   if(n){ toast(`${n} ${n===1?"zamówienie":n<5?"zamówienia":"zamówień"} ${what}`); if(k!=="star") logAct(`Zbiorczo ${n} zamówień ${what}`); } else toast("Nic do zmiany");
 }
-function orowsFor(ids){ return ids.map(id=>S.orders[id]).filter(Boolean).map(o => ({nr:o.number||"", data:o.date||"", klient:nameOf("customers",o.customerId), produkt:nameOf("products",o.productId), ilosc:num(o.qty)||1, kwota:num(o.price), zysk:profitOf(o), status:opt(ORDER_ST,ost(o))[1], platnosc:o.payment_status?opt(PAY_ST,o.payment_status)[1]:"", przewoznik:o.carrier||"", przesylka:o.tracking||"", adres:o.ship_to||"", email:o.buyer_email||"", telefon:o.buyer_phone||"", opiekun:pname(o.owner), notatki:o.notes||""})); }
+function orowsFor(ids){ return ids.map(id=>S.orders[id]).filter(Boolean).map(o => ({nr:o.number||"", data:o.date||"", klient:nameOf("customers",o.customerId), produkt:nameOf("products",o.productId), ilosc:num(o.qty)||1, kwota:num(o.price), wysylka_klient:shipPaidOf(o), zysk:profitOf(o), status:opt(ORDER_ST,ost(o))[1], platnosc:o.payment_status?opt(PAY_ST,o.payment_status)[1]:"", przewoznik:o.carrier||"", przesylka:o.tracking||"", adres:o.ship_to||"", email:o.buyer_email||"", telefon:o.buyer_phone||"", opiekun:pname(o.owner), notatki:o.notes||""})); }
 function ocsv(ids){
   const rows = orowsFor(ids); const cols = Object.keys(rows[0]);
   const q = v => `"${String(v).replace(/"/g,'""')}"`;
@@ -1436,7 +1443,7 @@ function ocsv(ids){
 function oprint(ids){
   const rows = orowsFor(ids);
   const w = window.open("", "_blank"); if(!w){ toast("Przeglądarka zablokowała okno drukowania."); return; }
-  w.document.write(`<!doctype html><meta charset="utf-8"><title>Zamówienia ${TODAY()}</title><style>body{font:13px/1.4 system-ui,sans-serif;margin:24px;color:#13294B}h1{font-size:18px}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}th{font-size:11px;text-transform:uppercase;color:#555}td.r{text-align:right}</style><h1>Zamówienia (${rows.length}) · ${new Date().toLocaleString("pl-PL")}</h1><table><tr><th>Nr</th><th>Data</th><th>Klient</th><th>Produkt</th><th>Szt.</th><th>Kwota</th><th>Status</th><th>Wysyłka</th></tr>${rows.map(r=>`<tr><td>${esc(r.nr)}</td><td>${esc(r.data)}</td><td>${esc(r.klient)}<br><small>${esc(r.telefon||r.email)}</small></td><td>${esc(r.produkt)}</td><td>${r.ilosc}</td><td class="r">${esc(fmtZl(r.kwota))}</td><td>${esc(r.status)}</td><td>${esc([r.przewoznik,r.przesylka,r.adres].filter(Boolean).join(" · "))}</td></tr>`).join("")}</table>`);
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>Zamówienia ${TODAY()}</title><style>body{font:13px/1.4 system-ui,sans-serif;margin:24px;color:#13294B}h1{font-size:18px}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}th{font-size:11px;text-transform:uppercase;color:#555}td.r{text-align:right}</style><h1>Zamówienia (${rows.length}) · ${new Date().toLocaleString("pl-PL")}</h1><table><tr><th>Nr</th><th>Data</th><th>Klient</th><th>Produkt</th><th>Szt.</th><th>Kwota (z wysyłką)</th><th>Status</th><th>Wysyłka</th></tr>${rows.map(r=>`<tr><td>${esc(r.nr)}</td><td>${esc(r.data)}</td><td>${esc(r.klient)}<br><small>${esc(r.telefon||r.email)}</small></td><td>${esc(r.produkt)}</td><td>${r.ilosc}</td><td class="r">${esc(fmtZl2(r.kwota))}${r.wysylka_klient?`<br><small>w tym wysyłka ${esc(fmtZl2(r.wysylka_klient))}</small>`:""}</td><td>${esc(r.status)}</td><td>${esc([r.przewoznik,r.przesylka,r.adres].filter(Boolean).join(" · "))}</td></tr>`).join("")}</table>`);
   w.document.close(); w.focus(); setTimeout(()=>w.print(), 200);
 }
 document.addEventListener("click", e => {
