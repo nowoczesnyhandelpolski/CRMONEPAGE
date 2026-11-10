@@ -524,6 +524,7 @@ function enter(sess){
   startData();
 }
 async function doLogin(f){
+  if(!f.email.value.trim() || !f.password.value){ gateErr("Wpisz e-mail i hasło."); return; }
   busy(f, true);
   const { data, error } = await SB.auth.signInWithPassword({ email: f.email.value.trim(), password: f.password.value });
   busy(f, false);
