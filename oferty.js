@@ -538,8 +538,8 @@
         return;
       }
       try {
-        const { data } = await CRM.SB.auth.getSession();
-        const token = data?.session?.access_token;
+        const { freshAccessToken } = await import("./lib/panel-api.mjs");
+        const token = await freshAccessToken(CRM.SB);
         if (!token) { CRM.toast("Sesja wygasła. Zaloguj się ponownie."); return; }
         const res = await fetch("/api/extension.zip", { headers: { authorization: `Bearer ${token}` } });
         if (!res.ok) { CRM.toast("Nie udało się pobrać wtyczki. Zaloguj się na konto zespołu."); return; }
