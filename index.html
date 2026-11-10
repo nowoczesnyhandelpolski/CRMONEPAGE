@@ -269,6 +269,7 @@ code{font-size:13px;background:var(--surface-2);border:1px solid var(--line);pad
     <div class="side-foot">
       <div class="me"><span id="meAv"></span><div><label for="meSel">Pracujesz jako</label><select id="meSel"></select></div></div>
       <button class="btn sm" data-act="settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg><span>Ustawienia</span></button>
+      <button class="btn sm" data-act="setpass" title="Ustaw lub zmień hasło"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Moje hasło</span></button>
       <button class="btn sm ghost" data-act="logout" title="Wyloguj"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span>Wyloguj</span></button>
     </div>
   </aside>
@@ -558,7 +559,7 @@ async function boot(){
   });
   const { data: { session } } = await SB.auth.getSession();
   if(LINK_ERR){ showGate("login", {err: /expired|invalid/i.test(LINK_ERR) ? "Link wygasł albo był już użyty. Poproś o nowy (Nie pamiętam hasła)." : LINK_ERR}); history.replaceState(null, "", location.pathname); return; }
-  if(session && (LINK_TYPE === "invite" || LINK_TYPE === "recovery")){ showGate("newpass"); return; }
+  if(session && ["invite","recovery","signup","magiclink","email"].includes(LINK_TYPE)){ showGate("newpass"); return; }
   if(session) enter(session); else showGate("login");
 }
 
@@ -978,6 +979,27 @@ async function clearDemo(){
   closeModal(); toast("Przykładowe dane usunięte. Czas na prawdziwe zamówienia!");
 }
 
+function openPass(){
+  modalCtx = {pass:true};
+  openModal(`<form id="frmP" novalidate>
+    <div class="modal-h"><h2 id="mTitle">Moje hasło</h2><button type="button" class="btn ghost sm" data-act="close" aria-label="Zamknij">${ic("x",18)}</button></div>
+    <div class="modal-b">
+      <div class="f full"><span class="small muted">Konto: <b>${esc(sessionEmail)}</b>. Tym hasłem zalogujesz się na każdym urządzeniu.</span></div>
+      <div class="f"><label for="p-1">Nowe hasło (min. 8 znaków)</label><input id="p-1" name="password" type="password" autocomplete="new-password"></div>
+      <div class="f"><label for="p-2">Powtórz hasło</label><input id="p-2" name="password2" type="password" autocomplete="new-password"></div>
+    </div>
+    <div class="modal-f"><span></span><div class="row"><button type="button" class="btn" data-act="close">Anuluj</button><button type="submit" class="btn primary">Zapisz hasło</button></div></div>
+  </form>`);
+}
+async function submitPass(f){
+  const p = f.password.value, p2 = f.password2.value;
+  if(p.length < 8){ toast("Hasło musi mieć co najmniej 8 znaków."); return; }
+  if(p !== p2){ toast("Hasła się różnią."); return; }
+  const { error } = await SB.auth.updateUser({ password: p });
+  if(error){ toast("Nie udało się zapisać hasła: " + error.message); return; }
+  closeModal(); toast("Hasło zapisane. Możesz nim logować się na komputerze.");
+}
+
 /* ---------- events ---------- */
 document.addEventListener("click", e => {
   const g = e.target.closest("[data-gate]"); if(g){ showGate(g.dataset.gate); return; }
@@ -994,7 +1016,7 @@ document.addEventListener("click", e => {
   if(t.dataset.towner){ UI.taskOwner = t.dataset.towner; render(); return; }
   if(t.dataset.gotoOrders){ UI.orderFilter = t.dataset.gotoOrders; location.hash = "zamowienia"; return; }
   const a = t.dataset.act;
-  if(a==="close") closeModal(); else if(a==="settings") openSettings(); else if(a==="del") confirmDelete(); else if(a==="cleardemo") clearDemo(); else if(a==="logout") SB.auth.signOut();
+  if(a==="close") closeModal(); else if(a==="settings") openSettings(); else if(a==="del") confirmDelete(); else if(a==="cleardemo") clearDemo(); else if(a==="logout") SB.auth.signOut(); else if(a==="setpass") openPass();
 });
 document.addEventListener("keydown", e => {
   if(e.key === "Escape" && $("#scrim").classList.contains("open")) closeModal();
@@ -1017,7 +1039,7 @@ document.addEventListener("change", e => {
     updCalc();
   }
 });
-document.addEventListener("submit", e => { e.preventDefault(); const id = e.target.id; if(id==="frm") submitForm(); else if(id==="frmS") submitSettings(); else if(id==="gLogin") doLogin(e.target); else if(id==="gForgot") doForgot(e.target); else if(id==="gNew") doNewPass(e.target); });
+document.addEventListener("submit", e => { e.preventDefault(); const id = e.target.id; if(id==="frm") submitForm(); else if(id==="frmS") submitSettings(); else if(id==="gLogin") doLogin(e.target); else if(id==="gForgot") doForgot(e.target); else if(id==="gNew") doNewPass(e.target); else if(id==="frmP") submitPass(e.target); });
 
 /* ---------- toasts & confetti ---------- */
 function toast(msg){ const el = document.createElement("div"); el.className = "toast"; el.textContent = msg; $("#toasts").appendChild(el); setTimeout(()=>el.remove(), 3600); }
