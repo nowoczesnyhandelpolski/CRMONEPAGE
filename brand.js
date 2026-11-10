@@ -176,7 +176,7 @@
     "sklepy-i-boty": ["shops", "Sklepy i boty", "Sprzedajemy 24 godziny na dobę", "Kanały sprzedaży i automaty, które pracują, gdy śpicie."],
     generator: ["generator", "Generator stron", "Strona produktu w kilka minut", "Karta one-page z zestawami, Omnibusem i GPSR, gotowa do publikacji."],
     leady: ["mail", "Leady", "Zainteresowani klienci", "Adresy zostawione na Waszych stronach produktów."],
-    wiadomosci: ["mail", "Wiadomości", "Skrzynka obsługi klienta", "Pytania z formularzy — odpowiadamy szybko i konkretnie."],
+    wiadomosci: ["mail", "Wiadomości", "Komunikator zespołu", "Czat wspólników na żywo i pytania klientów z Waszych stron."],
     prompty: ["prompts", "Generator promptów", "Pomysł → prompt → strona", "Schematy sprzedażowe i obsługi klienta gotowe dla AI."]
   };
 

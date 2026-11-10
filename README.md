@@ -15,6 +15,7 @@ Panel (`index.html`, logowanie e-mail + hasło):
 - **Produkty**, **Dostawcy**, **Klienci**, **Zadania** (kanban), **Sklepy i boty**
 - **Generator stron** — karty one-page, podgląd, publikacja pod `/p/<slug>`
 - **Leady** i **Wiadomości** — zapisy z publicznych stron
+- **Komunikator zespołu** (Wiadomości → Czat zespołu) — czat wspólników na żywo: zdjęcia (wybór lub Ctrl+V, kompresja w przeglądarce), emoji i reakcje, @oznaczanie, linki #numer do zamówień, kto jest online i kto pisze, licznik nieprzeczytanych w menu i w tytule karty, dźwięk i powiadomienie przy nowej wiadomości. Wiadomości to rekordy `col = chat` w `public.records`, więc nie trzeba nic zmieniać w bazie
 - **Generator promptów** — formularz (firma, produkty z CRM, 6 schematów stron: landing, sklep, centrum obsługi klienta, B2B, kampania sezonowa, wizytówka, dodatki typu e-maile i bot FAQ) składa gotowy prompt dla AI. Kopiowanie jednym kliknięciem, pobieranie .txt, zapisane szablony i szkic trzymane w przeglądarce
 
 Strona publiczna (`/p/<slug>`) to jasny szablon z makiety: pasek informacyjny, galeria z podpisami, zestawy 1/2/3, omnibus, wariant koloru, dodatek do koszyka, prawdziwy stan magazynu, oś dostawy liczona od godziny granicznej w strefie Europe/Warsaw, obawa, cechy 01–04, porównanie, opinie ze źródłem, FAQ, „pasuje do”, formularz kontaktu, dane sprzedawcy i GPSR. Domyślny akcent to `#ff5a00`, każda strona może mieć własny.
@@ -51,6 +52,7 @@ Nie ma wiecznego licznika promocji. Zdanie o wysyłce mówi, ile zostało do god
 - `index.html` — panel
 - `generator.js` — widok Generator stron, Leady, Wiadomości
 - `prompty.js` + `lib/prompt-builder.mjs` — Generator promptów
+- `chat.js` — komunikator zespołu
 - `brand.js` — sceny SVG, ekran logowania, intro, dźwięki
 - `assets/brand/` — logo (kolorowe i białe) oraz ikona/favicon
 - `config.js` — adres Supabase i klucz **publishable** (publiczny z założenia)
