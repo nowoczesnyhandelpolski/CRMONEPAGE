@@ -71,6 +71,34 @@ test("ZIP bez sesji zespołu nie schodzi", async () => {
   assert.match(res.headers.get("x-robots-tag"), /noindex/);
 });
 
+test("okienko wtyczki ma tokeny panelu, lokalny Poppins i karty eksportu", () => {
+  const popup = fs.readFileSync(path.join(extDir, "popup.html"), "utf8");
+  const overlay = fs.readFileSync(path.join(extDir, "overlay.css"), "utf8");
+  const fonts = fs.readFileSync(path.join(extDir, "fonts.css"), "utf8");
+  const content = fs.readFileSync(path.join(extDir, "content.js"), "utf8");
+  const manifest = JSON.parse(fs.readFileSync(path.join(extDir, "manifest.json"), "utf8"));
+  const blob = popup + overlay + fonts + content;
+  assert.equal(/ff5a00/i.test(blob), false);
+  assert.equal(/fonts\.googleapis|fonts\.gstatic/.test(blob), false);
+  assert.match(popup, /#13294B/);
+  assert.match(popup, /#C8102E/);
+  assert.match(popup, /logo-white\.svg/);
+  assert.match(popup, /href="fonts\.css"/);
+  assert.match(fonts, /fonts\/poppins-latin-700\.woff2/);
+  assert.match(fonts, /fonts\/poppins-latin-ext-700\.woff2/);
+  for (const kind of ["csv", "xlsx", "json", "images", "full"]) {
+    assert.match(popup, new RegExp(`data-file="${kind}"`));
+  }
+  assert.match(popup, /Zdjęcia/);
+  assert.match(popup, /Wszystko/);
+  assert.match(overlay, /#13294B/);
+  assert.match(overlay, /inset 0 -4px 0 #C8102E/);
+  assert.match(fonts, /font-family: "Poppins"/);
+  assert.deepEqual(manifest.content_scripts[0].css, ["fonts.css", "overlay.css"]);
+  assert.ok(fs.existsSync(path.join(extDir, "fonts", "poppins-latin-ext-700.woff2")));
+  assert.ok(fs.existsSync(path.join(extDir, "fonts", "OFL.txt")));
+});
+
 test("trasa ZIP nie nachodzi na resztę Pages", () => {
   const routes = JSON.parse(fs.readFileSync(path.join(root, "_routes.json"), "utf8"));
   assert.ok(routes.include.includes("/downloads/nhp-wtyczka.zip"));

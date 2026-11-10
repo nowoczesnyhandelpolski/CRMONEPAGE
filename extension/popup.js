@@ -8,7 +8,8 @@ const domainEl = document.getElementById("shop-domain");
 const imageDomain = document.getElementById("image-domain");
 const example = document.getElementById("image-example");
 
-chrome.storage.local.get(["apiBase", "apiKey", "imageDomain", "shopMode"]).then((stored) => {
+const settings = globalThis.chrome?.storage?.local;
+(settings ? settings.get(["apiBase", "apiKey", "imageDomain", "shopMode"]) : Promise.resolve({})).then((stored) => {
   base.value = stored.apiBase || "https://panel.nowoczesnyhandelpolski.pl";
   key.value = stored.apiKey || "";
   imageDomain.value = stored.imageDomain || "";
@@ -16,12 +17,20 @@ chrome.storage.local.get(["apiBase", "apiKey", "imageDomain", "shopMode"]).then(
   if (stored.shopMode === "shop") showTab("shop");
 });
 
+const HERO = {
+  allegro: ["Import z Allegro", "Na karcie oferty naciśnij E albo przycisk „Zapisz w Centrali”."],
+  shop: ["Eksport sklepu", "Skan tej samej domeny. Brakująca cena zostaje pusta."]
+};
+
 function showTab(name) {
   document.getElementById("allegro").hidden = name !== "allegro";
   document.getElementById("shop").hidden = name !== "shop";
   document.getElementById("tab-allegro").setAttribute("aria-pressed", name === "allegro" ? "true" : "false");
   document.getElementById("tab-shop").setAttribute("aria-pressed", name === "shop" ? "true" : "false");
-  chrome.storage.local.set({ shopMode: name });
+  const copy = HERO[name] || HERO.allegro;
+  document.getElementById("hero-title").textContent = copy[0];
+  document.getElementById("hero-lead").textContent = copy[1];
+  settings?.set({ shopMode: name });
 }
 document.getElementById("tab-allegro").addEventListener("click", () => showTab("allegro"));
 document.getElementById("tab-shop").addEventListener("click", () => showTab("shop"));
@@ -37,7 +46,7 @@ document.getElementById("save").addEventListener("click", async () => {
     msg.textContent = "Klucz z panelu zaczyna się od nhp_.";
     return;
   }
-  await chrome.storage.local.set({ apiBase, apiKey });
+  if (settings) await settings.set({ apiBase, apiKey });
   msg.textContent = "Zapisane w tej przeglądarce.";
 });
 
@@ -47,7 +56,7 @@ function showExample() {
 }
 imageDomain.addEventListener("input", () => {
   showExample();
-  chrome.storage.local.set({ imageDomain: imageDomain.value.trim() });
+  settings?.set({ imageDomain: imageDomain.value.trim() });
 });
 
 async function activeHttpTab() {
@@ -139,7 +148,7 @@ document.getElementById("upload-images").addEventListener("click", async () => {
   shopMsg.textContent = res?.error || (res?.skipped ? "Zapis na serwerze jest wyłączony." : "Zdjęcia są na serwerze NHP.");
 });
 
-document.querySelector(".gen").addEventListener("click", async (event) => {
+document.querySelector(".exports").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-file]");
   if (!button) return;
   if (button.dataset.file !== "images") {
