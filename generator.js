@@ -76,6 +76,7 @@
       CRM.S.pagesError = "";
       CRM.S.pagesList = data || [];
     }
+    CRM.loadPages = loadPages;
 
     function vLeads() {
       const list = CRM.arr("leads").sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -160,6 +161,7 @@
       return top(existing ? "Edycja strony" : "Nowa strona", "Pola oznaczone w makiecie. Puste wiersze są pomijane.",
         `<button class="btn" type="button" data-g="back">Wróć do listy</button>`) +
         (issues.length ? `<ol class="issues">${issues.map((x) => `<li>${CRM.esc(x)}</li>`).join("")}</ol>` : `<div class="banner" style="border-color:color-mix(in srgb,var(--good) 40%,var(--line));background:color-mix(in srgb,var(--good) 10%,var(--surface))">Dane wystarczą do publikacji.</div>`) +
+        `<section class="card pad"><h2>Generacja</h2>${CRM.tierHtml ? CRM.tierHtml() : ""}<div class="row"><button class="btn primary" type="button" data-g="ai">Generuj treść</button><button class="btn" type="button" data-g="video">Złóż wideo w panelu</button></div><p class="small muted">S1 — tekst. S1 Pro — tekst i 1 zdjęcie AI. S1 Max — tekst, 5 zdjęć AI i wideo złożone tutaj. Najpierw zapisz szkic. Wideo nie idzie do zewnętrznej usługi.</p></section>` +
         `<form id="pageForm">
           <details class="card gen-sec" open><summary>Adres i powiązanie</summary><div class="body gen-grid">
             ${inp("p-name", "Nazwa wewnętrzna", existing?.name || d.headline || "")}
@@ -386,7 +388,33 @@
       else if (g === "publish") persist("published");
       else if (g === "unpublish") unpublish();
       else if (g === "delete") removePage();
+      else if (g === "ai") generateHere();
+      else if (g === "video") videoHere();
     });
+
+    async function generateHere() {
+      const existing = pageById(CRM.UI.genId);
+      if (!existing) { CRM.toast("Najpierw zapisz szkic strony."); return; }
+      const tier = (CRM.UI.trade && CRM.UI.trade.tier) || "s1";
+      if (CRM.startGeneration) await CRM.startGeneration({ tier, page_id: existing.id, product_id: existing.product_id || undefined });
+    }
+    async function videoHere() {
+      const existing = pageById(CRM.UI.genId);
+      if (!existing) { CRM.toast("Najpierw zapisz szkic strony."); return; }
+      const data = document.getElementById("pageForm") ? collect(existing) : M.cleanSiteData(existing.data || {});
+      const images = (data.images || []).map((i) => i.url).filter(Boolean);
+      const benefits = (data.benefits || []).map((b) => b.title).filter(Boolean);
+      if (CRM.openVideo) await CRM.openVideo({
+        title: data.headline || existing.name,
+        price: data.price,
+        omnibus: data.omnibus_price,
+        benefits,
+        images,
+        pageId: existing.id,
+        productId: existing.product_id || null,
+        rights: data.images.every((i) => i.rights)
+      });
+    }
     document.addEventListener("submit", (e) => {
       if (e.target.id !== "pageForm") return;
       e.preventDefault();

@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "NHP — import ofert Allegro",
+  "version": "1.0.0",
+  "description": "Zapisuje kartę oferty Allegro jako szkic w Centrali CRM (Nowoczesny Handel Polski).",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://allegro.pl/*",
+    "https://*.allegro.pl/*",
+    "https://panel.nowoczesnyhandelpolski.pl/*",
+    "https://*.pages.dev/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "action": {
+    "default_title": "NHP import",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://allegro.pl/oferta/*",
+        "https://*.allegro.pl/oferta/*",
+        "https://allegro.pl/produkt/*",
+        "https://*.allegro.pl/produkt/*"
+      ],
+      "js": ["content.js"],
+      "type": "module",
+      "run_at": "document_idle"
+    }
+  ]
+}

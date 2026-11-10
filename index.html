@@ -315,6 +315,7 @@ code{font-size:13px;background:var(--surface-2);border:1px solid var(--line);pad
 <script src="generator.js"></script>
 <script src="prompty.js"></script>
 <script src="chat.js"></script>
+<script src="oferty.js"></script>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.97.0/dist/umd/supabase.js"></script>
 <script>
@@ -350,7 +351,9 @@ const I = {
   globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
   spark:'<path d="M12 2.5 13.8 8.6 20 10.4 13.8 12.2 12 18.3 10.2 12.2 4 10.4 10.2 8.6Z"/>',
   mail:'<path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/>',
-  inbox:'<path d="M3 13h5l2 3h4l2-3h5v6H3z"/><path d="M3 13 6 5h12l3 8"/>'
+  inbox:'<path d="M3 13h5l2 3h4l2-3h5v6H3z"/><path d="M3 13 6 5h12l3 8"/>',
+  key:'<circle cx="8" cy="15" r="4"/><path d="m11.5 15 8-8M16 7l2 2M18 5l2 2"/>',
+  down:'<path d="M12 4v12M7 11l5 5 5-5M5 20h14"/>'
 };
 const ic = (n, s=18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
 
