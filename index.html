@@ -57,7 +57,7 @@ a{color:var(--accent)}
 .side{position:sticky;top:0;height:100vh;padding:22px 14px 18px;color:#fff;display:flex;flex-direction:column;gap:20px;overflow-y:auto;
   background:radial-gradient(120% 50% at 0% 0%,#24477E 0,transparent 60%),linear-gradient(180deg,var(--navy) 0,var(--navy-2) 100%);box-shadow:4px 0 30px -12px rgba(11,27,53,.5);z-index:5}
 .side::after{content:"";position:absolute;top:0;right:0;bottom:0;width:6px;background:linear-gradient(90deg,#fff 0 50%,var(--red) 50%);opacity:.9}
-.brand{display:flex;align-items:center;gap:10px;padding:2px 6px}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 6px;cursor:pointer;text-decoration:none;color:inherit;border-radius:12px}
 .brand img{width:100%;max-width:210px;display:block}
 .brand-box{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;flex:none}
 .brand-box img{width:40px;height:40px}
@@ -306,7 +306,7 @@ code{font-size:13px;background:var(--surface-2);border:1px solid var(--line);pad
 <div class="gate" id="gate" hidden></div>
 <div class="app" hidden>
   <aside class="side">
-    <div class="brand"><img src="assets/brand/logo-white.svg" alt="Nowoczesny Handel Polski"></div>
+    <a class="brand" href="#pulpit" aria-label="Strona główna"><img src="assets/brand/logo-white.svg" alt=""></a>
     <div class="side-tag">Centrala · CRM</div>
     <nav class="nav" id="nav" aria-label="Sekcje"></nav>
     <div class="side-foot">
