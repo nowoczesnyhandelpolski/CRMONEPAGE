@@ -3,28 +3,74 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NHP import</title>
+<title>NHP</title>
 <style>
   :root { color-scheme: light; }
-  body { margin: 0; width: 320px; font: 14px/1.4 system-ui, sans-serif; color: #1c1917; background: #faf8f5; }
-  main { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-  h1 { font-size: 18px; margin: 0; }
-  p { margin: 0; color: #6e6862; font-size: 13px; }
+  body { margin: 0; width: 360px; font: 14px/1.4 system-ui, sans-serif; color: #1c1917; background: #faf8f5; }
+  main { padding: 14px; display: flex; flex-direction: column; gap: 10px; max-height: 560px; overflow: auto; }
+  h1 { font-size: 16px; margin: 0; color: #13294B; }
+  h2 { font-size: 14px; margin: 0; color: #13294B; }
+  p, .hint { margin: 0; color: #6e6862; font-size: 12px; }
   label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: #6e6862; }
   input { border: 1px solid #e4dfd8; border-radius: 10px; padding: 8px 10px; font: inherit; color: inherit; background: #fff; }
   button { border: 0; border-radius: 10px; padding: 10px; background: #13294B; color: #fff; font-weight: 700; cursor: pointer; box-shadow: inset 0 -3px 0 #C8102E; }
-  .logo { height: 40px; width: auto; display: block; }
-  .row { display: flex; gap: 10px; align-items: center; }
+  button.ghost { background: #fff; color: #13294B; box-shadow: inset 0 0 0 1px #e4dfd8; }
+  button:disabled { opacity: .55; cursor: default; }
+  .logo { height: 36px; width: auto; display: block; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .tabs { display: flex; gap: 6px; }
+  .tabs button { flex: 1; box-shadow: none; background: #fff; color: #13294B; border: 1px solid #e4dfd8; }
+  .tabs button[aria-pressed="true"] { background: #13294B; color: #fff; border-color: #13294B; }
+  .limits { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .gen { display: flex; flex-direction: column; gap: 6px; }
+  .gen button { display: flex; justify-content: space-between; align-items: center; }
+  .gen b { color: #C8102E; }
+  .domain { font-weight: 800; color: #13294B; }
+  #shop-msg, #msg { min-height: 1em; }
 </style>
 </head>
 <body>
 <main>
-  <div class="row"><img class="logo" src="logo.svg" alt="Nowoczesny Handel Polski"><h1>Import do Centrali</h1></div>
-  <p>Na karcie oferty Allegro naciśnij E albo przycisk „Zapisz w Centrali”. Klucz zostaje tylko w tej przeglądarce. Na serwerze trzymamy jego skrót.</p>
-  <label>Adres panelu<input id="base" type="url" placeholder="https://panel.nowoczesnyhandelpolski.pl" autocomplete="off"></label>
-  <label>Klucz API<input id="key" type="password" placeholder="nhp_…" autocomplete="off"></label>
-  <button id="save" type="button">Zapisz ustawienia</button>
-  <p id="msg"></p>
+  <div class="row"><img class="logo" src="logo.svg" alt="Nowoczesny Handel Polski"><h1>NHP</h1></div>
+  <div class="tabs">
+    <button type="button" id="tab-allegro" aria-pressed="true">Allegro</button>
+    <button type="button" id="tab-shop" aria-pressed="false">Eksport sklepu</button>
+  </div>
+
+  <section id="allegro">
+    <p>Na karcie oferty Allegro naciśnij E albo przycisk „Zapisz w Centrali”. Klucz zostaje tylko w tej przeglądarce. Na serwerze trzymamy jego skrót.</p>
+    <label>Adres panelu<input id="base" type="url" placeholder="https://panel.nowoczesnyhandelpolski.pl" autocomplete="off"></label>
+    <label>Klucz API<input id="key" type="password" placeholder="nhp_…" autocomplete="off"></label>
+    <button id="save" type="button">Zapisz ustawienia</button>
+    <p id="msg"></p>
+  </section>
+
+  <section id="shop" hidden>
+    <h2>Eksport produktów w jednym kliknięciu</h2>
+    <p>Sklep: <span class="domain" id="shop-domain">—</span></p>
+    <label>Twoja domena do linków zdjęć
+      <input id="image-domain" placeholder="mojadomena.pl" autocomplete="off">
+    </label>
+    <p class="hint" id="image-example">Wynik: https://twojadomena.pl/produkty/[marka]/[sku].[rozszerzenie]</p>
+    <div class="limits">
+      <label>Strony<input id="max-pages" type="number" min="1" max="500" value="50"></label>
+      <label>Produkty<input id="max-products" type="number" min="1" max="5000" value="500"></label>
+    </div>
+    <div class="row">
+      <button id="scan" type="button">Skanuj sklep</button>
+      <button id="stop" class="ghost" type="button" hidden>Stop</button>
+    </div>
+    <p id="shop-progress">Gotowe do skanu.</p>
+    <div class="gen">
+      <button type="button" data-file="csv">Generate <b>CSV</b></button>
+      <button type="button" data-file="xlsx">Generate <b>XLSX</b></button>
+      <button type="button" data-file="json">Generate <b>JSON</b></button>
+      <button type="button" data-file="images">Download <b>Images</b></button>
+      <button type="button" data-file="full">Download wszystko naraz <b>Full</b></button>
+      <button type="button" id="send-nhp">Wyślij do NHP</button>
+    </div>
+    <p id="shop-msg"></p>
+  </section>
 </main>
 <script src="popup.js"></script>
 </body>

@@ -528,6 +528,9 @@ begin
     if coalesce(v_data->>'ean', '') <> '' then
       select id into v_product from public.products where ean = v_data->>'ean' limit 1;
     end if;
+    if v_product is null and coalesce(v_data->>'sku', '') <> '' then
+      select id into v_product from public.products where sku = v_data->>'sku' limit 1;
+    end if;
     if v_product is null and coalesce(v_data->>'source_link', '') <> '' then
       select id into v_product from public.products where source_link = v_data->>'source_link' limit 1;
     end if;
@@ -539,7 +542,7 @@ begin
         images, description, description_sections, params, source_link, allegro_product_id, status, updated_at
       ) values (
         v_catalog,
-        nullif(v_data->>'ean', ''),
+        coalesce(nullif(v_data->>'sku', ''), nullif(v_data->>'ean', '')),
         nullif(v_data->>'ean', ''),
         coalesce(nullif(v_data->>'catalog_name', ''), 'Bez nazwy'),
         nullif(v_data->>'catalog_name', ''),
@@ -564,6 +567,7 @@ begin
     else
       update public.products set
         catalog_id = coalesce(catalog_id, v_catalog),
+        sku = coalesce(nullif(sku, ''), nullif(v_data->>'sku', ''), nullif(v_data->>'ean', '')),
         name = coalesce(nullif(name, ''), nullif(v_data->>'catalog_name', ''), 'Bez nazwy'),
         catalog_name = coalesce(catalog_name, nullif(v_data->>'catalog_name', '')),
         producer = coalesce(nullif(v_data->>'producer', ''), producer),
