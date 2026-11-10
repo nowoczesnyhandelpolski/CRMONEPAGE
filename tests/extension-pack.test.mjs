@@ -83,6 +83,8 @@ test("okienko wtyczki ma tokeny panelu, lokalny Poppins i karty eksportu", () =>
   assert.match(popup, /#13294B/);
   assert.match(popup, /#C8102E/);
   assert.match(popup, /logo-white\.svg/);
+  assert.match(popup, /class="flag"/);
+  assert.match(popup, /width: 22px/);
   assert.match(popup, /href="fonts\.css"/);
   assert.match(fonts, /fonts\/poppins-latin-700\.woff2/);
   assert.match(fonts, /fonts\/poppins-latin-ext-700\.woff2/);

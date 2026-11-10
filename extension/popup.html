@@ -32,11 +32,21 @@
     line-height: 1.4;
   }
   .brandbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     background: var(--navy);
-    padding: 14px 16px 18px;
+    padding: 16px 16px 20px;
     position: relative;
   }
-  .brandbar img { height: 34px; width: auto; display: block; }
+  .flag {
+    width: 22px;
+    height: 8px;
+    border-radius: 2px;
+    flex: none;
+    background: linear-gradient(#fff 0 50%, var(--red) 50%);
+  }
+  .brandbar img { width: min(210px, 100%); height: auto; display: block; }
   .brandbar::after {
     content: "";
     position: absolute;
@@ -237,6 +247,7 @@
 </head>
 <body>
 <header class="brandbar">
+  <span class="flag" aria-hidden="true"></span>
   <img src="logo-white.svg" alt="Nowoczesny Handel Polski">
 </header>
 <section class="vbanner">
