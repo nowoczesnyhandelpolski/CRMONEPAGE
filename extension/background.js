@@ -13,7 +13,8 @@ const shop = {
   maxProducts: 500,
   domain: "",
   error: "",
-  done: false
+  done: false,
+  upload: { running: false, done: 0, total: 0, errors: [] }
 };
 
 function snapshot() {
@@ -26,8 +27,14 @@ function snapshot() {
     domain: shop.domain,
     error: shop.error,
     done: shop.done,
-    products: shop.products
+    products: shop.products,
+    upload: shop.upload
   };
+}
+
+async function sha256Bytes(bytes) {
+  const buf = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function progress() {
@@ -79,6 +86,55 @@ async function fetchText(url) {
   return res.text();
 }
 
+async function uploadImages() {
+  const { apiBase, apiKey } = await settings();
+  if (!apiKey) return { ok: false, error: "Wpisz klucz API w oknie wtyczki." };
+  const jobs = [];
+  for (const product of shop.products) {
+    product.hosted = Array.isArray(product.hosted) ? product.hosted : [];
+    (product.images || []).forEach((url, index) => {
+      if (product.hosted.some((h) => h.source === url && h.url)) return;
+      jobs.push({ product, url, index });
+    });
+  }
+  shop.upload = { running: true, done: 0, total: jobs.length, errors: [] };
+  progress();
+  for (const job of jobs) {
+    const path = `products/${imageFileName(job.product, job.index, job.url)}`;
+    try {
+      const res = await fetch(job.url, { credentials: "omit" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes.byteLength > 8 * 1024 * 1024) throw new Error("Zdjęcie większe niż 8 MB.");
+      const sha = await sha256Bytes(bytes);
+      const mime = String(res.headers.get("content-type") || "image/jpeg").split(";")[0];
+      const up = await fetch(`${apiBase}/api/nhp/media`, {
+        method: "POST",
+        headers: {
+          "x-nhp-key": apiKey,
+          "x-nhp-path": path,
+          "content-type": /^image\//.test(mime) ? mime : "image/jpeg"
+        },
+        body: bytes
+      });
+      const data = await up.json().catch(() => ({}));
+      if (!up.ok || data.ok === false) throw new Error(data.error || `HTTP ${up.status}`);
+      job.product.hosted = job.product.hosted.filter((h) => h.source !== job.url);
+      job.product.hosted.push({ source: job.url, url: data.public_url, path: data.path || path, error: "" });
+    } catch (err) {
+      const message = String(err?.message || err).slice(0, 180);
+      shop.upload.errors.push({ url: job.url, error: message });
+      job.product.hosted = (job.product.hosted || []).filter((h) => h.source !== job.url);
+      job.product.hosted.push({ source: job.url, url: "", path, error: message });
+    }
+    shop.upload.done += 1;
+    progress();
+  }
+  shop.upload.running = false;
+  progress();
+  return { ok: shop.upload.errors.length === 0, ...snapshot() };
+}
+
 async function runScan({ startUrl, maxPages, maxProducts }) {
   if (shop.running) return { ok: false, error: "Skan już trwa." };
   shop.running = true;
@@ -87,6 +143,7 @@ async function runScan({ startUrl, maxPages, maxProducts }) {
   shop.products = [];
   shop.error = "";
   shop.done = false;
+  shop.upload = { running: false, done: 0, total: 0, errors: [] };
   shop.maxPages = Math.max(1, Math.min(500, Number(maxPages) || 50));
   shop.maxProducts = Math.max(1, Math.min(5000, Number(maxProducts) || 500));
   shop.domain = new URL(startUrl).hostname;
@@ -136,6 +193,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "shop-state") {
     sendResponse(snapshot());
     return;
+  }
+  if (message.type === "shop-upload") {
+    uploadImages().then(sendResponse);
+    return true;
   }
   if (message.type === "shop-send") {
     const items = toOfferItems(shop.products, message.imageDomain || "");

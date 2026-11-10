@@ -4,7 +4,7 @@ import { crawlShop } from "../extension/shop-scan.mjs";
 import {
   discoverLinks, extractProduct, exportImages, imageFileName, moneyText, rewriteImageUrl
 } from "../extension/shop-extract.mjs";
-import { productsToCsv, productsToJson, toOfferItems } from "../extension/shop-export.mjs";
+import { hostedLink, productsToCsv, productsToJson, toOfferItems } from "../extension/shop-export.mjs";
 
 const JSON_LD = `<!doctype html><html><head>
 <script type="application/ld+json">
@@ -76,6 +76,20 @@ test("CSV i wysyłka do NHP nie wstawiają ceny, której nie było", () => {
   assert.equal(item.images[0], "https://mojadomena.pl/produkty/acme/kub-1.jpg");
   const json = JSON.parse(productsToJson([product], ""));
   assert.equal(json[0].price, "");
+});
+
+test("wgrane zdjęcie idzie do Storage albo na /img/ naszej domeny", () => {
+  const product = {
+    name: "Kubek", sku: "KUB-1", brand: "ACME", price: "10", images: ["https://cdn.example/a.jpg"],
+    hosted: [{ source: "https://cdn.example/a.jpg", url: "https://proj.supabase.co/storage/v1/object/public/media/products/acme/kub-1-1.jpg", path: "products/acme/kub-1-1.jpg" }],
+    parameters: [], url: "https://aurasnu.pl/product/kubek"
+  };
+  assert.equal(hostedLink(product.hosted[0], ""), product.hosted[0].url);
+  assert.equal(hostedLink(product.hosted[0], "panel.nowoczesnyhandelpolski.pl"), "https://panel.nowoczesnyhandelpolski.pl/img/products/acme/kub-1-1.jpg");
+  const item = toOfferItems([product], "panel.nowoczesnyhandelpolski.pl")[0];
+  assert.equal(item.images[0], "https://panel.nowoczesnyhandelpolski.pl/img/products/acme/kub-1-1.jpg");
+  const plain = toOfferItems([product], "")[0];
+  assert.match(plain.images[0], /\/storage\/v1\/object\/public\/media\/products\/acme\/kub-1-1\.jpg$/);
 });
 
 test("skan idzie po stronach tej samej domeny i respektuje limit", async () => {

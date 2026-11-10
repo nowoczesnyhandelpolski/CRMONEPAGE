@@ -11,8 +11,21 @@ function cell(value) {
   return value == null ? "" : String(value);
 }
 
+export function hostedLink(entry, imageDomain) {
+  const host = String(imageDomain || "").trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "");
+  const path = String(entry?.path || "").replace(/^\/+/, "");
+  if (host && path) return `https://${host}/img/${path}`;
+  return entry?.url || "";
+}
+
+export function imageList(product, imageDomain) {
+  const hosted = Array.isArray(product?.hosted) ? product.hosted.filter((h) => h?.url) : [];
+  if (hosted.length) return hosted.map((h) => hostedLink(h, imageDomain)).filter(Boolean);
+  return exportImages(product, imageDomain);
+}
+
 export function exportRow(product, imageDomain) {
-  const images = exportImages(product, imageDomain);
+  const images = imageList(product, imageDomain);
   return {
     name: product.name || "",
     sku: product.sku || "",
@@ -120,7 +133,7 @@ export function fullExportZip(products, imageDomain, imageFiles = []) {
 
 export function toOfferItems(products, imageDomain) {
   return products.map((p) => {
-    const images = exportImages(p, imageDomain);
+    const images = imageList(p, imageDomain);
     return {
       catalog_name: p.name || "",
       sku: p.sku || "",

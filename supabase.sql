@@ -716,3 +716,108 @@ create policy media_team_update on storage.objects for update to authenticated u
 create policy media_team_delete on storage.objects for delete to authenticated using (bucket_id = 'media' and public.is_team());
 create policy media_public_read on storage.objects for select to anon using (bucket_id = 'media');
 
+-- Wgranie zdjęcia z wtyczki bez service_role: zezwolenie po skrócie klucza, deduplikacja po skrócie pliku.
+create table if not exists public.media_files (
+  sha256 text primary key,
+  path text not null unique,
+  public_url text not null,
+  mime text,
+  created_at timestamptz not null default now()
+);
+alter table public.media_files enable row level security;
+revoke all on public.media_files from anon, authenticated;
+grant all on public.media_files to service_role;
+
+create table if not exists public.media_upload_permits (
+  path text primary key,
+  sha256 text not null,
+  mime text,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+alter table public.media_upload_permits enable row level security;
+revoke all on public.media_upload_permits from anon, authenticated;
+grant all on public.media_upload_permits to service_role;
+
+create or replace function public.media_upload_allowed(p_path text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.media_upload_permits
+    where path = p_path and expires_at > now()
+  );
+$$;
+revoke all on function public.media_upload_allowed(text) from public;
+grant execute on function public.media_upload_allowed(text) to anon, authenticated, service_role;
+
+create or replace function public.claim_media_upload(p_key_hash text, p_sha256 text, p_path text, p_mime text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_url text;
+begin
+  if p_key_hash is null or p_key_hash !~ '^[0-9a-f]{64}$' then
+    raise exception 'Nieprawidłowy klucz API.' using errcode = '28000';
+  end if;
+  if not exists (select 1 from public.api_keys where key_hash = p_key_hash and revoked_at is null) then
+    raise exception 'Nieprawidłowy klucz API.' using errcode = '28000';
+  end if;
+  if p_sha256 is null or p_sha256 !~ '^[0-9a-f]{64}$' then
+    raise exception 'Zły skrót zdjęcia.';
+  end if;
+  if p_path is null or p_path !~ '^products/[a-z0-9_-]{1,60}/[a-z0-9_-]{1,60}-[0-9]{1,4}\.(jpg|jpeg|png|webp|gif|avif)$' then
+    raise exception 'Zła ścieżka zdjęcia.';
+  end if;
+  select public_url into v_url from public.media_files where sha256 = p_sha256;
+  if v_url is not null then
+    return jsonb_build_object('skip', true, 'path', (select path from public.media_files where sha256 = p_sha256), 'public_url', v_url);
+  end if;
+  insert into public.media_upload_permits (path, sha256, mime, expires_at)
+  values (p_path, p_sha256, left(coalesce(p_mime, 'image/jpeg'), 80), now() + interval '20 minutes')
+  on conflict (path) do update set sha256 = excluded.sha256, mime = excluded.mime, expires_at = excluded.expires_at;
+  return jsonb_build_object('skip', false, 'path', p_path);
+end;
+$$;
+
+create or replace function public.complete_media_upload(p_key_hash text, p_sha256 text, p_path text, p_public_url text, p_mime text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_key_hash is null or p_key_hash !~ '^[0-9a-f]{64}$'
+     or not exists (select 1 from public.api_keys where key_hash = p_key_hash and revoked_at is null) then
+    raise exception 'Nieprawidłowy klucz API.' using errcode = '28000';
+  end if;
+  if not exists (
+    select 1 from public.media_upload_permits
+    where path = p_path and sha256 = p_sha256 and expires_at > now()
+  ) then
+    raise exception 'Brak zezwolenia na ten plik.';
+  end if;
+  insert into public.media_files (sha256, path, public_url, mime)
+  values (p_sha256, p_path, p_public_url, left(coalesce(p_mime, ''), 80))
+  on conflict (sha256) do update set path = excluded.path, public_url = excluded.public_url;
+  delete from public.media_upload_permits where path = p_path;
+  return jsonb_build_object('ok', true, 'path', p_path, 'public_url', p_public_url);
+end;
+$$;
+
+revoke all on function public.claim_media_upload(text, text, text, text) from public;
+revoke all on function public.complete_media_upload(text, text, text, text, text) from public;
+grant execute on function public.claim_media_upload(text, text, text, text) to anon, authenticated, service_role;
+grant execute on function public.complete_media_upload(text, text, text, text, text) to anon, authenticated, service_role;
+
+drop policy if exists media_permit_insert on storage.objects;
+create policy media_permit_insert on storage.objects
+  for insert to anon
+  with check (bucket_id = 'media' and public.media_upload_allowed(name));
+

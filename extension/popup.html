@@ -22,6 +22,9 @@
   .tabs button { flex: 1; box-shadow: none; background: #fff; color: #13294B; border: 1px solid #e4dfd8; }
   .tabs button[aria-pressed="true"] { background: #13294B; color: #fff; border-color: #13294B; }
   .limits { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .check { flex-direction: row; align-items: center; gap: 8px; font-weight: 700; color: #13294B; }
+  .check input { width: auto; }
+  #shop-errors { color: #C8102E; white-space: pre-wrap; }
   .gen { display: flex; flex-direction: column; gap: 6px; }
   .gen button { display: flex; justify-content: space-between; align-items: center; }
   .gen b { color: #C8102E; }
@@ -51,7 +54,8 @@
     <label>Twoja domena do linków zdjęć
       <input id="image-domain" placeholder="mojadomena.pl" autocomplete="off">
     </label>
-    <p class="hint" id="image-example">Wynik: https://twojadomena.pl/produkty/[marka]/[sku].[rozszerzenie]</p>
+    <p class="hint" id="image-example">Po wgraniu na serwer: https://twojadomena.pl/img/products/[marka]/[sku]-1.[rozszerzenie]. Bez domeny zostaje publiczny adres Storage.</p>
+    <label class="check"><input id="host-images" type="checkbox" checked> Zapisz zdjęcia na serwerze NHP</label>
     <div class="limits">
       <label>Strony<input id="max-pages" type="number" min="1" max="500" value="50"></label>
       <label>Produkty<input id="max-products" type="number" min="1" max="5000" value="500"></label>
@@ -62,14 +66,16 @@
     </div>
     <p id="shop-progress">Gotowe do skanu.</p>
     <div class="gen">
-      <button type="button" data-file="csv">Generate <b>CSV</b></button>
-      <button type="button" data-file="xlsx">Generate <b>XLSX</b></button>
-      <button type="button" data-file="json">Generate <b>JSON</b></button>
-      <button type="button" data-file="images">Download <b>Images</b></button>
-      <button type="button" data-file="full">Download wszystko naraz <b>Full</b></button>
+      <button type="button" id="upload-images">Wgraj zdjęcia na serwer</button>
+      <button type="button" data-file="csv">Generuj <b>CSV</b></button>
+      <button type="button" data-file="xlsx">Generuj <b>XLSX</b></button>
+      <button type="button" data-file="json">Generuj <b>JSON</b></button>
+      <button type="button" data-file="images">Pobierz zdjęcia</button>
+      <button type="button" data-file="full">Pobierz wszystko naraz</button>
       <button type="button" id="send-nhp">Wyślij do NHP</button>
     </div>
     <p id="shop-msg"></p>
+    <p id="shop-errors"></p>
   </section>
 </main>
 <script src="popup.js"></script>

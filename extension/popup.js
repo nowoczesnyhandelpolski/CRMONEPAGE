@@ -2,6 +2,7 @@ const base = document.getElementById("base");
 const key = document.getElementById("key");
 const msg = document.getElementById("msg");
 const shopMsg = document.getElementById("shop-msg");
+let latestShop = null;
 const progress = document.getElementById("shop-progress");
 const domainEl = document.getElementById("shop-domain");
 const imageDomain = document.getElementById("image-domain");
@@ -41,8 +42,8 @@ document.getElementById("save").addEventListener("click", async () => {
 });
 
 function showExample() {
-  const host = imageDomain.value.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "") || "twojadomena.pl";
-  example.textContent = `Wynik: https://${host}/produkty/[marka]/[sku].[rozszerzenie]`;
+  const host = imageDomain.value.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "") || "panel.nowoczesnyhandelpolski.pl";
+  example.textContent = `Po wgraniu na serwer: https://${host}/img/products/[marka]/[sku]-1.[rozszerzenie]. Bez domeny zostaje publiczny adres Storage.`;
 }
 imageDomain.addEventListener("input", () => {
   showExample();
@@ -57,12 +58,31 @@ async function activeHttpTab() {
 
 function paint(state) {
   if (!state) return;
+  latestShop = state;
   if (state.domain) domainEl.textContent = state.domain;
-  const running = state.running ? "Skanuję… " : state.done ? "Koniec. " : "";
+  const upload = state.upload || {};
+  const running = upload.running ? `Wgrywam zdjęcia ${upload.done || 0}/${upload.total || 0}. ` : state.running ? "Skanuję… " : state.done ? "Koniec. " : "";
   progress.textContent = `${running}Strony ${state.pages || 0}/${state.maxPages || 50} · Produkty ${state.count || 0}/${state.maxProducts || 500}`;
-  document.getElementById("scan").disabled = !!state.running;
+  document.getElementById("scan").disabled = !!state.running || !!upload.running;
   document.getElementById("stop").hidden = !state.running;
   if (state.error) shopMsg.textContent = state.error;
+  const errors = upload.errors || [];
+  document.getElementById("shop-errors").textContent = errors.slice(-5).map((e) => e.error).join("\n");
+}
+
+async function ensureHosted() {
+  if (!document.getElementById("host-images").checked) return { ok: true, skipped: true };
+  const origins = new Set();
+  for (const product of latestShop?.products || []) {
+    for (const url of product.images || []) {
+      try { origins.add(`${new URL(url).origin}/*`); } catch { /* pomiń */ }
+    }
+  }
+  if (origins.size) {
+    const granted = await chrome.permissions.request({ origins: [...origins] });
+    if (!granted) return { ok: false, error: "Bez zgody na serwery zdjęć nie wgram plików." };
+  }
+  return chrome.runtime.sendMessage({ type: "shop-upload" });
 }
 
 (async () => {
@@ -113,9 +133,19 @@ async function files() {
   return chrome.runtime.sendMessage({ type: "shop-files", imageDomain: imageDomain.value.trim() });
 }
 
+document.getElementById("upload-images").addEventListener("click", async () => {
+  shopMsg.textContent = "Wgrywam zdjęcia…";
+  const res = await ensureHosted();
+  shopMsg.textContent = res?.error || (res?.skipped ? "Zapis na serwerze jest wyłączony." : "Zdjęcia są na serwerze NHP.");
+});
+
 document.querySelector(".gen").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-file]");
   if (!button) return;
+  if (button.dataset.file !== "images") {
+    const hosted = await ensureHosted();
+    if (hosted && hosted.ok === false) { shopMsg.textContent = hosted.error; return; }
+  }
   const pack = await files();
   if (!pack?.ok) { shopMsg.textContent = "Najpierw zeskanuj sklep."; return; }
   const host = (domainEl.textContent || "sklep").replace(/[^a-z0-9.-]+/gi, "");
@@ -137,6 +167,8 @@ document.querySelector(".gen").addEventListener("click", async (event) => {
 });
 
 document.getElementById("send-nhp").addEventListener("click", async () => {
+  const hosted = await ensureHosted();
+  if (hosted && hosted.ok === false) { shopMsg.textContent = hosted.error; return; }
   shopMsg.textContent = "Wysyłam szkice…";
   const res = await chrome.runtime.sendMessage({ type: "shop-send", imageDomain: imageDomain.value.trim() });
   if (!res?.ok) shopMsg.textContent = res?.error || "Nie udało się wysłać.";

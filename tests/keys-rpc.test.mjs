@@ -31,6 +31,10 @@ test("SQL wystawia klucze i import bez service role, menu ma jedną grupę Produ
   assert.match(sql, /function public\.import_offer_export/);
   assert.match(sql, /grant execute on function public\.import_offer_export\(text, jsonb\) to anon/);
   assert.match(sql, /grant execute on function public\.create_api_key\(text, text\) to authenticated/);
+  assert.match(sql, /function public\.claim_media_upload/);
+  assert.match(sql, /media_permit_insert/);
+  const routes = JSON.parse(fs.readFileSync(new URL("../_routes.json", import.meta.url), "utf8"));
+  assert.ok(routes.include.includes("/img/*"));
   const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
   assert.equal(html.includes('["produkty","Produkty","products"]'), false);
   assert.match(html, /baza-produktow", "aukcje", "import-wtyczki", "eksport", "generator"/);
