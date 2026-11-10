@@ -26,3 +26,9 @@
 
 /prompty.js
   X-Robots-Tag: noindex, nofollow
+
+/brand.js
+  X-Robots-Tag: noindex, nofollow
+
+/chat.js
+  X-Robots-Tag: noindex, nofollow
