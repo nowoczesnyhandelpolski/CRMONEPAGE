@@ -23,3 +23,6 @@
 
 /lib/*
   X-Robots-Tag: noindex, nofollow
+
+/prompty.js
+  X-Robots-Tag: noindex, nofollow
