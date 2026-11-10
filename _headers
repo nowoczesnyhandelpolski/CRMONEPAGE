@@ -1,6 +1,25 @@
+# Nagłówki dotyczą TYLKO plików statycznych (panel).
+# Cloudflare nie dokleja _headers do odpowiedzi Pages Functions,
+# więc strony /p/<slug> ustawiają własne nagłówki w functions/ (index, follow).
+# noindex jest tylko na plikach panelu, nie na całym /* — inaczej reguły by się skleiły.
+
 /*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  X-Robots-Tag: noindex, nofollow
   Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+/
+  X-Robots-Tag: noindex, nofollow
+
+/index.html
+  X-Robots-Tag: noindex, nofollow
+
+/generator.js
+  X-Robots-Tag: noindex, nofollow
+
+/config.js
+  X-Robots-Tag: noindex, nofollow
+
+/lib/*
+  X-Robots-Tag: noindex, nofollow

@@ -1,0 +1,19 @@
+<svg viewBox="0 0 640 740" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Zbliżenie autka, przykład">
+  <defs>
+    <linearGradient id="g3-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#efe8e0"/><stop offset="1" stop-color="#ddd4ca"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="740" fill="url(#g3-bg)"/>
+  <ellipse cx="320" cy="560" rx="220" ry="28" fill="#1c1917" opacity=".1"/>
+  <g transform="translate(90,250) scale(5.2)">
+    <rect x="0" y="16" width="86" height="24" rx="8" fill="#ff5a00"/>
+    <rect x="18" y="2" width="48" height="22" rx="6" fill="#ff5a00"/>
+    <rect x="24" y="6" width="16" height="12" rx="2" fill="#d9eefc"/>
+    <rect x="44" y="6" width="16" height="12" rx="2" fill="#c5e4fb"/>
+    <circle cx="22" cy="42" r="10" fill="#1c1917"/>
+    <circle cx="66" cy="42" r="10" fill="#1c1917"/>
+    <circle cx="22" cy="42" r="4" fill="#d9d4cc"/>
+    <circle cx="66" cy="42" r="4" fill="#d9d4cc"/>
+  </g>
+</svg>

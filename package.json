@@ -1,0 +1,8 @@
+{
+  "name": "nowoczesny-handel-polski",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}
