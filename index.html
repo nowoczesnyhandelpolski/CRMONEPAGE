@@ -426,6 +426,7 @@ const ic = (n, s=18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fil
 const ORDER_ST = [["nowe","Nowe","var(--info)"],["zamowione","W realizacji","var(--violet)"],["wyslane","Wysłane","var(--warn)"],["problem","Problem","var(--bad)"],["zwrot","Zwrot","var(--grey)"]];
 /* status zamówienia: brak lub nieznany (np. dawne "dostarczone") → Nowe */
 let OSEL = new Set(), OVIS = [], OPAGE = [];
+const fmtZl2 = n => new Intl.NumberFormat("pl-PL",{style:"currency",currency:"PLN",minimumFractionDigits:2,maximumFractionDigits:2}).format(num(n));
 const fmtDT = t => { const d = new Date(t); return isNaN(d) ? "" : d.toLocaleString("pl-PL",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).replace(",",""); };
 const ost = o => ORDER_ST.some(x=>x[0]===o.status) ? o.status : "nowe";
 const PAY_ST = [["oczekuje","Płatność: oczekuje","var(--warn)"],["oplacone","Opłacone","var(--good)"],["anulowane","Płatność anulowana","var(--grey)"],["zwrocone","Zwrot płatności","var(--bad)"]];
@@ -960,7 +961,7 @@ function vOrders(){
       <div class="ogrp"><button type="button" class="obtn" data-opage="-1" ${UI.opage<=1?"disabled":""} aria-label="Poprzednia strona">‹</button><button type="button" class="obtn" data-opage="1" ${UI.opage>=pages?"disabled":""} aria-label="Następna strona">›</button></div>
     </div>
   </div>
-  ${nSel ? `<div class="osel-bar"><b class="num">${nSel}</b> ${nSel===1?"zamówienie zaznaczone":nSel<5?"zamówienia zaznaczone":"zamówień zaznaczonych"} · <span class="num">${fmtZl([...OSEL].reduce((s,id)=>s+num((S.orders[id]||{}).price),0))}</span><button type="button" class="btn ghost sm" data-osel-do="none">Odznacz</button></div>` : ""}`;
+  ${nSel ? `<div class="osel-bar"><b class="num">${nSel}</b> ${nSel===1?"zamówienie zaznaczone":nSel<5?"zamówienia zaznaczone":"zamówień zaznaczonych"} · <span class="num">${fmtZl2([...OSEL].reduce((s,id)=>s+num((S.orders[id]||{}).price),0))}</span><button type="button" class="btn ghost sm" data-osel-do="none">Odznacz</button></div>` : ""}`;
   const items = o => { const p = nameOf("products",o.productId); return p==="—" ? `<span class="muted">—</span>` : `<i class="muted">${num(o.qty)||1}x</i> ${esc(p)}`; };
   const shipInfo = o => [o.carrier, o.ship_to].filter(Boolean).map(esc).join(" · ");
   const rows = page.map(o => { const st = opt(ORDER_ST, ost(o)), pr = profitOf(o), open = UI.oexp===o.id, sel = OSEL.has(o.id);
@@ -971,7 +972,7 @@ function vOrders(){
       <td><span class="onum num">${esc(o.number||"—")}</span>${demoTag(o)}${o.source?`<div class="small muted">${esc(o.source)}${o.page_slug?` · /p/${esc(o.page_slug)}`:""}</div>`:""}</td>
       <td><div class="strong">${esc(nameOf("customers",o.customerId))}</div>${o.buyer_email||o.buyer_phone?`<div class="small muted">${esc(o.buyer_email||o.buyer_phone)}</div>`:""}</td>
       <td class="oitems">${items(o)}</td>
-      <td class="r"><div class="num strong">${fmtZl(o.price)}</div><div class="small num ${pr>=0?"pos":"neg"}">${pr>=0?"+":""}${fmtZl(pr)}</div></td>
+      <td class="r"><div class="num strong">${fmtZl2(o.price)}</div><div class="small num ${pr>=0?"pos":"neg"}">${pr>=0?"+":""}${fmtZl2(pr)}</div></td>
       <td><span class="obadge" style="--c:${st[2]}">${esc(st[1])}</span>${shipInfo(o)?`<div class="small oship">${shipInfo(o)}</div>`:""}${o.tracking?`<div class="small muted num">${esc(o.tracking)}</div>`:""}</td>
       <td class="oicons">${o.payment_status?`<span class="oic" style="--c:${opt(PAY_ST,o.payment_status)[2]}" title="${esc(opt(PAY_ST,o.payment_status)[1])}">zł</span>`:""}${o.tracking?`<span class="oic" style="--c:var(--good)" title="Numer przesyłki: ${esc(o.tracking)}">T</span>`:""}${o.notes?`<span class="oic" style="--c:var(--info)" title="${esc(o.notes)}">i</span>`:""}${avatar(o.owner,24)}</td>
       <td class="odate"><div class="num">${fmtDate(o.date)}</div>${statusAt?`<div class="small num olink" title="Zmiana statusu">${statusAt}</div>`:""}</td>
