@@ -52,12 +52,12 @@ test("skrypt treści nie jest modułem z manifestu, selektory zostają osobnym p
 test("ogłoszenie wtyczki: wersja, kroki i zamknięcie per wersja", () => {
   const html = extensionAnnounceHtml((v) => v, { dismiss: true });
   assert.match(html, new RegExp(EXTENSION_HEADLINE));
-  assert.match(html, /1\.0\.1/);
+  assert.match(html, new RegExp(EXTENSION_VERSION.replace(/\./g, "\\.")));
   assert.match(html, /Pobierz wtyczkę \(\.zip\)/);
   assert.match(html, /Tryb dewelopera/);
   assert.match(html, /bez zgadywania|Brak ceny/);
   assert.match(html, /Publikacja zawsze ręczna/);
-  assert.equal(bannerDismissed("1.0.1"), true);
+  assert.equal(bannerDismissed(EXTENSION_VERSION), true);
   assert.equal(bannerDismissed("1.0.0"), false);
   assert.equal(bannerDismissed(""), false);
   assert.equal(BANNER_STORAGE_KEY, "nhp-ext-banner");

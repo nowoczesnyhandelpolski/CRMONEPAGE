@@ -113,7 +113,7 @@ npm test
 
 Osobne tabele w `supabase.sql` (nie EAV `records`): produkty, katalogi, aukcje, powiązania ofert, szkice wystawienia, partie importu, kolejki robocze, prowizje, zadania generacji, media, klucze API. Tokeny Allegro są w `allegro_secrets` i nie mają polityk dla zalogowanych. Klucz wtyczki jest w bazie tylko jako SHA-256.
 
-Po wgraniu SQL w Supabase powstaje też kubełek Storage `media` (zdjęcia AI i wideo).
+Po wgraniu SQL w Supabase powstaje też kubełek Storage `media` (zdjęcia AI i wideo). Klucze API i import z wtyczki działają bez `SUPABASE_SERVICE_ROLE_KEY`, ale tylko po ponownym uruchomieniu całego `supabase.sql` (funkcje `create_api_key`, `revoke_api_key`, `import_offer_export`). Allegro OAuth i generacja AI nadal potrzebują klucza service role.
 
 ### Wtyczka Chrome
 

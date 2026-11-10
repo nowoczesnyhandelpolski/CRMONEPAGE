@@ -645,7 +645,7 @@ async function boot(){
 
 /* ---------- routing ---------- */
 const VIEWS = [
-  ["pulpit","Pulpit","home"],["zamowienia","Zamówienia","orders"],["produkty","Produkty","products"],
+  ["pulpit","Pulpit","home"],["zamowienia","Zamówienia","orders"],
   ["dostawcy","Dostawcy","suppliers"],["klienci","Klienci","customers"],["zadania","Zadania","tasks"],["sklepy-i-boty","Sklepy i boty","bot"]
 ];
 const view = () => { const h = location.hash.slice(1); return VIEWS.some(v=>v[0]===h) ? h : "pulpit"; };

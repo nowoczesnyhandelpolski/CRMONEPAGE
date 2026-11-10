@@ -64,7 +64,7 @@
         const { data, error } = await query;
         if (error) {
           const msg = String(error.message || error);
-          if (/schema cache|does not exist|42P01|relation/i.test(msg)) CRM.S.trade.error = "Brakuje tabel handlu. W Supabase → SQL Editor uruchom ponownie cały plik supabase.sql.";
+          if (/schema cache|does not exist|42P01|relation|PGRST/i.test(msg)) CRM.S.trade.error = "Brakuje tabel handlu: " + msg + " W Supabase → SQL Editor uruchom ponownie cały plik supabase.sql.";
           else CRM.S.trade.error = "Nie udało się wczytać danych handlu: " + msg;
           return [];
         }
@@ -446,7 +446,7 @@
       if (act === "del-comm") { await CRM.SB.from("category_commissions").delete().eq("id", t.dataset.id); await reload(); CRM.scheduleRender(); return; }
       if (act === "export") return downloadExport();
       if (act === "new-key") return newKey();
-      if (act === "revoke") { await call(`/api/panel/keys/${t.dataset.id}`, "DELETE"); await reload(); CRM.scheduleRender(); return; }
+      if (act === "revoke") return revokeKey(t.dataset.id);
       if (act === "allegro-connect") return connectAllegro();
       if (act === "draft") return allegroDraft(t.dataset.id);
       if (act === "fee") return allegroFee(t.dataset.id);
@@ -553,14 +553,35 @@
         CRM.toast(err.message || "Nie udało się pobrać wtyczki.");
       }
     }
+    function dbReason(error) {
+      const msg = String(error?.message || error || "Nieznany błąd");
+      if (/does not exist|schema cache|PGRST202|42883|function/i.test(msg)) return msg + " Uruchom ponownie cały plik supabase.sql w SQL Editor.";
+      return msg;
+    }
     async function newKey() {
       try {
+        const { freshAccessToken } = await import("./lib/panel-api.mjs");
+        const { mintApiKey, sha256Hex } = await import("./lib/supabase-rest.mjs");
+        await freshAccessToken(CRM.SB);
         const label = document.getElementById("key-label")?.value.trim() || "Wtyczka";
-        const res = await call("/api/panel/keys", "POST", { label });
-        T().freshKey = res.key;
+        const key = mintApiKey();
+        const key_hash = await sha256Hex(key);
+        const { error } = await CRM.SB.rpc("create_api_key", { p_label: label, p_key_hash: key_hash });
+        if (error) { CRM.toast(dbReason(error)); return; }
+        T().freshKey = key;
         await reload();
         CRM.scheduleRender();
-      } catch (err) { CRM.toast(err.message); }
+      } catch (err) { CRM.toast(dbReason(err)); }
+    }
+    async function revokeKey(id) {
+      try {
+        const { freshAccessToken } = await import("./lib/panel-api.mjs");
+        await freshAccessToken(CRM.SB);
+        const { error } = await CRM.SB.rpc("revoke_api_key", { p_id: id });
+        if (error) { CRM.toast(dbReason(error)); return; }
+        await reload();
+        CRM.scheduleRender();
+      } catch (err) { CRM.toast(dbReason(err)); }
     }
     async function connectAllegro() {
       try {

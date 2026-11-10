@@ -405,9 +405,289 @@ begin
   end loop;
 end $$;
 
--- Skrót klucza zostaje przy service_role. Zespół widzi tylko metadane i może odwołać klucz.
+-- Skrót klucza nie jest czytelny z panelu. Wystawianie i odwołanie idzie przez funkcje poniżej (bez service_role).
 revoke select (key_hash) on public.api_keys from authenticated;
 revoke insert, update, delete on public.api_keys from authenticated;
+
+-- Klucz API zespołu. Wywołanie z JWT użytkownika i kluczem publishable.
+create or replace function public.create_api_key(p_label text, p_key_hash text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_id uuid;
+begin
+  if not public.is_team() then
+    raise exception 'Brak uprawnień zespołu. Ten e-mail nie jest na liście allowed_emails.' using errcode = '42501';
+  end if;
+  if p_key_hash is null or p_key_hash !~ '^[0-9a-f]{64}$' then
+    raise exception 'Zły skrót klucza.';
+  end if;
+  insert into public.api_keys (key_hash, label, created_by)
+  values (p_key_hash, left(coalesce(nullif(btrim(p_label), ''), 'Wtyczka'), 80), auth.uid())
+  returning id into new_id;
+  return new_id;
+end;
+$$;
+
+create or replace function public.revoke_api_key(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_team() then
+    raise exception 'Brak uprawnień zespołu. Ten e-mail nie jest na liście allowed_emails.' using errcode = '42501';
+  end if;
+  update public.api_keys set revoked_at = now() where id = p_id and revoked_at is null;
+end;
+$$;
+
+revoke all on function public.create_api_key(text, text) from public, anon;
+revoke all on function public.revoke_api_key(uuid) from public, anon;
+grant execute on function public.create_api_key(text, text) to authenticated, service_role;
+grant execute on function public.revoke_api_key(uuid) to authenticated, service_role;
+
+create or replace function public.nhp_num(p text)
+returns numeric
+language plpgsql
+immutable
+as $$
+begin
+  if p is null or btrim(p) = '' then return null; end if;
+  return replace(p, ',', '.')::numeric;
+exception when others then
+  return null;
+end;
+$$;
+revoke all on function public.nhp_num(text) from public, anon, authenticated;
+
+-- Import z wtyczki. Anon woła funkcję skrótem klucza; nie czyta tabeli api_keys.
+create or replace function public.import_offer_export(p_key_hash text, p_batch jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_key public.api_keys%rowtype;
+  v_catalog uuid;
+  v_item jsonb;
+  v_data jsonb;
+  v_product uuid;
+  v_auction uuid;
+  v_batch text;
+  v_saved int := 0;
+  v_flagged int := 0;
+  v_now timestamptz := now();
+  v_price numeric;
+  v_status text;
+begin
+  if p_key_hash is null or p_key_hash !~ '^[0-9a-f]{64}$' then
+    raise exception 'Nieprawidłowy klucz API.' using errcode = '28000';
+  end if;
+  select * into v_key from public.api_keys where key_hash = p_key_hash and revoked_at is null;
+  if not found then
+    raise exception 'Nieprawidłowy klucz API.' using errcode = '28000';
+  end if;
+  update public.api_keys set last_used_at = v_now where id = v_key.id;
+
+  v_batch := nullif(p_batch->>'batch_id', '');
+  if v_batch is null or v_batch !~ '^[A-Za-z0-9_-]{6,64}$' then
+    v_batch := 'imp_' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 16);
+  end if;
+  insert into public.offer_import_batches (id, name, account_login, created_by, updated_at)
+  values (
+    v_batch,
+    coalesce(nullif(p_batch->>'name', ''), 'Import z wtyczki'),
+    nullif(p_batch->>'account_login', ''),
+    v_key.created_by,
+    v_now
+  )
+  on conflict (id) do update
+    set name = excluded.name, account_login = excluded.account_login, updated_at = excluded.updated_at;
+
+  select id into v_catalog from public.product_catalogs where name = 'Import z wtyczki' limit 1;
+  if v_catalog is null then
+    insert into public.product_catalogs (name, source) values ('Import z wtyczki', 'extension') returning id into v_catalog;
+  end if;
+
+  for v_item in select value from jsonb_array_elements(coalesce(p_batch->'items', '[]'::jsonb))
+  loop
+    v_data := coalesce(v_item->'item', '{}'::jsonb);
+    v_status := coalesce(nullif(v_item->>'status', ''), 'draft');
+    if v_status = 'flagged' or lower(coalesce(v_item->>'flagged', '')) in ('true', 't', '1') then
+      v_flagged := v_flagged + 1;
+    end if;
+    v_price := public.nhp_num(v_data->>'price');
+
+    v_product := null;
+    if coalesce(v_data->>'ean', '') <> '' then
+      select id into v_product from public.products where ean = v_data->>'ean' limit 1;
+    end if;
+    if v_product is null and coalesce(v_data->>'source_link', '') <> '' then
+      select id into v_product from public.products where source_link = v_data->>'source_link' limit 1;
+    end if;
+
+    if v_product is null then
+      insert into public.products (
+        catalog_id, sku, ean, name, catalog_name, producer, brand, category_id, category,
+        price, base_price, price_before_promo, delivery_cost, shipping_time,
+        images, description, description_sections, params, source_link, allegro_product_id, status, updated_at
+      ) values (
+        v_catalog,
+        nullif(v_data->>'ean', ''),
+        nullif(v_data->>'ean', ''),
+        coalesce(nullif(v_data->>'catalog_name', ''), 'Bez nazwy'),
+        nullif(v_data->>'catalog_name', ''),
+        nullif(v_data->>'producer', ''),
+        nullif(v_data->>'producer', ''),
+        nullif(v_data->>'category_id', ''),
+        nullif(v_data->>'category', ''),
+        v_price,
+        public.nhp_num(v_data->>'base_price'),
+        public.nhp_num(v_data->>'price_before_promo'),
+        public.nhp_num(v_data->>'delivery_cost'),
+        nullif(v_data->>'shipping_time', ''),
+        coalesce(v_data->'images', '[]'::jsonb),
+        (select string_agg(s->>'text', E'\n\n') from jsonb_array_elements(coalesce(v_data->'description_sections', '[]'::jsonb)) s where s->>'type' = 'text'),
+        coalesce(v_data->'description_sections', '[]'::jsonb),
+        coalesce(v_data->'parameters', '[]'::jsonb),
+        nullif(v_data->>'source_link', ''),
+        nullif(v_data->>'allegro_product_id', ''),
+        case when v_price is null then 'flagged' else 'active' end,
+        v_now
+      ) returning id into v_product;
+    else
+      update public.products set
+        catalog_id = coalesce(catalog_id, v_catalog),
+        name = coalesce(nullif(name, ''), nullif(v_data->>'catalog_name', ''), 'Bez nazwy'),
+        catalog_name = coalesce(catalog_name, nullif(v_data->>'catalog_name', '')),
+        producer = coalesce(nullif(v_data->>'producer', ''), producer),
+        brand = coalesce(nullif(v_data->>'producer', ''), brand),
+        category = coalesce(nullif(v_data->>'category', ''), category),
+        category_id = coalesce(nullif(v_data->>'category_id', ''), category_id),
+        price = coalesce(v_price, price),
+        base_price = coalesce(public.nhp_num(v_data->>'base_price'), base_price),
+        price_before_promo = coalesce(public.nhp_num(v_data->>'price_before_promo'), price_before_promo),
+        delivery_cost = coalesce(public.nhp_num(v_data->>'delivery_cost'), delivery_cost),
+        shipping_time = coalesce(nullif(v_data->>'shipping_time', ''), shipping_time),
+        images = case when jsonb_typeof(v_data->'images') = 'array' and jsonb_array_length(v_data->'images') > 0 then v_data->'images' else images end,
+        description_sections = case when jsonb_typeof(v_data->'description_sections') = 'array' and jsonb_array_length(v_data->'description_sections') > 0 then v_data->'description_sections' else description_sections end,
+        params = case when jsonb_typeof(v_data->'parameters') = 'array' and jsonb_array_length(v_data->'parameters') > 0 then v_data->'parameters' else params end,
+        source_link = coalesce(nullif(v_data->>'source_link', ''), source_link),
+        allegro_product_id = coalesce(nullif(v_data->>'allegro_product_id', ''), allegro_product_id),
+        updated_at = v_now
+      where id = v_product;
+    end if;
+
+    v_auction := null;
+    if coalesce(v_data->>'source_offer_id', '') <> '' then
+      select id into v_auction from public.auctions where source_offer_id = v_data->>'source_offer_id' limit 1;
+    end if;
+    if v_auction is null and coalesce(v_data->>'source_link', '') <> '' then
+      select id into v_auction from public.auctions where source_link = v_data->>'source_link' limit 1;
+    end if;
+
+    if v_auction is null then
+      insert into public.auctions (
+        source_offer_id, origin, ean, name, catalog_name, producer, brand, category_id, category,
+        price, base_price, price_before_promo, delivery_cost, shipping_time,
+        images, description, description_sections, params, source_link, allegro_product_id,
+        product_id, missing, status, updated_at
+      ) values (
+        nullif(v_data->>'source_offer_id', ''),
+        'import',
+        nullif(v_data->>'ean', ''),
+        coalesce(nullif(v_data->>'catalog_name', ''), 'Bez nazwy'),
+        nullif(v_data->>'catalog_name', ''),
+        nullif(v_data->>'producer', ''),
+        nullif(v_data->>'producer', ''),
+        nullif(v_data->>'category_id', ''),
+        nullif(v_data->>'category', ''),
+        v_price,
+        public.nhp_num(v_data->>'base_price'),
+        public.nhp_num(v_data->>'price_before_promo'),
+        public.nhp_num(v_data->>'delivery_cost'),
+        nullif(v_data->>'shipping_time', ''),
+        coalesce(v_data->'images', '[]'::jsonb),
+        (select string_agg(s->>'text', E'\n\n') from jsonb_array_elements(coalesce(v_data->'description_sections', '[]'::jsonb)) s where s->>'type' = 'text'),
+        coalesce(v_data->'description_sections', '[]'::jsonb),
+        coalesce(v_data->'parameters', '[]'::jsonb),
+        nullif(v_data->>'source_link', ''),
+        nullif(v_data->>'allegro_product_id', ''),
+        v_product,
+        coalesce(v_data->'missing', '[]'::jsonb),
+        v_status,
+        v_now
+      ) returning id into v_auction;
+    else
+      update public.auctions set
+        product_id = v_product,
+        name = coalesce(nullif(v_data->>'catalog_name', ''), name),
+        catalog_name = coalesce(catalog_name, nullif(v_data->>'catalog_name', '')),
+        price = coalesce(v_price, price),
+        base_price = coalesce(public.nhp_num(v_data->>'base_price'), base_price),
+        delivery_cost = coalesce(public.nhp_num(v_data->>'delivery_cost'), delivery_cost),
+        missing = coalesce(v_data->'missing', missing),
+        status = v_status,
+        updated_at = v_now
+      where id = v_auction;
+    end if;
+
+    insert into public.product_offer_links (auction_id, product_id)
+    values (v_auction, v_product)
+    on conflict do nothing;
+
+    insert into public.offer_import_items (batch_id, pos, source_offer_id, ean, status, missing, data, product_id, auction_id, updated_at)
+    values (
+      v_batch,
+      coalesce((v_item->>'pos')::int, v_saved),
+      nullif(v_data->>'source_offer_id', ''),
+      nullif(v_data->>'ean', ''),
+      v_status,
+      coalesce(v_data->'missing', '[]'::jsonb),
+      v_data,
+      v_product,
+      v_auction,
+      v_now
+    );
+    v_saved := v_saved + 1;
+  end loop;
+
+  return jsonb_build_object('ok', true, 'batch_id', v_batch, 'saved', v_saved, 'flagged', v_flagged, 'total_items', v_saved, 'url', '/#import-wtyczki');
+end;
+$$;
+
+create or replace function public.touch_api_key(p_key_hash text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_label text;
+begin
+  if p_key_hash is null or p_key_hash !~ '^[0-9a-f]{64}$' then
+    raise exception 'Nieprawidłowy klucz API.' using errcode = '28000';
+  end if;
+  update public.api_keys set last_used_at = now()
+   where key_hash = p_key_hash and revoked_at is null
+   returning label into v_label;
+  if v_label is null then
+    raise exception 'Nieprawidłowy klucz API.' using errcode = '28000';
+  end if;
+  return jsonb_build_object('ok', true, 'label', v_label);
+end;
+$$;
+
+revoke all on function public.import_offer_export(text, jsonb) from public;
+revoke all on function public.touch_api_key(text) from public;
+grant execute on function public.import_offer_export(text, jsonb) to anon, authenticated, service_role;
+grant execute on function public.touch_api_key(text) to anon, authenticated, service_role;
 
 alter table public.allegro_secrets enable row level security;
 alter table public.allegro_oauth_states enable row level security;
