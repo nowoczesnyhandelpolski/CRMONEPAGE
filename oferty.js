@@ -23,11 +23,33 @@
 
     let P = null;
     let tiers = null;
+    let Ann = null;
+    const dash = CRM.VIEW_FNS.pulpit;
+    if (dash) {
+      CRM.VIEW_FNS.pulpit = function () {
+        let note = "";
+        if (Ann) {
+          let stored = "";
+          try { stored = localStorage.getItem(Ann.BANNER_STORAGE_KEY) || ""; } catch { stored = ""; }
+          if (!Ann.bannerDismissed(stored)) note = Ann.extensionAnnounceHtml(CRM.esc, { dismiss: true });
+        }
+        return note + dash();
+      };
+    }
+    if (!document.getElementById("ext-ann-css")) {
+      const css = document.createElement("style");
+      css.id = "ext-ann-css";
+      css.textContent = "";
+      document.head.appendChild(css);
+    }
     CRM.readyFns.push(async () => {
       P = await import("./lib/pricing.mjs");
       const ui = await import("./lib/tier-ui.mjs");
+      Ann = await import("./lib/extension-announce.mjs");
       tiers = ui;
       ui.ensureTierCss();
+      const annCss = document.getElementById("ext-ann-css");
+      if (annCss) annCss.textContent = Ann.EXT_ANN_CSS;
       await reload();
       const flag = new URLSearchParams(location.search).get("allegro");
       if (flag === "ok") CRM.toast("Konto Allegro podłączone.");
@@ -351,8 +373,9 @@
         <td>${k.revoked_at ? "Odwołany" : "Aktywny"}</td>
         <td>${k.revoked_at ? "" : `<button class="btn sm danger" type="button" data-nhp="revoke" data-id="${k.id}">Odwołaj</button>`}</td>
       </tr>`).join("");
+      const plug = Ann ? Ann.extensionAnnounceHtml(CRM.esc, { dismiss: false }) : "";
       return top("Klucze API", "Wtyczka wysyła klucz w nagłówku X-NHP-Key. W bazie zostaje tylko skrót SHA-256.", "") +
-        banner() + fresh +
+        banner() + plug + fresh +
         `<div class="card pad" style="margin-bottom:14px"><div class="row"><input id="key-label" placeholder="Nazwa, np. komputer Ani" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px"><button class="btn primary" type="button" data-nhp="new-key">Wystaw klucz</button></div></div>` +
         (rows ? `<div class="card tbl-wrap"><table><thead><tr><th>Nazwa</th><th>Utworzony</th><th>Ostatnie użycie</th><th>Stan</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="card"><div class="empty"><b>Brak kluczy</b>Wystaw pierwszy i wklej go w ustawieniach wtyczki.</div></div>`);
     }
@@ -428,6 +451,8 @@
       if (act === "draft") return allegroDraft(t.dataset.id);
       if (act === "fee") return allegroFee(t.dataset.id);
       if (act === "publish") return allegroPublish(t.dataset.offer);
+      if (act === "dismiss-ext") return dismissExtensionBanner();
+      if (act === "download-ext") return downloadExtension();
     });
     document.addEventListener("change", (e) => {
       if (e.target.dataset?.pick) {
@@ -501,6 +526,32 @@
       if (error) { CRM.toast("Nie udało się zapisać stawki. Sprawdź, czy klucz się nie powtarza i czy procent jest poniżej 95."); return; }
       await reload();
       CRM.scheduleRender();
+    }
+    function dismissExtensionBanner() {
+      if (!Ann) return;
+      try { localStorage.setItem(Ann.BANNER_STORAGE_KEY, Ann.EXTENSION_VERSION); } catch { /* prywatny tryb */ }
+      CRM.scheduleRender();
+    }
+    async function downloadExtension() {
+      if (window.NHP_LOCAL || !CRM.SB?.auth?.getSession) {
+        CRM.toast("Pobranie wtyczki działa na wdrożonym panelu, po zalogowaniu.");
+        return;
+      }
+      try {
+        const { data } = await CRM.SB.auth.getSession();
+        const token = data?.session?.access_token;
+        if (!token) { CRM.toast("Sesja wygasła. Zaloguj się ponownie."); return; }
+        const res = await fetch("/api/extension.zip", { headers: { authorization: `Bearer ${token}` } });
+        if (!res.ok) { CRM.toast("Nie udało się pobrać wtyczki. Zaloguj się na konto zespołu."); return; }
+        const blob = await res.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "nhp-wtyczka.zip";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch (err) {
+        CRM.toast(err.message || "Nie udało się pobrać wtyczki.");
+      }
     }
     async function newKey() {
       try {

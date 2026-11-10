@@ -71,6 +71,15 @@ a{color:var(--accent)}
 .nav button[aria-current="page"]::before{content:"";position:absolute;left:-14px;top:8px;bottom:8px;width:6px;border-radius:0 4px 4px 0;background:linear-gradient(90deg,#fff 0 50%,var(--red) 50%)}
 .nav button[aria-current="page"] svg{color:#fff}
 .nav .count{margin-left:auto;font-size:11px;font-weight:800;background:var(--red);color:#fff;padding:1px 8px;border-radius:99px;box-shadow:0 0 0 2px rgba(255,255,255,.15)}
+.nav-group{display:flex;flex-direction:column;gap:2px}
+.nav-toggle .nav-end{margin-left:auto;display:inline-flex;align-items:center;gap:6px}
+.nav-toggle .count{margin-left:0}
+.nav-chev{width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);transition:transform .15s ease;flex:none}
+.nav-group[data-open="true"] .nav-chev{transform:rotate(-135deg) translateY(2px)}
+.nav-group.is-on > .nav-toggle{color:#fff}
+.nav-sub{display:none;flex-direction:column;gap:2px;margin:0 0 4px;padding:0 0 0 14px}
+.nav-group[data-open="true"] > .nav-sub{display:flex}
+.nav-sub button{padding:8px 10px;font-weight:600}
 .side-foot{margin-top:auto;display:flex;flex-direction:column;gap:8px}
 .me{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(255,255,255,.06)}
 .me label{font-size:11px;color:rgba(255,255,255,.6);display:block}
@@ -273,6 +282,9 @@ code{font-size:13px;background:var(--surface-2);border:1px solid var(--line);pad
   .brand small,.side-foot .btn span{display:none}
   .side{flex-wrap:wrap;min-width:0;max-width:100vw}
   .nav{flex-direction:row;overflow-x:auto;flex:1 1 100%;order:3;min-width:0;scrollbar-width:none;padding-bottom:4px}
+  .nav-group{flex-direction:row;align-items:center;flex:none}
+  .nav-sub{flex-direction:row;margin:0;padding:0;gap:3px}
+  .nav-group[data-open="true"] > .nav-sub{display:flex}
   .side-foot{margin-left:auto!important;min-width:0}
   .side-foot .btn{padding:7px 9px}
   .nav .count{display:none}
@@ -637,6 +649,44 @@ const VIEWS = [
   ["dostawcy","Dostawcy","suppliers"],["klienci","Klienci","customers"],["zadania","Zadania","tasks"],["sklepy-i-boty","Sklepy i boty","bot"]
 ];
 const view = () => { const h = location.hash.slice(1); return VIEWS.some(v=>v[0]===h) ? h : "pulpit"; };
+const NAV_GROUPS = [
+  { id: "zamowienia", label: "Zamówienia", icon: "orders", children: ["zamowienia", "klienci", "dostawcy", "leady"] },
+  { id: "produkty", label: "Produkty", icon: "products", children: ["baza-produktow", "aukcje", "import-wtyczki", "eksport", "generator"] }
+];
+function navGroupOpen(id, childActive){
+  if (childActive) return true;
+  return ls.get("nhp-nav-" + id, "1") !== "0";
+}
+function navItemHtml(item, active, badge){
+  if (!item) return "";
+  const [k, l, i] = item;
+  return `<button type="button" data-nav="${k}" ${k === active ? 'aria-current="page"' : ""}>${ic(i)}<span>${esc(l)}</span>${badge[k] ? `<span class="count num">${badge[k]}</span>` : ""}</button>`;
+}
+function navHtml(active, badge){
+  const byKey = Object.fromEntries(VIEWS.map((v) => [v[0], v]));
+  const grouped = new Set(NAV_GROUPS.flatMap((g) => g.children));
+  const placed = new Set();
+  const parts = [];
+  for (const item of VIEWS) {
+    const key = item[0];
+    const group = NAV_GROUPS.find((g) => g.children.includes(key));
+    if (group) {
+      if (placed.has(group.id)) continue;
+      placed.add(group.id);
+      const childOn = group.children.includes(active);
+      const open = navGroupOpen(group.id, childOn);
+      const hiddenCount = group.children.reduce((sum, id) => sum + (badge[id] || 0), 0);
+      const kids = group.children.map((id) => navItemHtml(byKey[id], active, badge)).join("");
+      parts.push(`<div class="nav-group${childOn ? " is-on" : ""}" data-open="${open ? "true" : "false"}">
+        <button type="button" class="nav-toggle" data-nav-group="${group.id}" aria-expanded="${open ? "true" : "false"}">${ic(group.icon)}<span>${esc(group.label)}</span><span class="nav-end">${!open && hiddenCount ? `<span class="count num">${hiddenCount}</span>` : ""}<i class="nav-chev" aria-hidden="true"></i></span></button>
+        <div class="nav-sub">${kids}</div>
+      </div>`);
+      continue;
+    }
+    if (!grouped.has(key)) parts.push(navItemHtml(item, active, badge));
+  }
+  return parts.join("");
+}
 addEventListener("hashchange", () => { if(!entered) return; render(); $("#main").scrollTop = 0; window.scrollTo(0,0); });
 
 /* ---------- render ---------- */
@@ -644,7 +694,7 @@ function render(){
   const v = view();
   if(window.NHP_BRAND) NHP_BRAND.banner(v);
   const badge = navBadges();
-  $("#nav").innerHTML = VIEWS.map(([k,l,i]) => `<button data-nav="${k}" ${k===v?'aria-current="page"':""}>${ic(i)}<span>${l}</span>${badge[k]?`<span class="count num">${badge[k]}</span>`:""}</button>`).join("");
+  $("#nav").innerHTML = navHtml(v, badge);
   $("#meSel").innerHTML = team().map(p => `<option value="${p.k}" ${p.k===me?"selected":""}>${esc(p.name)}</option>`).join("");
   $("#meAv").innerHTML = avatar(me, 32);
 
@@ -1070,6 +1120,17 @@ async function submitPass(f){
 /* ---------- events ---------- */
 document.addEventListener("click", e => {
   const g = e.target.closest("[data-gate]"); if(g){ showGate(g.dataset.gate); return; }
+  const grp = e.target.closest("[data-nav-group]");
+  if(grp){
+    const id = grp.dataset.navGroup;
+    const group = NAV_GROUPS.find((g) => g.id === id);
+    const childOn = group && group.children.includes(view());
+    const openNow = grp.getAttribute("aria-expanded") === "true";
+    ls.set("nhp-nav-" + id, openNow ? "0" : "1");
+    if(childOn && openNow) return;
+    $("#nav").innerHTML = navHtml(view(), navBadges());
+    return;
+  }
   const t = e.target.closest("[data-nav],[data-new],[data-edit],[data-act],[data-period],[data-ofilter],[data-pfilter],[data-towner],[data-goto-orders],[data-move],[data-stop]");
   if(!t) { if(e.target === $("#scrim")) closeModal(); return; }
   if(t.dataset.stop !== undefined && !e.target.closest("[data-move]")) return;
