@@ -14,9 +14,9 @@
    Layout: boczna nawigacja + robocza kolumna; pulpit = podsumowanie nad detalami. */
 :root{
   --bg:#F3F5F9; --surface:#FFFFFF; --surface-2:#F8F9FC; --ink:#161A2E; --muted:#646A82; --line:#E2E6EF;
-  --accent:#FF6B2C; --accent-ink:#FFFFFF; --accent-2:#13A898;
+  --accent:#ff5a00; --accent-ink:#FFFFFF; --accent-2:#13A898;
   --good:#16A34A; --warn:#D99600; --bad:#E5484D; --info:#4C7EF3; --violet:#8B5CF6; --grey:#8A8FA3;
-  --p1:#FF6B2C; --p2:#5B5BD6; --p3:#E93D82;
+  --p1:#ff5a00; --p2:#5B5BD6; --p3:#E93D82;
   --shadow:0 1px 2px rgba(22,26,46,.05),0 6px 20px rgba(22,26,46,.06);
   --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
   --body:"Figtree",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -281,6 +281,7 @@ code{font-size:13px;background:var(--surface-2);border:1px solid var(--line);pad
 
 <script src="generator.js"></script>
 <script src="prompty.js"></script>
+<script src="oferty.js"></script>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.97.0/dist/umd/supabase.js"></script>
 <script>
@@ -316,7 +317,9 @@ const I = {
   globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
   spark:'<path d="M12 2.5 13.8 8.6 20 10.4 13.8 12.2 12 18.3 10.2 12.2 4 10.4 10.2 8.6Z"/>',
   mail:'<path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/>',
-  inbox:'<path d="M3 13h5l2 3h4l2-3h5v6H3z"/><path d="M3 13 6 5h12l3 8"/>'
+  inbox:'<path d="M3 13h5l2 3h4l2-3h5v6H3z"/><path d="M3 13 6 5h12l3 8"/>',
+  key:'<circle cx="8" cy="15" r="4"/><path d="m11.5 15 8-8M16 7l2 2M18 5l2 2"/>',
+  down:'<path d="M12 4v12M7 11l5 5 5-5M5 20h14"/>'
 };
 const ic = (n, s=18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
 

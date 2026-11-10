@@ -4,13 +4,20 @@ export function clientIp(request) {
     || "";
 }
 
-export function json(data, status = 200) {
+export const CORS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-headers": "authorization, content-type, x-nhp-key, x-nhp-version",
+  "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS"
+};
+
+export function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
-      "x-content-type-options": "nosniff"
+      "x-content-type-options": "nosniff",
+      ...extra
     }
   });
 }

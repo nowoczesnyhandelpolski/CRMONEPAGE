@@ -101,6 +101,52 @@ Testy jednostkowe:
 npm test
 ```
 
+## Handel: wtyczka, baza, aukcje, Allegro
+
+Osobne tabele w `supabase.sql` (nie EAV `records`): produkty, katalogi, aukcje, powiązania ofert, szkice wystawienia, partie importu, kolejki robocze, prowizje, zadania generacji, media, klucze API. Tokeny Allegro są w `allegro_secrets` i nie mają polityk dla zalogowanych. Klucz wtyczki jest w bazie tylko jako SHA-256.
+
+Po wgraniu SQL w Supabase powstaje też kubełek Storage `media` (zdjęcia AI i wideo).
+
+### Wtyczka Chrome
+
+1. W panelu: **Klucze API** → wystaw klucz (`nhp_…`). Pokazuje się raz.
+2. Chrome → rozszerzenia → tryb dewelopera → **Załaduj rozpakowane** → katalog `extension`.
+3. W oknie wtyczki wklej adres panelu i klucz.
+4. Na karcie `allegro.pl/oferta/…` naciśnij **E** (poza polem tekstowym) albo **Zapisz w Centrali**. Szkic ląduje od razu w Imporcie, Bazie produktów i Aukcjach. Brak ceny oznacza pozycję, nie jest uzupełniany.
+
+Selektory DOM są tylko w `extension/selectors.mjs`. Rdzeń starego SharkHelpera nie jest w tym repozytorium — ten plik można podmienić, gdy dojdzie paczka ZIP.
+
+### Allegro
+
+W [Allegro dla deweloperów](https://developer.allegro.pl/) zarejestruj aplikację (authorization code). Adres zwrotny, co do znaku:
+
+```text
+https://panel.nowoczesnyhandelpolski.pl/api/allegro/callback
+```
+
+Na podglądzie Pages podmień host. Tę samą wartość daj w `ALLEGRO_REDIRECT_URL`. W panelu: Aukcje → Połącz Allegro. Dopasowanie katalogu idzie po EAN (`GET /sale/products?mode=GTIN`). **Szkic Allegro** woła `POST /sale/product-offers` ze statusem `INACTIVE`. **Publikuj** jest osobno i wymaga wpisania `PUBLIKUJ`.
+
+**Ustaw cenę** liczy `cena bazowa = cena produktu + dostawa`, potem `cena sprzedaży = baza / (1 − prowizja)`. Prowizja jest procentem ceny końcowej i bierze się z tabeli w Aukcjach (klucz to id kolejki roboczej albo id kategorii Allegro). Brak ceny, dostawy albo stawki zatrzymuje liczenie.
+
+### Generacja i wideo
+
+Na stronie i przy produkcie są trzy kafle: **S1** (tekst, 0 zł za zdjęcia), **S1 Pro** (tekst + 1 zdjęcie AI, ok. 0,60 zł), **S1 Max** (tekst + 5 zdjęć AI, ok. 3 zł, oraz wideo złożone w panelu). Tekst: OpenAI Responses, model `OPENAI_MODEL` albo `gpt-5-mini`. Zdjęcia: `POST /v1/images/edits`, model `OPENAI_IMAGE_MODEL` albo `gpt-image-1`. Wideo (9:16 albo 1:1, 15–30 s) rysuje przeglądarka (MediaRecorder, a gdy umie — WebCodecs). Muzyka jest wyłączona. Plik wraca do Storage i do karty strony (bohater i nagrania).
+
+**Zrób stronę** tworzy szkic w Generatorze stron. Cudze zdjęcia nie dostają prawa do publikacji. Cena przed promocją nie jest wstawiana jako omnibus.
+
 ## Sekrety
 
-Repozytorium jest publiczne. W gicie może być tylko klucz publishable. `service_role`, hasła i klucze Przelewy24 zostają w sekretach Cloudflare albo w Supabase. Pliki `.env` i `.dev.vars` są w `.gitignore`.
+Repozytorium jest publiczne. W gicie może być tylko klucz publishable. `service_role`, hasła, klucze Przelewy24, `ALLEGRO_CLIENT_SECRET` i `OPENAI_API_KEY` zostają w sekretach Cloudflare albo w Supabase. Pliki `.env` i `.dev.vars` są w `.gitignore`.
+
+Dodatkowe zmienne (Production), obok tabeli wyżej:
+
+| Zmienna | Typ | Po co |
+| --- | --- | --- |
+| `ALLEGRO_CLIENT_ID` | tekst | aplikacja Allegro |
+| `ALLEGRO_CLIENT_SECRET` | **Secret** | wymiana kodu OAuth |
+| `ALLEGRO_REDIRECT_URL` | tekst | zwrotka OAuth, musi być zgodna z aplikacją |
+| `OPENAI_API_KEY` | **Secret** | tekst i zdjęcia |
+| `OPENAI_MODEL` | tekst, opcjonalnie | domyślnie `gpt-5-mini` |
+| `OPENAI_IMAGE_MODEL` | tekst, opcjonalnie | domyślnie `gpt-image-1` |
+
+`_routes.json` obejmuje `/p/*`, `/sitemap.xml` i `/api/*`. Te wzorce nie mogą na siebie nachodzić — deploy Pages kończy się błędem 8000057.

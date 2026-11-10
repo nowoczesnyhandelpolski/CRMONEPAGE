@@ -145,3 +145,290 @@ revoke all on public.public_hits from anon, authenticated;
 -- Gotowe! Dodanie nowego wspólnika później:
 --   insert into public.allowed_emails (email) values (lower('nowy@przyklad.pl'));
 -- I pamiętaj usunąć PLACEHOLDERY @przyklad.pl, gdy wpiszesz prawdziwe adresy.
+
+-- =====================================================================
+-- Baza produktów, aukcje, import z wtyczki, szkice Allegro, generacja.
+-- Osobne tabele — nie mieszamy tego z public.records (EAV zamówień).
+-- Skrypt można puścić ponownie. Tokeny Allegro i skróty kluczy API
+-- nie są czytelne dla anon ani dla zalogowanego zespołu.
+-- =====================================================================
+
+create table if not exists public.product_catalogs (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  source text not null default 'manual',
+  note text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.work_categories (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  note text not null default '',
+  position numeric not null default 0,
+  status text not null default 'todo',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.products (
+  id uuid primary key default gen_random_uuid(),
+  catalog_id uuid references public.product_catalogs(id) on delete set null,
+  sku text,
+  ean text,
+  name text not null,
+  catalog_name text,
+  brand text,
+  producer text,
+  category_id text,
+  category text,
+  work_category_id uuid references public.work_categories(id) on delete set null,
+  price numeric,
+  base_price numeric,
+  price_before_promo numeric,
+  delivery_cost numeric,
+  currency text not null default 'PLN',
+  stock integer,
+  shipping_time text,
+  images jsonb not null default '[]'::jsonb,
+  description text,
+  description_sections jsonb not null default '[]'::jsonb,
+  params jsonb not null default '[]'::jsonb,
+  source_link text,
+  allegro_product_id text,
+  status text not null default 'active',
+  generated jsonb not null default '{}'::jsonb,
+  raw jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists products_ean on public.products (ean);
+create index if not exists products_catalog on public.products (catalog_id);
+
+create table if not exists public.auctions (
+  id uuid primary key default gen_random_uuid(),
+  source_offer_id text,
+  allegro_offer_id text,
+  account_id uuid,
+  shop text,
+  origin text not null default 'import',
+  sku text,
+  ean text,
+  name text,
+  catalog_name text,
+  brand text,
+  producer text,
+  category_id text,
+  category text,
+  work_category_id uuid references public.work_categories(id) on delete set null,
+  price numeric,
+  base_price numeric,
+  price_before_promo numeric,
+  delivery_cost numeric,
+  currency text not null default 'PLN',
+  stock integer,
+  status text not null default 'draft',
+  shipping_time text,
+  images jsonb not null default '[]'::jsonb,
+  description text,
+  description_sections jsonb not null default '[]'::jsonb,
+  params jsonb not null default '[]'::jsonb,
+  source_link text,
+  allegro_product_id text,
+  product_id uuid references public.products(id) on delete set null,
+  missing jsonb not null default '[]'::jsonb,
+  generated jsonb not null default '{}'::jsonb,
+  raw jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+create unique index if not exists auctions_source_offer on public.auctions (source_offer_id) where source_offer_id is not null and source_offer_id <> '';
+create index if not exists auctions_status on public.auctions (status);
+create index if not exists auctions_work on public.auctions (work_category_id);
+
+create table if not exists public.product_offer_links (
+  auction_id uuid not null references public.auctions(id) on delete cascade,
+  product_id uuid not null references public.products(id) on delete cascade,
+  primary key (auction_id, product_id)
+);
+
+create table if not exists public.listing_drafts (
+  id uuid primary key default gen_random_uuid(),
+  channel text not null default 'allegro',
+  auction_id uuid references public.auctions(id) on delete set null,
+  product_id uuid references public.products(id) on delete set null,
+  account_id uuid,
+  name text,
+  price numeric,
+  stock integer,
+  status text not null default 'draft',
+  offer_id text,
+  payload jsonb not null default '{}'::jsonb,
+  error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.listing_items (
+  id uuid primary key default gen_random_uuid(),
+  draft_id uuid references public.listing_drafts(id) on delete set null,
+  account_id uuid,
+  product_id uuid,
+  name text,
+  status text not null,
+  offer_id text,
+  errors jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.offer_import_batches (
+  id text primary key,
+  name text,
+  account_login text,
+  created_by uuid,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  closed_at timestamptz
+);
+
+create table if not exists public.offer_import_items (
+  id uuid primary key default gen_random_uuid(),
+  batch_id text not null references public.offer_import_batches(id) on delete cascade,
+  pos integer not null default 0,
+  source_offer_id text,
+  ean text,
+  status text not null default 'draft',
+  missing jsonb not null default '[]'::jsonb,
+  data jsonb not null default '{}'::jsonb,
+  product_id uuid,
+  auction_id uuid,
+  updated_at timestamptz not null default now()
+);
+create index if not exists offer_import_items_batch on public.offer_import_items (batch_id, pos);
+
+create table if not exists public.category_commissions (
+  id uuid primary key default gen_random_uuid(),
+  category_key text not null unique,
+  label text not null,
+  rate_pct numeric not null check (rate_pct >= 0 and rate_pct < 95),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.generation_jobs (
+  id uuid primary key default gen_random_uuid(),
+  tier text not null check (tier in ('s1', 's1_pro', 's1_max')),
+  status text not null default 'queued',
+  target text not null default 'page',
+  product_id uuid,
+  page_id text,
+  import_item_id uuid,
+  cost_estimate_pln numeric not null default 0,
+  cost_actual_pln numeric,
+  model text,
+  error text,
+  result jsonb not null default '{}'::jsonb,
+  payload jsonb not null default '{}'::jsonb,
+  created_by uuid,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.media (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid,
+  page_id text,
+  kind text not null check (kind in ('image', 'video')),
+  bucket text not null default 'media',
+  path text not null,
+  public_url text,
+  mime text,
+  meta jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.api_keys (
+  id uuid primary key default gen_random_uuid(),
+  key_hash text not null unique,
+  label text not null default '',
+  created_by uuid,
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz,
+  revoked_at timestamptz
+);
+
+create table if not exists public.allegro_accounts (
+  id uuid primary key default gen_random_uuid(),
+  shop text not null default '',
+  login text,
+  seller_id text,
+  expires_at timestamptz,
+  connected_by uuid,
+  created_at timestamptz not null default now(),
+  last_error text
+);
+
+create table if not exists public.allegro_secrets (
+  account_id uuid primary key references public.allegro_accounts(id) on delete cascade,
+  access_token text not null,
+  refresh_token text not null,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.allegro_oauth_states (
+  state text primary key,
+  user_id uuid,
+  created_at timestamptz not null default now()
+);
+
+-- Zespół widzi dane handlowe. Tokenów i skrótu klucza nie dostaje.
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'product_catalogs','work_categories','products','auctions','product_offer_links',
+    'listing_drafts','listing_items','offer_import_batches','offer_import_items',
+    'category_commissions','generation_jobs','media','api_keys','allegro_accounts'
+  ]
+  loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists zespol_czyta on public.%I', t);
+    execute format('drop policy if exists zespol_dodaje on public.%I', t);
+    execute format('drop policy if exists zespol_zmienia on public.%I', t);
+    execute format('drop policy if exists zespol_usuwa on public.%I', t);
+    execute format('create policy zespol_czyta on public.%I for select to authenticated using (public.is_team())', t);
+    execute format('create policy zespol_dodaje on public.%I for insert to authenticated with check (public.is_team())', t);
+    execute format('create policy zespol_zmienia on public.%I for update to authenticated using (public.is_team()) with check (public.is_team())', t);
+    execute format('create policy zespol_usuwa on public.%I for delete to authenticated using (public.is_team())', t);
+    execute format('revoke all on public.%I from anon', t);
+    execute format('grant select, insert, update, delete on public.%I to authenticated', t);
+    execute format('grant all on public.%I to service_role', t);
+  end loop;
+end $$;
+
+-- Skrót klucza zostaje przy service_role. Zespół widzi tylko metadane i może odwołać klucz.
+revoke select (key_hash) on public.api_keys from authenticated;
+revoke insert, update, delete on public.api_keys from authenticated;
+
+alter table public.allegro_secrets enable row level security;
+alter table public.allegro_oauth_states enable row level security;
+revoke all on public.allegro_secrets from anon, authenticated;
+revoke all on public.allegro_oauth_states from anon, authenticated;
+grant all on public.allegro_secrets to service_role;
+grant all on public.allegro_oauth_states to service_role;
+
+-- Pliki wideo i zdjęć. Ścieżki są losowe. Odczyt publiczny jest potrzebny opublikowanej stronie.
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('media', 'media', true, 52428800)
+on conflict (id) do update set public = true, file_size_limit = 52428800;
+
+drop policy if exists media_team_read on storage.objects;
+drop policy if exists media_team_insert on storage.objects;
+drop policy if exists media_team_update on storage.objects;
+drop policy if exists media_team_delete on storage.objects;
+drop policy if exists media_public_read on storage.objects;
+create policy media_team_read on storage.objects for select to authenticated using (bucket_id = 'media' and public.is_team());
+create policy media_team_insert on storage.objects for insert to authenticated with check (bucket_id = 'media' and public.is_team());
+create policy media_team_update on storage.objects for update to authenticated using (bucket_id = 'media' and public.is_team()) with check (bucket_id = 'media' and public.is_team());
+create policy media_team_delete on storage.objects for delete to authenticated using (bucket_id = 'media' and public.is_team());
+create policy media_public_read on storage.objects for select to anon using (bucket_id = 'media');
+
