@@ -249,6 +249,44 @@ select.pill::before{display:none}
 .f input,.f select,.f textarea{border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:9px 11px;width:100%}
 .f textarea{min-height:76px;resize:vertical}
 .f input:focus,.f select:focus,.f textarea:focus{outline:2px solid color-mix(in srgb,var(--accent) 60%,transparent);border-color:var(--accent)}
+/* zamówienia — lista w stylu Base */
+.olist{overflow:visible}
+.olist-h{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 6px}.olist-h h2{font-size:20px}
+.otools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 20px 14px;border-bottom:1px solid var(--line)}
+.ogrp{display:inline-flex}.ogrp > *:not(:first-child) .obtn,.ogrp > .obtn:not(:first-child){border-top-left-radius:0;border-bottom-left-radius:0;margin-left:-1px}
+.ogrp > *:not(:last-child) .obtn,.ogrp > .obtn:not(:last-child){border-top-right-radius:0;border-bottom-right-radius:0}
+.obtn{display:inline-flex;align-items:center;gap:6px;height:40px;min-width:44px;justify-content:center;padding:0 12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;cursor:pointer;font:inherit;font-weight:600;font-size:14px;list-style:none;transition:background .12s,border-color .12s}
+.obtn::-webkit-details-marker{display:none}
+.obtn:hover:not([disabled]){background:var(--surface-2);border-color:color-mix(in srgb,var(--ink) 25%,var(--line))}
+.obtn[disabled]{opacity:.4;cursor:not-allowed}
+.obtn.danger:not([disabled]):hover,.obtn.sure{color:#fff;background:var(--red);border-color:var(--red)}
+.dd-c{width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg) translateY(-2px);opacity:.6}
+details.dd{position:relative}details.dd[open] > .obtn{background:var(--surface-2);border-color:var(--ink)}
+.dd-m{position:absolute;z-index:30;top:calc(100% + 6px);left:0;min-width:270px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 40px rgba(19,41,75,.18);padding:8px;display:flex;flex-direction:column}
+.dd-h{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:10px 10px 4px}
+.dd-i{display:flex;align-items:center;gap:8px;text-align:left;border:0;background:none;font:inherit;font-size:14px;color:var(--ink);padding:8px 10px;border-radius:8px;cursor:pointer}
+.dd-i:hover:not([disabled]){background:var(--surface-2)}.dd-i[disabled]{opacity:.4;cursor:not-allowed}
+.opager{margin-left:auto;display:flex;align-items:center;gap:10px}
+.osel-bar{display:flex;align-items:center;gap:10px;padding:10px 20px;background:color-mix(in srgb,var(--info) 10%,var(--surface));border-bottom:1px solid var(--line);font-size:14px}
+.osel-bar .btn{margin-left:auto}
+.otable th{vertical-align:bottom}.th2{font-size:10px;letter-spacing:.04em;text-transform:none;color:var(--info);font-weight:600;margin-top:2px}
+.otable td{vertical-align:top;padding-top:13px;padding-bottom:13px}
+.otable .ock{width:34px;padding-right:0;cursor:pointer}.otable .ost{width:30px;padding-left:4px;padding-right:0}
+.otable input[type=checkbox]{width:17px;height:17px;accent-color:var(--navy);cursor:pointer}
+.ostar{border:0;background:none;padding:0;cursor:pointer;color:color-mix(in srgb,var(--muted) 70%,transparent);display:inline-flex}
+.ostar:hover{color:var(--warn)}.ostar.on{color:var(--warn)}.ostar.on svg{fill:currentColor}
+.onum{font-weight:800;color:var(--info);font-size:15px}
+.oitems{min-width:220px;max-width:420px}
+.obadge{--c:var(--grey);display:inline-block;font-size:12px;font-weight:800;padding:3px 10px;border-radius:6px;background:var(--c);color:#fff;white-space:nowrap}
+.oship{color:var(--info);margin-top:4px;max-width:220px}
+.oicons{white-space:nowrap}.oicons > *{vertical-align:middle;margin-right:4px}
+.oic{--c:var(--grey);display:inline-grid;place-items:center;width:22px;height:22px;border-radius:5px;background:var(--c);color:#fff;font-size:11px;font-weight:800}
+.odate{white-space:nowrap}.olink{color:var(--info);margin-top:3px}
+tr.orow.sel td{background:color-mix(in srgb,var(--info) 8%,var(--surface))}
+tr.orow.open td{background:var(--surface-2);border-bottom-color:transparent}
+tr.oexp td{padding:0 14px 16px;background:var(--surface-2);cursor:default}tr.oexp:hover td{background:var(--surface-2)}
+tr.oexp .opanel{box-shadow:none;border:1px solid var(--line)}
+@media (max-width:860px){.opager{margin-left:0;width:100%;justify-content:space-between}.dd-m{min-width:240px}}
 .opanels{display:grid;gap:16px}.opanel{overflow:hidden}.opanel-h{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line);font-size:16px}.opanel .modal-b{grid-template-columns:repeat(4,1fr)}.opanel .f.full{grid-column:1/-1}
 @media (max-width:1100px){.opanel .modal-b{grid-template-columns:1fr 1fr}}
 @media (max-width:520px){.opanel .modal-b{grid-template-columns:1fr}}
@@ -355,6 +393,15 @@ const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---------- icons ---------- */
 const I = {
+  check:'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 12 3 3 5-6"/>',
+  star:'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9Z"/>',
+  flag:'<path d="M5 21V4h11l-1.5 4L16 12H5"/>',
+  users:'<circle cx="9" cy="8" r="4"/><path d="M2 21v-1a6 6 0 0 1 12 0v1M16 4a4 4 0 0 1 0 8M22 21v-1a6 6 0 0 0-4-5.6"/>',
+  print:'<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/>',
+  download:'<path d="M12 3v12m-5-5 5 5 5-5M4 21h16"/>',
+  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 11v6M14 11v6"/>',
+  sortDown:'<path d="M7 4v16m-4-4 4 4 4-4M14 6h7M14 12h5M14 18h3"/>',
+  sortUp:'<path d="M7 20V4M3 8l4-4 4 4M14 6h3M14 12h5M14 18h7"/>',
   home:'<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/>',
   orders:'<path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="m3 8 9 5 9-5M12 13v8"/>',
   products:'<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
@@ -378,6 +425,8 @@ const ic = (n, s=18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fil
 /* ---------- domain ---------- */
 const ORDER_ST = [["nowe","Nowe","var(--info)"],["zamowione","W realizacji","var(--violet)"],["wyslane","Wysłane","var(--warn)"],["problem","Problem","var(--bad)"],["zwrot","Zwrot","var(--grey)"]];
 /* status zamówienia: brak lub nieznany (np. dawne "dostarczone") → Nowe */
+let OSEL = new Set(), OVIS = [], OPAGE = [];
+const fmtDT = t => { const d = new Date(t); return isNaN(d) ? "" : d.toLocaleString("pl-PL",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).replace(",",""); };
 const ost = o => ORDER_ST.some(x=>x[0]===o.status) ? o.status : "nowe";
 const PAY_ST = [["oczekuje","Płatność: oczekuje","var(--warn)"],["oplacone","Opłacone","var(--good)"],["anulowane","Płatność anulowana","var(--grey)"],["zwrocone","Zwrot płatności","var(--bad)"]];
 const PROD_ST = [["winner","Winner","var(--good)"],["test","Test","var(--info)"],["stop","Wstrzymany","var(--grey)"]];
@@ -461,7 +510,7 @@ let SB = null, channel = null, mode = "loading", readOnly = false, loadNote = ""
 const LINK = location.hash + "&" + location.search;
 const LINK_TYPE = (LINK.match(/type=([a-z_]+)/) || [])[1] || "";
 const LINK_ERR = decodeURIComponent(((LINK.match(/error_description=([^&]+)/) || [])[1] || "").replace(/\+/g," "));
-const UI = { orderFilter:"nowe", orderOwner:"all", q:{}, taskOwner:"all", period:"month", prodFilter:"all" };
+const UI = { orderFilter:"all", opage:1, oper:20, osort:"desc", oexp:null, ostarOnly:false, orderOwner:"all", q:{}, taskOwner:"all", period:"month", prodFilter:"all" };
 let me = ls.get("crm_me","p1");
 
 const DEFAULT_TEAM = {p1:"Ja",p2:"Michał",p3:"Agata"};
@@ -667,7 +716,7 @@ function navGroupOpen(id, childActive){
 }
 function navItemHtml(item, active, badge){
   if (!item) return "";
-  const [k, l, i] = item;
+  const [k, l0, i] = item; const l = k === "zamowienia" ? "Wszystkie zamówienia" : l0;
   return `<button type="button" data-nav="${k}" ${k === active ? 'aria-current="page"' : ""}>${ic(i)}<span>${esc(l)}</span>${badge[k] ? `<span class="count num">${badge[k]}</span>` : ""}</button>`;
 }
 function navHtml(active, badge){
@@ -713,6 +762,7 @@ function render(){
   $("#main").innerHTML = bannerHtml + body;
   dirty.forEach(([oid, entries]) => { const f = document.querySelector(`form.ofrm[data-oid="${CSS.escape(oid)}"]`); if(!f) return; f.dataset.dirty = "1"; entries.forEach(([k,val]) => { const el = f.elements[k]; if(el) el.value = val; }); });
   document.querySelectorAll("form.ofrm").forEach(updCalcIn);
+  const hc = document.querySelector("[data-osel-page]"); if(hc){ const some = OPAGE.some(id=>OSEL.has(id)); hc.indeterminate = some && !hc.checked; }
   if(focus){ const el = document.getElementById(focus.id); if(el && el.tagName === "INPUT"){ el.focus(); try{ el.setSelectionRange(focus.s, focus.s); }catch(e){} } }
   if(v === "zadania") wireDnD();
 }
@@ -859,25 +909,85 @@ function ago(ts){ const m = Math.round((Date.now()-num(ts))/6e4); if(m<1) return
 
 /* ---- Zamówienia ---- */
 function vOrders(){
-  let list = arr("orders").sort((a,b)=> (b.date||"").localeCompare(a.date||"") || String(b.number).localeCompare(String(a.number),"pl",{numeric:true}));
+  const sortAsc = UI.osort === "asc";
+  let list = arr("orders").sort((a,b)=> { const d = (b.date||"").localeCompare(a.date||"") || (num(b.createdAt)-num(a.createdAt)) || String(b.number).localeCompare(String(a.number),"pl",{numeric:true}); return sortAsc ? -d : d; });
   const all = list;
-  if(!ORDER_ST.some(x=>x[0]===UI.orderFilter)) UI.orderFilter = "nowe";
-  list = list.filter(o=>ost(o)===UI.orderFilter);
+  if(UI.orderFilter!=="all" && !ORDER_ST.some(x=>x[0]===UI.orderFilter)) UI.orderFilter = "all";
+  if(UI.orderFilter==="star") UI.orderFilter = "all";
+  if(UI.orderFilter!=="all") list = list.filter(o=>ost(o)===UI.orderFilter);
+  if(UI.ostarOnly) list = list.filter(o=>o.starred);
   if(UI.orderOwner!=="all") list = list.filter(o=>o.owner===UI.orderOwner);
-  list = list.filter(o => match("orders", o.number, nameOf("customers",o.customerId), nameOf("products",o.productId), o.tracking, o.notes));
+  list = list.filter(o => match("orders", o.number, nameOf("customers",o.customerId), nameOf("products",o.productId), o.tracking, o.notes, o.buyer_email, o.buyer_phone, o.carrier, o.source));
+  OVIS = list.map(o=>o.id);
+  // prune selection of deleted orders
+  [...OSEL].forEach(id => { if(!S.orders[id]) OSEL.delete(id); });
+  const per = UI.oper || 20, pages = Math.max(1, Math.ceil(list.length/per));
+  if(UI.opage > pages) UI.opage = pages; if(UI.opage < 1) UI.opage = 1;
+  const from = (UI.opage-1)*per, page = list.slice(from, from+per);
+  OPAGE = page.map(o=>o.id);
   const sumP = list.filter(counts).reduce((s,o)=>s+profitOf(o),0), sumR = list.filter(counts).reduce((s,o)=>s+num(o.price),0);
-  const chips = ORDER_ST.map(([k,l,c]) => `<button class="chip" data-ofilter="${k}" aria-pressed="${UI.orderFilter===k}"><span class="dot" style="background:${c}"></span>${l} <span class="num" style="opacity:.6">${all.filter(o=>ost(o)===k).length}</span></button>`).join("");
+  const chips = [["all","Wszystkie","var(--ink)"],...ORDER_ST].map(([k,l,c]) => `<button class="chip" data-ofilter="${k}" aria-pressed="${UI.orderFilter===k}">${k!=="all"?`<span class="dot" style="background:${c}"></span>`:""}${l} <span class="num" style="opacity:.6">${k==="all"?all.length:all.filter(o=>ost(o)===k).length}</span></button>`).join("")
+    + `<button class="chip" data-ostaronly="1" aria-pressed="${!!UI.ostarOnly}">${ic("star",14)} Z gwiazdką <span class="num" style="opacity:.6">${all.filter(o=>o.starred).length}</span></button>`;
   const own = `<select class="btn sm" data-oowner aria-label="Opiekun"><option value="all">Wszyscy opiekunowie</option>${team().map(p=>`<option value="${p.k}" ${UI.orderOwner===p.k?"selected":""}>${esc(p.name)}</option>`).join("")}</select>`;
-  const rows = list.map(o => { const pr = profitOf(o); return `<tr data-edit="orders:${o.id}">
-      <td class="strong num">#${esc(o.number||"—")}${demoTag(o)}${o.source?`<div class="small muted">${esc(o.source)}${o.page_slug?` · /p/${esc(o.page_slug)}`:""}</div>`:""}</td><td class="muted num">${fmtDate(o.date)}</td>
-      <td>${esc(nameOf("customers",o.customerId))}</td><td>${esc(nameOf("products",o.productId))}${num(o.qty)>1?` <span class="muted">× ${num(o.qty)}</span>`:""}</td>
-      <td class="r num">${fmtZl(o.price)}</td><td class="r num ${pr>=0?"pos":"neg"}">${fmtZl(pr)}</td>
-      <td data-stop="1">${statusSelect("orders",o)}${o.payment_status?`<div style="margin-top:4px">${pill(PAY_ST,o.payment_status)}</div>`:""}</td><td>${avatar(o.owner,26)}</td>
-      <td class="muted small">${esc(o.tracking||"—")}</td></tr>`; }).join("");
-  return topbar("Zamówienia", `Od kliknięcia klienta do paczki pod drzwiami. Zysk liczy się sam.`, newBtn("orders","Nowe zamówienie")) +
-    `<div class="toolbar">${searchBox("orders","Szukaj: numer, klient, produkt, przesyłka…")}${own}<span class="muted small">Widoczne: przychód <b class="num">${fmtZl(sumR)}</b> · zysk <b class="num">${fmtZl(sumP)}</b></span></div>
+  const nSel = OSEL.size, pageAll = page.length && page.every(o=>OSEL.has(o.id)), pageSome = page.some(o=>OSEL.has(o.id));
+  const mi = (attr, label, extra="") => `<button type="button" class="dd-i" ${attr}>${extra}${label}</button>`;
+  const dis = nSel ? "" : "disabled";
+  const tools = `<div class="otools">
+    <div class="ogrp">
+      <details class="dd"><summary class="obtn" title="Zaznaczanie" aria-label="Zaznaczanie">${ic("check",18)}<i class="dd-c"></i></summary><div class="dd-m">
+        <div class="dd-h">Na tej stronie</div>${mi('data-osel-do="page-all"',"Zaznacz wszystkie")}${mi('data-osel-do="page-star"',"Zaznacz oznaczone gwiazdką")}${mi('data-osel-do="page-none"',"Odznacz wszystkie")}${mi('data-osel-do="page-unstar"',"Odznacz oznaczone gwiazdką")}
+        <div class="dd-h">Na wszystkich stronach</div>${mi('data-osel-do="all"',"Zaznacz wszystkie")}${mi('data-osel-do="star"',"Zaznacz oznaczone gwiazdką")}${mi('data-osel-do="none"',"Odznacz wszystkie")}${mi('data-osel-do="unstar"',"Odznacz oznaczone gwiazdką")}
+      </div></details>
+      <details class="dd"><summary class="obtn" title="Gwiazdki" aria-label="Gwiazdki">${ic("star",18)}<i class="dd-c"></i></summary><div class="dd-m">
+        ${mi('data-obulk="star:1" '+dis,"Oznacz zaznaczone gwiazdką")}${mi('data-obulk="star:0" '+dis,"Usuń gwiazdkę z zaznaczonych")}
+      </div></details>
+    </div>
+    <div class="ogrp">
+      <details class="dd"><summary class="obtn wide" title="Zmień status zaznaczonych">${ic("flag",18)}<span>Status</span><i class="dd-c"></i></summary><div class="dd-m">
+        <div class="dd-h">Przenieś zaznaczone do</div>${ORDER_ST.map(([k,l,c]) => mi(`data-obulk="status:${k}" ${dis}`, l, `<span class="dot" style="background:${c}"></span>`)).join("")}
+      </div></details>
+      <details class="dd"><summary class="obtn wide" title="Przypisz opiekuna">${ic("users",18)}<span>Opiekun</span><i class="dd-c"></i></summary><div class="dd-m">
+        <div class="dd-h">Przypisz zaznaczone do</div>${team().map(p => mi(`data-obulk="owner:${p.k}" ${dis}`, esc(p.name))).join("")}
+      </div></details>
+      <button type="button" class="obtn" data-obulk="print" ${dis} title="Drukuj listę zaznaczonych" aria-label="Drukuj">${ic("print",18)}</button>
+      <button type="button" class="obtn" data-obulk="csv" ${dis} title="Pobierz CSV zaznaczonych" aria-label="Pobierz CSV">${ic("download",18)}</button>
+      <button type="button" class="obtn danger" data-obulk="del" ${dis} title="Usuń zaznaczone" aria-label="Usuń">${ic("trash",18)}</button>
+    </div>
+    <button type="button" class="obtn" data-osort="1" title="${sortAsc?"Najstarsze na górze":"Najnowsze na górze"}" aria-label="Sortowanie">${ic(sortAsc?"sortUp":"sortDown",18)}</button>
+    <div class="opager">
+      <select class="btn sm" data-oper aria-label="Na stronie">${[20,50,100].map(n=>`<option value="${n}" ${per===n?"selected":""}>${n} / str.</option>`).join("")}</select>
+      <span class="small"><b class="num">${list.length ? `${from+1}–${from+page.length}` : "0"}</b> <span class="muted">z ${fmtN(list.length)}</span></span>
+      <div class="ogrp"><button type="button" class="obtn" data-opage="-1" ${UI.opage<=1?"disabled":""} aria-label="Poprzednia strona">‹</button><button type="button" class="obtn" data-opage="1" ${UI.opage>=pages?"disabled":""} aria-label="Następna strona">›</button></div>
+    </div>
+  </div>
+  ${nSel ? `<div class="osel-bar"><b class="num">${nSel}</b> ${nSel===1?"zamówienie zaznaczone":nSel<5?"zamówienia zaznaczone":"zamówień zaznaczonych"} · <span class="num">${fmtZl([...OSEL].reduce((s,id)=>s+num((S.orders[id]||{}).price),0))}</span><button type="button" class="btn ghost sm" data-osel-do="none">Odznacz</button></div>` : ""}`;
+  const items = o => { const p = nameOf("products",o.productId); return p==="—" ? `<span class="muted">—</span>` : `<i class="muted">${num(o.qty)||1}x</i> ${esc(p)}`; };
+  const shipInfo = o => [o.carrier, o.ship_to].filter(Boolean).map(esc).join(" · ");
+  const rows = page.map(o => { const st = opt(ORDER_ST, ost(o)), pr = profitOf(o), open = UI.oexp===o.id, sel = OSEL.has(o.id);
+    const statusAt = o.statusAt ? fmtDT(o.statusAt) : "";
+    return `<tr class="orow${sel?" sel":""}${open?" open":""}" data-orow="${esc(o.id)}">
+      <td class="ock" data-ock><input type="checkbox" data-osel="${esc(o.id)}" ${sel?"checked":""} aria-label="Zaznacz #${esc(o.number||"")}"></td>
+      <td class="ost"><button type="button" class="ostar${o.starred?" on":""}" data-ostar="${esc(o.id)}" aria-label="${o.starred?"Usuń gwiazdkę":"Oznacz gwiazdką"}">${ic("star",17)}</button></td>
+      <td><span class="onum num">${esc(o.number||"—")}</span>${demoTag(o)}${o.source?`<div class="small muted">${esc(o.source)}${o.page_slug?` · /p/${esc(o.page_slug)}`:""}</div>`:""}</td>
+      <td><div class="strong">${esc(nameOf("customers",o.customerId))}</div>${o.buyer_email||o.buyer_phone?`<div class="small muted">${esc(o.buyer_email||o.buyer_phone)}</div>`:""}</td>
+      <td class="oitems">${items(o)}</td>
+      <td class="r"><div class="num strong">${fmtZl(o.price)}</div><div class="small num ${pr>=0?"pos":"neg"}">${pr>=0?"+":""}${fmtZl(pr)}</div></td>
+      <td><span class="obadge" style="--c:${st[2]}">${esc(st[1])}</span>${shipInfo(o)?`<div class="small oship">${shipInfo(o)}</div>`:""}${o.tracking?`<div class="small muted num">${esc(o.tracking)}</div>`:""}</td>
+      <td class="oicons">${o.payment_status?`<span class="oic" style="--c:${opt(PAY_ST,o.payment_status)[2]}" title="${esc(opt(PAY_ST,o.payment_status)[1])}">zł</span>`:""}${o.tracking?`<span class="oic" style="--c:var(--good)" title="Numer przesyłki: ${esc(o.tracking)}">T</span>`:""}${o.notes?`<span class="oic" style="--c:var(--info)" title="${esc(o.notes)}">i</span>`:""}${avatar(o.owner,24)}</td>
+      <td class="odate"><div class="num">${fmtDate(o.date)}</div>${statusAt?`<div class="small num olink" title="Zmiana statusu">${statusAt}</div>`:""}</td>
+    </tr>${open?`<tr class="oexp"><td colspan="9">${orderPanel(o)}</td></tr>`:""}`; }).join("");
+  return topbar("Zamówienia", `Wszystkie zamówienia w jednym miejscu. Zaznacz kilka i zmień je za jednym razem.`, newBtn("orders","Nowe zamówienie")) +
+    `<div class="toolbar">${searchBox("orders","Szukaj: numer, klient, produkt, e-mail, przesyłka…")}${own}<span class="muted small">Widoczne: przychód <b class="num">${fmtZl(sumR)}</b> · zysk <b class="num">${fmtZl(sumP)}</b></span></div>
      <div class="chips" style="margin-bottom:14px">${chips}</div>
-     ${UI.orderFilter==="nowe" && list.length ? `<div class="opanels">${list.map(orderPanel).join("")}</div>` : `<div class="card">${list.length ? `<div class="tbl-wrap"><table><thead><tr><th>Nr</th><th>Data</th><th>Klient</th><th>Produkt</th><th class="r">Wartość</th><th class="r">Zysk</th><th>Status</th><th>Opiekun</th><th>Przesyłka</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState("orders", UI.orderFilter==="nowe" ? (all.length ? "Brak nowych zamówień. Wszystko ogarnięte!" : "Pierwsze zamówienie to zawsze święto. Dodaj je!") : "Brak zamówień z tym statusem.")}</div>`}`;
+     <section class="card olist">
+       <div class="olist-h"><h2>${UI.orderFilter==="all" ? "Wszystkie zamówienia" : esc(opt(ORDER_ST,UI.orderFilter)[1])}${UI.ostarOnly?" · z gwiazdką":""}</h2></div>
+       ${tools}
+       ${list.length ? `<div class="tbl-wrap"><table class="otable"><thead><tr>
+         <th class="ock"><input type="checkbox" data-osel-page ${pageAll?"checked":""} aria-label="Zaznacz całą stronę"></th><th></th>
+         <th>Numer<div class="th2">(źródło)</div></th><th>Klient<div class="th2">(kontakt)</div></th><th>Przedmioty</th><th class="r">Kwota<div class="th2">(zysk)</div></th>
+         <th>Status<div class="th2">(wysyłka)</div></th><th></th><th>Data złożenia<div class="th2">(w statusie)</div></th>
+       </tr></thead><tbody>${rows}</tbody></table></div>` : emptyState("orders", all.length ? "Nic nie pasuje do filtrów." : "Pierwsze zamówienie to zawsze święto. Dodaj je!")}
+     </section>`;
 }
 /* pełny panel zamówienia (zakładka Nowe) — edycja w miejscu */
 function orderPanel(o){
@@ -901,6 +1011,7 @@ async function submitInline(frm){
   const fd = new FormData(frm), data = {...prev};
   SCHEMA.orders.fields.forEach(f => { if(f.t==="calc") return; let v = fd.get(f.k); v = v == null ? "" : String(v).trim(); data[f.k] = f.t==="number" ? (v==="" ? "" : num(v)) : v; });
   if(!data.number){ toast("Uzupełnij numer zamówienia."); return; }
+  if(prev.status!==data.status) data.statusAt = Date.now();
   delete frm.dataset.dirty;
   if(!(await put("orders", id, data))) return;
   if(prev.status!==data.status) afterOrderStatus(data, prev.status); else { logAct(`Zmiana: #${data.number}`); toast("Zapisano"); }
@@ -1067,6 +1178,7 @@ async function submitForm(){
   const req = {orders:"number",products:"name",suppliers:"name",customers:"name",tasks:"title",shops:"name",bots:"name"}[col];
   if(!data[req]){ const el = $("#f-"+req); if(el){ el.focus(); el.setCustomValidity("Uzupełnij to pole"); el.reportValidity(); setTimeout(()=>el.setCustomValidity(""),1500); } return; }
   if(isNew) data.createdAt = Date.now();
+  if(col==="orders" && (isNew || (prev && prev.status!==data.status))) data.statusAt = Date.now();
   if(col==="tasks"){ if(data.status==="done" && (!prev || prev.status!=="done")) data.doneAt = Date.now(); if(data.status!=="done") data.doneAt = null; }
   const okk = await put(col, id, data);
   if(!okk) return;
@@ -1092,6 +1204,7 @@ function afterOrderStatus(o, old){
 async function quickStatus(col, id, status){
   const r = S[col][id]; if(!r || r.status===status) return;
   const next = {...r, status};
+  if(col==="orders") next.statusAt = Date.now();
   if(await put(col, id, next)){ if(col==="orders") afterOrderStatus(next, r.status); else logAct(`${r.name} → ${status}`); }
   else scheduleRender();
 }
@@ -1214,6 +1327,7 @@ document.addEventListener("click", e => {
     const group = NAV_GROUPS.find((g) => g.id === id);
     const childOn = group && group.children.includes(view());
     const openNow = grp.getAttribute("aria-expanded") === "true";
+    if(group && !e.target.closest(".nav-chev") && view() !== group.children[0]){ ls.set("nhp-nav-" + id, "1"); if(id==="zamowienia"){ UI.orderFilter = "all"; UI.opage = 1; } location.hash = group.children[0]; return; }
     ls.set("nhp-nav-" + id, openNow ? "0" : "1");
     if(childOn && openNow) return;
     $("#nav").innerHTML = navHtml(view(), navBadges());
@@ -1227,11 +1341,11 @@ document.addEventListener("click", e => {
   if(t.dataset.move){ const [id,st] = t.dataset.move.split(":"); moveTask(id, st); return; }
   if(t.dataset.edit){ const [c,id] = t.dataset.edit.split(":"); if(S[c][id]) openForm(c,id); return; }
   if(t.dataset.period){ UI.period = t.dataset.period; render(); return; }
-  if(t.dataset.ofilter){ UI.orderFilter = t.dataset.ofilter; render(); return; }
+  if(t.dataset.ofilter){ UI.orderFilter = t.dataset.ofilter; UI.opage = 1; render(); return; }
   if(t.dataset.ostatus){ const [id,st] = t.dataset.ostatus.split(":"); const f = t.closest("form.ofrm"); if(f) delete f.dataset.dirty; quickStatus("orders", id, st); return; }
   if(t.dataset.pfilter){ UI.prodFilter = t.dataset.pfilter; render(); return; }
   if(t.dataset.towner){ UI.taskOwner = t.dataset.towner; render(); return; }
-  if(t.dataset.gotoOrders){ UI.orderFilter = t.dataset.gotoOrders; location.hash = "zamowienia"; return; }
+  if(t.dataset.gotoOrders){ UI.orderFilter = t.dataset.gotoOrders; UI.opage = 1; location.hash = "zamowienia"; return; }
   const a = t.dataset.act;
   if(a==="close") closeModal(); else if(a==="settings") openSettings(); else if(a==="del") confirmDelete(); else if(a==="cleardemo") clearDemo(); else if(a==="logout") SB.auth.signOut(); else if(a==="setpass") openPass(); else if(a==="openai-save") openaiAction("save"); else if(a==="openai-test") openaiAction("test"); else if(a==="openai-delete") openaiAction("delete");
 });
@@ -1276,6 +1390,74 @@ function celebrate(power=1){
     if(++f < 90) requestAnimationFrame(tick); else ctx.clearRect(0,0,W,H);
   })();
 }
+
+/* ---------- zamówienia: zaznaczanie i akcje zbiorcze ---------- */
+function oselDo(what){
+  const page = OPAGE.map(id=>S.orders[id]).filter(Boolean), vis = OVIS.map(id=>S.orders[id]).filter(Boolean);
+  const src = what.startsWith("page") ? page : vis, k = what.replace(/^page-?/,"") || "all";
+  if(k==="all") src.forEach(o=>OSEL.add(o.id));
+  else if(k==="star") src.filter(o=>o.starred).forEach(o=>OSEL.add(o.id));
+  else if(k==="none") src.forEach(o=>OSEL.delete(o.id));
+  else if(k==="unstar") src.filter(o=>o.starred).forEach(o=>OSEL.delete(o.id));
+  if(what==="none") OSEL.clear();
+  render();
+}
+async function obulk(cmd){
+  const ids = [...OSEL].filter(id=>S.orders[id]); if(!ids.length){ toast("Najpierw zaznacz zamówienia."); return; }
+  const [k, v] = cmd.split(":");
+  if(k==="print") return oprint(ids);
+  if(k==="csv") return ocsv(ids);
+  if(k==="del"){
+    const b = document.querySelector('[data-obulk="del"]');
+    if(b && !b.dataset.sure){ b.dataset.sure = "1"; b.classList.add("sure"); b.innerHTML = `${ic("trash",18)}<span>Usunąć ${ids.length}?</span>`; setTimeout(()=>{ if(b.isConnected){ delete b.dataset.sure; b.classList.remove("sure"); b.innerHTML = ic("trash",18); } }, 4000); return; }
+    let n = 0; for(const id of ids){ if(await del("orders", id)){ n++; OSEL.delete(id); } }
+    toast(`Usunięto ${n} ${n===1?"zamówienie":n<5?"zamówienia":"zamówień"}`); logAct(`Usunięto ${n} zamówień`); return;
+  }
+  let n = 0;
+  for(const id of ids){
+    const r = S.orders[id]; const next = {...r};
+    if(k==="status"){ if(ost(r)===v) continue; next.status = v; next.statusAt = Date.now(); }
+    else if(k==="owner"){ if(r.owner===v) continue; next.owner = v; }
+    else if(k==="star"){ const on = v==="1"; if(!!r.starred===on) continue; next.starred = on; }
+    if(await put("orders", id, next)) n++;
+  }
+  const what = k==="status" ? `→ ${opt(ORDER_ST,v)[1]}` : k==="owner" ? `→ ${pname(v)}` : v==="1" ? "oznaczone gwiazdką" : "bez gwiazdki";
+  if(n){ toast(`${n} ${n===1?"zamówienie":n<5?"zamówienia":"zamówień"} ${what}`); if(k!=="star") logAct(`Zbiorczo ${n} zamówień ${what}`); } else toast("Nic do zmiany");
+}
+function orowsFor(ids){ return ids.map(id=>S.orders[id]).filter(Boolean).map(o => ({nr:o.number||"", data:o.date||"", klient:nameOf("customers",o.customerId), produkt:nameOf("products",o.productId), ilosc:num(o.qty)||1, kwota:num(o.price), zysk:profitOf(o), status:opt(ORDER_ST,ost(o))[1], platnosc:o.payment_status?opt(PAY_ST,o.payment_status)[1]:"", przewoznik:o.carrier||"", przesylka:o.tracking||"", adres:o.ship_to||"", email:o.buyer_email||"", telefon:o.buyer_phone||"", opiekun:pname(o.owner), notatki:o.notes||""})); }
+function ocsv(ids){
+  const rows = orowsFor(ids); const cols = Object.keys(rows[0]);
+  const q = v => `"${String(v).replace(/"/g,'""')}"`;
+  const csv = "﻿" + [cols.join(";"), ...rows.map(r=>cols.map(c=>q(r[c])).join(";"))].join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); a.download = `zamowienia-${TODAY()}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  toast(`Pobrano CSV: ${rows.length} zamówień`);
+}
+function oprint(ids){
+  const rows = orowsFor(ids);
+  const w = window.open("", "_blank"); if(!w){ toast("Przeglądarka zablokowała okno drukowania."); return; }
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>Zamówienia ${TODAY()}</title><style>body{font:13px/1.4 system-ui,sans-serif;margin:24px;color:#13294B}h1{font-size:18px}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}th{font-size:11px;text-transform:uppercase;color:#555}td.r{text-align:right}</style><h1>Zamówienia (${rows.length}) · ${new Date().toLocaleString("pl-PL")}</h1><table><tr><th>Nr</th><th>Data</th><th>Klient</th><th>Produkt</th><th>Szt.</th><th>Kwota</th><th>Status</th><th>Wysyłka</th></tr>${rows.map(r=>`<tr><td>${esc(r.nr)}</td><td>${esc(r.data)}</td><td>${esc(r.klient)}<br><small>${esc(r.telefon||r.email)}</small></td><td>${esc(r.produkt)}</td><td>${r.ilosc}</td><td class="r">${esc(fmtZl(r.kwota))}</td><td>${esc(r.status)}</td><td>${esc([r.przewoznik,r.przesylka,r.adres].filter(Boolean).join(" · "))}</td></tr>`).join("")}</table>`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(), 200);
+}
+document.addEventListener("click", e => {
+  // zamknij otwarte menu po kliknięciu poza nim albo po wyborze pozycji
+  document.querySelectorAll("details.dd[open]").forEach(d => { if(!d.contains(e.target) || e.target.closest(".dd-i")) d.removeAttribute("open"); });
+  const t = e.target;
+  const sd = t.closest("[data-osel-do]"); if(sd){ oselDo(sd.dataset.oselDo); return; }
+  const bk = t.closest("[data-obulk]"); if(bk){ if(!bk.disabled) obulk(bk.dataset.obulk); return; }
+  const st = t.closest("[data-ostar]"); if(st){ const r = S.orders[st.dataset.ostar]; if(r) put("orders", r.id, {...r, starred: !r.starred}); return; }
+  if(t.closest("[data-ostaronly]")){ UI.ostarOnly = !UI.ostarOnly; UI.opage = 1; render(); return; }
+  const pg = t.closest("[data-opage]"); if(pg){ UI.opage += num(pg.dataset.opage); UI.oexp = null; render(); $("#main").scrollTop = 0; return; }
+  if(t.closest("[data-osort]")){ UI.osort = UI.osort==="asc" ? "desc" : "asc"; UI.opage = 1; render(); return; }
+  if(t.closest("[data-ock]")){ const cb = t.closest("[data-ock]").querySelector("input"); if(t !== cb){ cb.click(); } return; }
+  const row = t.closest("tr[data-orow]");
+  if(row && !t.closest("[data-stop],a,button,input,select")){ const id = row.dataset.orow; UI.oexp = UI.oexp===id ? null : id; render(); return; }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if(t.dataset.osel){ t.checked ? OSEL.add(t.dataset.osel) : OSEL.delete(t.dataset.osel); render(); return; }
+  if(t.matches("[data-osel-page]")){ OPAGE.forEach(id => t.checked ? OSEL.add(id) : OSEL.delete(id)); render(); return; }
+  if(t.matches("[data-oper]")){ UI.oper = num(t.value) || 20; UI.opage = 1; render(); return; }
+});
 
 const VIEW_FNS = { pulpit:vDash, zamowienia:vOrders, produkty:vProducts, dostawcy:vSuppliers, klienci:vCustomers, zadania:vTasks, "sklepy-i-boty":vShops };
 const CRM = {

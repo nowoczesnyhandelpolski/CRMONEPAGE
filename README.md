@@ -11,7 +11,7 @@ Motyw panelu wynika z logo: granat `#13294B`, biel i czerwień `#C8102E`, krój 
 Panel (`index.html`, logowanie e-mail + hasło):
 
 - **Pulpit** — cel miesięczny, przychód, zysk, marża, wykres 14 dni, lejek, „Wymaga uwagi”
-- **Zamówienia** — statusy logistyczne: nowe → w realizacji → wysłane, oraz problem / zwrot. Zakładka „Nowe” otwiera się domyślnie i pokazuje pełny panel każdego zamówienia do edycji na miejscu; zamówienia bez znanego statusu (np. dawne „dostarczone”) trafiają do „Nowe”. Płatność (oczekuje / opłacone / anulowane / zwrot) jest osobnym polem
+- **Zamówienia** — statusy logistyczne: nowe → w realizacji → wysłane, oraz problem / zwrot. Kliknięcie „Zamówienia” w menu otwiera od razu listę wszystkich zamówień w stylu Base: zaznaczanie wielu (na stronie i na wszystkich stronach, także tylko z gwiazdką), gwiazdki, zbiorcza zmiana statusu i opiekuna, druk, CSV, usuwanie, sortowanie i stronicowanie 20/50/100. Kliknięcie wiersza rozwija pełny panel zamówienia do edycji na miejscu. Zamówienia bez znanego statusu (np. dawne „dostarczone”) trafiają do „Nowe”. Płatność (oczekuje / opłacone / anulowane / zwrot) jest osobnym polem
 - **Produkty**, **Dostawcy**, **Klienci**, **Zadania** (kanban), **Sklepy i boty**
 - **Generator stron** — karty one-page, podgląd, publikacja pod `/p/<slug>`
 - **Leady** i **Wiadomości** — zapisy z publicznych stron
