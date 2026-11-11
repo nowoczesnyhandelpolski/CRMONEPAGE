@@ -1263,6 +1263,14 @@
     /* Update'y dopisywane przez ten moduł: zmiany w panelu (autor: Claude) i praca zrobiona z Claude w innych miejscach.
        Podbicie „v” odświeża tekst; wpisu poprawionego ręcznie w panelu (bez „seeded”) nie nadpisujemy. */
     const CLAUDE_UPDATES = {
+      "up-20261111-strony-bez-klucza": {
+        v: 1, who: "p1", date: "2026-11-11", stage: "pending", cat: "sklepy", title: "Strony produktów /p/ działają bez klucza serwisowego w Cloudflare",
+        before: "Każda strona /p/… i mapa strony zwracały błąd 500.\nW Cloudflare brakowało klucza serwisowego Supabase.",
+        after: "Strony, mapa strony, zamówienia, leady i wiadomości idą przez funkcję Supabase page-api.\nKlucz serwisowy zostaje w Supabase, nie trzeba go wklejać do Cloudflare.",
+        benefit: "Opublikowaną kartę widzi klient, a zamówienie trafia do CRM.",
+        plus: "Bez kopiowania tajnych kluczy\nTa sama walidacja i limity co wcześniej",
+        minus: "Limit prób z jednego IP jest teraz mniej szczelny (IP podaje Cloudflare przez page-api)"
+      },
       "up-20261111-bez-banera": {
         v: 1, who: "p1", date: "2026-11-11", stage: "live", cat: "tech", title: "Panel bez mega banera — spokojnie i przejrzyście",
         before: "Na górze każdej strony wielki baner: łopoczące flagi, fajerwerki, gierki i pasek z żartami.\nPod nim drugi baner z animacją.",
