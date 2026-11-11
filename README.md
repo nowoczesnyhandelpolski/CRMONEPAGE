@@ -54,6 +54,7 @@ Nie ma wiecznego licznika promocji. Zdanie o wysyłce mówi, ile zostało do god
 - `prompty.js` + `lib/prompt-builder.mjs` — Generator promptów
 - `chat.js` — komunikator zespołu
 - `oferty.js` — baza produktów, aukcje, import z wtyczki, eksport, klucze API
+- `zadania.js` — Zadania (Moje zadania, lista, tablica, kalendarz, rozliczenie, akceptacja) i Lista zmian i update'y (było → jest → co daje, kto ile pracował)
 - `extension/` — wtyczka Chrome do zapisu oferty Allegro
 - `brand.js` — sceny SVG, ekran logowania, intro, dźwięki
 - `assets/brand/` — logo (kolorowe i białe) oraz ikona/favicon
