@@ -1263,6 +1263,14 @@
     /* Update'y dopisywane przez ten moduł: zmiany w panelu (autor: Claude) i praca zrobiona z Claude w innych miejscach.
        Podbicie „v” odświeża tekst; wpisu poprawionego ręcznie w panelu (bez „seeded”) nie nadpisujemy. */
     const CLAUDE_UPDATES = {
+      "up-20261111-parametry": {
+        v: 1, who: "p1", date: "2026-11-11", stage: "live", cat: "sklepy", title: "Cechy produktu bez „[object Object]” (wtyczka 1.1.4)",
+        before: "Wtyczka zapisywała parametry z Allegro jako „[object Object]”.\nTe napisy trafiały do cech na kartach produktów.",
+        after: "Wtyczka 1.1.4 zapisuje prawdziwe wartości (np. „15 bar”, „stal 316L”).\nSzkic strony pomija parametry bez czytelnej wartości.\nCechy na 3 obecnych kartach są poprawione.",
+        benefit: "Karty pokazują klientom prawdziwe dane produktu.",
+        plus: "Działa też dla starych importów",
+        minus: "Trzeba pobrać i zainstalować nową wersję wtyczki"
+      },
       "up-20261111-bez-banera": {
         v: 1, who: "p1", date: "2026-11-11", stage: "live", cat: "tech", title: "Panel bez mega banera — spokojnie i przejrzyście",
         before: "Na górze każdej strony wielki baner: łopoczące flagi, fajerwerki, gierki i pasek z żartami.\nPod nim drugi baner z animacją.",
