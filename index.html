@@ -1088,6 +1088,8 @@ function openSettings(){
       <div class="f"><label for="sl-nip">NIP (opcjonalnie)</label><input id="sl-nip" name="sl-nip" inputmode="numeric" maxlength="20" value="${esc(sl.nip||"")}"></div>
       <div class="f"><label for="sl-phone">Telefon (opcjonalnie)</label><input id="sl-phone" name="sl-phone" maxlength="40" value="${esc(sl.phone||"")}"></div>
       <div class="f full"><label class="row" style="font-weight:400"><input type="checkbox" name="sl-vat" style="width:auto" ${sl.vat_exempt?"checked":""}> Zwolnienie z VAT (art. 113 ust. 1 ustawy o VAT)</label></div>
+      <div class="f"><label for="px-meta">Meta Pixel — ID (opcjonalnie)</label><input id="px-meta" name="px-meta" inputmode="numeric" maxlength="20" value="${esc(((st.tracking||{}).meta_pixel)||"")}" placeholder="15–16 cyfr z Menedżera zdarzeń"></div>
+      <div class="f"><label>&nbsp;</label><span class="small muted">Trafia na każdą kartę produktu. Pixel włącza się dopiero po zgodzie klienta na cookies.</span></div>
       <div class="f full"><label>Przykładowe dane</label><div class="row"><span class="small muted">${demoCount ? `${demoCount} wpisów oznaczonych jako „przykład”. Usuń je, gdy zaczniecie wpisywać prawdziwe dane.` : "Brak przykładowych danych. Wszystko tu jest Wasze."}</span>${demoCount?`<button type="button" class="btn danger sm" data-act="cleardemo">Usuń przykładowe dane</button>`:""}</div></div>
       <div class="f full" id="openaiBox"><p class="small muted">Ładuję połączenie z OpenAI…</p></div>
       <div class="f full"><label>Konto</label><span class="small muted">Zalogowano jako <b>${esc(sessionEmail)}</b>. Dane są we wspólnej bazie, zmiany wspólników widać na żywo.</span></div>
@@ -1098,11 +1100,14 @@ function openSettings(){
 }
 async function submitSettings(){
   const fd = new FormData($("#frmS"));
+  const st0 = S.settings || {};
   const t = {}, em = {}; ["p1","p2","p3"].forEach(k => { t[k] = String(fd.get(k)||"").trim().slice(0,30) || DEFAULT_TEAM[k]; em[k] = String(fd.get("e-"+k)||"").trim().toLowerCase().slice(0,120); });
   const sv = (k, n) => String(fd.get(k)||"").trim().slice(0,n);
   const seller = { name: sv("sl-name",160), address: sv("sl-addr",200), nip: sv("sl-nip",20).replace(/[\s-]/g,""), email: sv("sl-mail",120).toLowerCase(), phone: sv("sl-phone",40), vat_exempt: fd.get("sl-vat")==="on" };
   if(seller.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(seller.email)){ toast("Popraw e-mail sprzedawcy."); return; }
-  await putSettings({team:t, emails:em, goal: num(fd.get("goal")) || 10000, goalType: fd.get("goalType")==="revenue"?"revenue":"profit", seller});
+  const pixel = String(fd.get("px-meta")||"").replace(/\s/g,"");
+  if(pixel && !/^\d{10,20}$/.test(pixel)){ toast("ID Pixela to same cyfry (10–20)."); return; }
+  await putSettings({team:t, emails:em, goal: num(fd.get("goal")) || 10000, goalType: fd.get("goalType")==="revenue"?"revenue":"profit", seller, tracking:{...(st0.tracking||{}), meta_pixel: pixel}});
   autoMe();
   closeModal(); toast("Ustawienia zapisane");
 }

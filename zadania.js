@@ -1263,6 +1263,14 @@
     /* Update'y dopisywane przez ten moduł: zmiany w panelu (autor: Claude) i praca zrobiona z Claude w innych miejscach.
        Podbicie „v” odświeża tekst; wpisu poprawionego ręcznie w panelu (bez „seeded”) nie nadpisujemy. */
     const CLAUDE_UPDATES = {
+      "up-20261112-pixel": {
+        v: 1, who: "p1", date: "2026-11-12", stage: "pending", cat: "reklamy", title: "Meta Pixel na stronach produktów (po zgodzie na cookies)",
+        before: "Strony produktów nie mierzyły, czy reklama doprowadziła do zakupu.",
+        after: "Ustawienia → Meta Pixel: wpisujesz ID raz, trafia na każdą kartę.\nPo zgodzie klienta Pixel wysyła: wyświetlenie, dodanie do koszyka, rozpoczęcie płatności i zakup.\nBez zgody nic się nie wysyła; polityka cookies to opisuje.",
+        benefit: "Meta uczy się, kto kupuje, i pokazuje reklamy podobnym ludziom.",
+        plus: "Jedno ID dla wszystkich stron\nZgodne z RODO (baner zgody)",
+        minus: "Część klientów odmówi cookies — ich zakupy Pixel nie zobaczy\nKolejny krok: Conversions API (zakupy z serwera)"
+      },
       "up-20261111-strony-bez-klucza": {
         v: 1, who: "p1", date: "2026-11-11", stage: "pending", cat: "sklepy", title: "Strony produktów /p/ działają bez klucza serwisowego w Cloudflare",
         before: "Każda strona /p/… i mapa strony zwracały błąd 500.\nW Cloudflare brakowało klucza serwisowego Supabase.",
