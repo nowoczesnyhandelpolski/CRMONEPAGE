@@ -5,6 +5,23 @@ function text(value) {
   return String(value ?? "").replace(/\s+/g, " ").trim();
 }
 
+// Wartość parametru Allegro bywa tekstem, listą albo obiektem ({name}, {valueLabel}, {from, to}).
+function paramValue(p) {
+  const one = (v) => {
+    if (v == null) return "";
+    if (typeof v !== "object") return text(v);
+    if (Array.isArray(v)) return v.map(one).filter(Boolean).join(", ");
+    if (v.from != null || v.to != null) return [one(v.from), one(v.to)].filter(Boolean).join("–");
+    return one(v.valueLabel ?? v.label ?? v.name ?? v.value ?? v.text ?? "");
+  };
+  const unit = typeof p?.unit === "string" ? ` ${text(p.unit)}` : "";
+  for (const v of [p?.valuesLabels, p?.values, p?.value, p?.rangeValue]) {
+    const out = one(v);
+    if (out && out !== "[object Object]") return out + unit;
+  }
+  return "";
+}
+
 function asArray(value) {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
@@ -71,7 +88,7 @@ export function extractFromJsonLd(nodes) {
   const offer = asArray(product.offers).find((o) => priceOf(o)) || asArray(product.offers)[0] || {};
   const brand = typeof product.brand === "string" ? product.brand : product.brand?.name;
   const images = asArray(product.image).map((i) => (typeof i === "string" ? i : i?.url)).filter(Boolean);
-  const params = asArray(product.additionalProperty).map((p) => ({ name: text(p?.name), value: text(p?.value) })).filter((p) => p.name || p.value);
+  const params = asArray(product.additionalProperty).map((p) => ({ name: text(p?.name), value: paramValue(p) })).filter((p) => p.name || p.value);
   return {
     catalog_name: text(product.name),
     price: priceOf(offer),
@@ -141,7 +158,7 @@ export function extractFromUnknownJson(root) {
   if (Array.isArray(rawParams)) {
     for (const p of rawParams) {
       const name = text(p?.name);
-      const value = text(p?.values?.[0] || p?.value || (Array.isArray(p?.valuesLabels) ? p.valuesLabels[0] : ""));
+      const value = paramValue(p);
       if (name || value) params.push({ name, value });
     }
   }
