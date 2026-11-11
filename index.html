@@ -249,6 +249,46 @@ select.pill::before{display:none}
 .f input,.f select,.f textarea{border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:9px 11px;width:100%}
 .f textarea{min-height:76px;resize:vertical}
 .f input:focus,.f select:focus,.f textarea:focus{outline:2px solid color-mix(in srgb,var(--accent) 60%,transparent);border-color:var(--accent)}
+/* zamówienie — strona szczegółów */
+.od-top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:4px 0 18px}
+.od-title{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.od-title h1{font-size:28px;font-weight:600}.od-cust{font-size:26px;color:var(--muted);font-family:var(--display)}
+.ostar.big{color:var(--muted)}.ostar.big.on{color:var(--warn)}
+.obtn.round{border-radius:99px;width:44px;height:44px;font-size:22px;padding:0}.obtn.sm{height:34px;min-width:34px;padding:0 9px;font-size:13px}
+.od-back{border-color:var(--info);color:var(--info);font-weight:700}
+.od-card{margin-bottom:18px;overflow:visible}
+.od-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px 22px 10px;flex-wrap:wrap}.od-h h2{font-size:21px;display:flex;align-items:center;gap:12px}
+.od-dot{width:12px;height:12px;border-radius:50%;background:var(--info)}
+.od-table th{background:transparent;border-bottom:2px solid var(--line)}.od-table td{vertical-align:middle}
+.od-table tbody tr{cursor:default}.od-table tbody tr:hover td{background:transparent}
+.od-ph{width:64px}.od-ph svg{display:block;width:46px;height:46px;padding:10px;border:1px solid var(--line);border-radius:10px;color:var(--muted);background:var(--surface-2)}
+.od-num{width:90px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--surface)}
+.od-table td input:not(.od-num){width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font:inherit}
+.od-prods-f{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 22px 18px}
+.od-add{appearance:none;-webkit-appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:11px 20px;font:inherit;font-weight:700;color:var(--ink);cursor:pointer;max-width:100%}
+.od-add:hover{background:var(--surface-2)}
+.dd-r .dd-m{left:auto;right:0}
+.od-grid2{display:grid;grid-template-columns:1.1fr 1fr;gap:10px 30px;padding:4px 22px 20px}
+.od-infowrap{position:relative}.od-pen{position:absolute;right:0;top:0}
+.od-pay{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:17px;padding:4px 50px 14px 0;border-bottom:1px solid var(--line);margin-bottom:10px}
+.od-paid{font-weight:800;padding:6px 14px;border-radius:6px;color:#fff;background:var(--grey)}.od-paid.full{background:var(--good)}.od-paid.part{background:var(--warn)}.od-paid.none{background:var(--bad)}
+.od-info hr{border:0;border-top:1px solid var(--line);margin:10px 0}
+.od-kv{display:grid;grid-template-columns:minmax(120px,190px) 1fr;gap:7px 16px;margin:0;font-size:15px}.od-kv dt{color:var(--ink);opacity:.85}.od-kv dd{margin:0;word-break:break-word;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.od-kv a{color:var(--info);display:inline-flex}
+.od-dots{color:var(--muted)}
+.od-side{display:flex;flex-direction:column;gap:16px;padding-top:4px}
+.od-st{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:16px}.od-sl{display:inline-flex;align-items:center;gap:6px;min-width:120px}
+.od-st .obadge{font-size:14px;padding:6px 14px}
+.od-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.od-grid3 .od-card .od-kv,.od-grid2b .od-card .od-kv{padding:0 22px 20px}
+.od-grid2b{display:grid;grid-template-columns:1.6fr 1fr;gap:18px}
+.od-note{padding:0 22px 20px;margin:0}
+.od-form{display:grid;grid-template-columns:minmax(120px,190px) 1fr;gap:9px 14px;align-items:center;padding:4px 22px 6px}
+.od-form .od-l{font-size:14px}.od-form input,.od-form select,.od-form textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font:inherit;background:var(--surface);color:var(--ink)}
+.od-form textarea{min-height:70px}
+.od-actions{display:flex;justify-content:flex-end;gap:10px;padding:10px 22px 18px}
+.od-infocard .od-grid2 > div > .od-card{margin:0;box-shadow:none;border:1px solid var(--line)}
+.od-del{color:var(--bad)}
+@media (max-width:1100px){.od-grid3{grid-template-columns:1fr 1fr}.od-grid2,.od-grid2b{grid-template-columns:1fr}}
+@media (max-width:700px){.od-grid3{grid-template-columns:1fr}.od-title h1,.od-cust{font-size:21px}.od-kv,.od-form{grid-template-columns:1fr;gap:2px 0}.od-kv dd{margin-bottom:8px}.od-back{width:100%;justify-content:center}}
 /* zamówienia — lista w stylu Base */
 .olist{overflow:visible}
 .olist-h{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 6px}.olist-h h2{font-size:20px}
@@ -393,6 +433,11 @@ const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---------- icons ---------- */
 const I = {
+  pencil:'<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',
+  copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
+  back:'<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
+  phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/>',
+  camera:'<path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/>',
   check:'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 12 3 3 5-6"/>',
   star:'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9Z"/>',
   flag:'<path d="M5 21V4h11l-1.5 4L16 12H5"/>',
@@ -511,7 +556,7 @@ let SB = null, channel = null, mode = "loading", readOnly = false, loadNote = ""
 const LINK = location.hash + "&" + location.search;
 const LINK_TYPE = (LINK.match(/type=([a-z_]+)/) || [])[1] || "";
 const LINK_ERR = decodeURIComponent(((LINK.match(/error_description=([^&]+)/) || [])[1] || "").replace(/\+/g," "));
-const UI = { orderFilter:"all", opage:1, oper:20, osort:"desc", oexp:null, ostarOnly:false, orderOwner:"all", q:{}, taskOwner:"all", period:"month", prodFilter:"all" };
+const UI = { orderFilter:"all", opage:1, oper:20, osort:"desc", ostarOnly:false, osec:null, orderOwner:"all", q:{}, taskOwner:"all", period:"month", prodFilter:"all" };
 let me = ls.get("crm_me","p1");
 
 const DEFAULT_TEAM = {p1:"Ja",p2:"Michał",p3:"Agata"};
@@ -708,7 +753,7 @@ const VIEWS = [
   ["pulpit","Pulpit","home"],["zamowienia","Zamówienia","orders"],
   ["dostawcy","Dostawcy","suppliers"],["klienci","Klienci","customers"],["zadania","Zadania","tasks"],["sklepy-i-boty","Sklepy i boty","bot"]
 ];
-const view = () => { const h = location.hash.slice(1); return VIEWS.some(v=>v[0]===h) ? h : "pulpit"; };
+const view = () => { const h = location.hash.slice(1).split("/")[0]; return VIEWS.some(v=>v[0]===h) ? h : "pulpit"; };
 const NAV_GROUPS = [
   { id: "zamowienia", label: "Zamówienia", icon: "orders", children: ["zamowienia", "klienci", "dostawcy", "leady"] },
   { id: "produkty", label: "Produkty", icon: "products", children: ["baza-produktow", "aukcje", "import-wtyczki", "eksport", "generator"] }
@@ -912,6 +957,7 @@ function ago(ts){ const m = Math.round((Date.now()-num(ts))/6e4); if(m<1) return
 
 /* ---- Zamówienia ---- */
 function vOrders(){
+  const did = orderDetailId(); if(did) return vOrderDetail(did);
   const sortAsc = UI.osort === "asc";
   let list = arr("orders").sort((a,b)=> { const d = (b.date||"").localeCompare(a.date||"") || (num(b.createdAt)-num(a.createdAt)) || String(b.number).localeCompare(String(a.number),"pl",{numeric:true}); return sortAsc ? -d : d; });
   const all = list;
@@ -920,7 +966,7 @@ function vOrders(){
   if(UI.orderFilter!=="all") list = list.filter(o=>ost(o)===UI.orderFilter);
   if(UI.ostarOnly) list = list.filter(o=>o.starred);
   if(UI.orderOwner!=="all") list = list.filter(o=>o.owner===UI.orderOwner);
-  list = list.filter(o => match("orders", o.number, nameOf("customers",o.customerId), nameOf("products",o.productId), o.tracking, o.notes, o.buyer_email, o.buyer_phone, o.carrier, o.source));
+  list = list.filter(o => match("orders", o.number, custName(o), itemsOf(o).map(itemName).join(" "), o.tracking, o.notes, o.buyer_email, o.buyer_phone, o.carrier, o.source));
   OVIS = list.map(o=>o.id);
   // prune selection of deleted orders
   [...OSEL].forEach(id => { if(!S.orders[id]) OSEL.delete(id); });
@@ -964,21 +1010,21 @@ function vOrders(){
     </div>
   </div>
   ${nSel ? `<div class="osel-bar"><b class="num">${nSel}</b> ${nSel===1?"zamówienie zaznaczone":nSel<5?"zamówienia zaznaczone":"zamówień zaznaczonych"} · <span class="num">${fmtZl2([...OSEL].reduce((s,id)=>s+num((S.orders[id]||{}).price),0))}</span><button type="button" class="btn ghost sm" data-osel-do="none">Odznacz</button></div>` : ""}`;
-  const items = o => { const p = nameOf("products",o.productId); return p==="—" ? `<span class="muted">—</span>` : `<i class="muted">${num(o.qty)||1}x</i> ${esc(p)}`; };
+  const items = o => { const it = itemsOf(o); return it.length ? it.map(x => `<div><i class="muted">${num(x.qty)||1}x</i> ${esc(itemName(x))}</div>`).join("") : `<span class="muted">—</span>`; };
   const shipInfo = o => [o.carrier, o.ship_to].filter(Boolean).map(esc).join(" · ");
-  const rows = page.map(o => { const st = opt(ORDER_ST, ost(o)), pr = profitOf(o), open = UI.oexp===o.id, sel = OSEL.has(o.id);
+  const rows = page.map(o => { const st = opt(ORDER_ST, ost(o)), pr = profitOf(o), sel = OSEL.has(o.id);
     const statusAt = o.statusAt ? fmtDT(o.statusAt) : "";
-    return `<tr class="orow${sel?" sel":""}${open?" open":""}" data-orow="${esc(o.id)}">
+    return `<tr class="orow${sel?" sel":""}" data-orow="${esc(o.id)}">
       <td class="ock" data-ock><input type="checkbox" data-osel="${esc(o.id)}" ${sel?"checked":""} aria-label="Zaznacz #${esc(o.number||"")}"></td>
       <td class="ost"><button type="button" class="ostar${o.starred?" on":""}" data-ostar="${esc(o.id)}" aria-label="${o.starred?"Usuń gwiazdkę":"Oznacz gwiazdką"}">${ic("star",17)}</button></td>
       <td><span class="onum num">${esc(o.number||"—")}</span>${demoTag(o)}${o.source?`<div class="small muted">${esc(o.source)}${o.page_slug?` · /p/${esc(o.page_slug)}`:""}</div>`:""}</td>
-      <td><div class="strong">${esc(nameOf("customers",o.customerId))}</div>${o.buyer_email||o.buyer_phone?`<div class="small muted">${esc(o.buyer_email||o.buyer_phone)}</div>`:""}</td>
+      <td><div class="strong">${esc(custName(o))}</div>${o.buyer_email||o.buyer_phone?`<div class="small muted">${esc(o.buyer_email||o.buyer_phone)}</div>`:""}</td>
       <td class="oitems">${items(o)}</td>
       <td class="r"><div class="num strong" title="Kwota wpłacona przez klienta">${fmtZl2(o.price)}</div>${shipPaidOf(o)?`<div class="small muted num">w tym wysyłka ${fmtZl2(shipPaidOf(o))}</div>`:""}<div class="small num ${pr>=0?"pos":"neg"}">zysk ${pr>=0?"+":""}${fmtZl2(pr)}</div></td>
       <td><span class="obadge" style="--c:${st[2]}">${esc(st[1])}</span>${shipInfo(o)?`<div class="small oship">${shipInfo(o)}</div>`:""}${o.tracking?`<div class="small muted num">${esc(o.tracking)}</div>`:""}</td>
       <td class="oicons">${o.payment_status?`<span class="oic" style="--c:${opt(PAY_ST,o.payment_status)[2]}" title="${esc(opt(PAY_ST,o.payment_status)[1])}">zł</span>`:""}${o.tracking?`<span class="oic" style="--c:var(--good)" title="Numer przesyłki: ${esc(o.tracking)}">T</span>`:""}${o.notes?`<span class="oic" style="--c:var(--info)" title="${esc(o.notes)}">i</span>`:""}${avatar(o.owner,24)}</td>
       <td class="odate"><div class="num">${fmtDate(o.date)}</div>${statusAt?`<div class="small num olink" title="Zmiana statusu">${statusAt}</div>`:""}</td>
-    </tr>${open?`<tr class="oexp"><td colspan="9">${orderPanel(o)}</td></tr>`:""}`; }).join("");
+    </tr>`; }).join("");
   return topbar("Zamówienia", `Wszystkie zamówienia w jednym miejscu. Zaznacz kilka i zmień je za jednym razem.`, newBtn("orders","Nowe zamówienie")) +
     `<div class="toolbar">${searchBox("orders","Szukaj: numer, klient, produkt, e-mail, przesyłka…")}${own}<span class="muted small">Widoczne: przychód <b class="num">${fmtZl(sumR)}</b> · zysk <b class="num">${fmtZl(sumP)}</b></span></div>
      <div class="chips" style="margin-bottom:14px">${chips}</div>
@@ -992,32 +1038,11 @@ function vOrders(){
        </tr></thead><tbody>${rows}</tbody></table></div>` : emptyState("orders", all.length ? "Nic nie pasuje do filtrów." : "Pierwsze zamówienie to zawsze święto. Dodaj je!")}
      </section>`;
 }
-/* pełny panel zamówienia (zakładka Nowe) — edycja w miejscu */
-function orderPanel(o){
-  const pfx = "o-"+o.id+"-";
-  const fields = SCHEMA.orders.fields.map(f => f.t==="calc" ? `<div class="calc" data-calc></div>` : field(f, o, pfx)).join("");
-  return `<form class="card opanel ofrm" data-oid="${esc(o.id)}" novalidate>
-    <div class="opanel-h"><div><b class="num">#${esc(o.number||"—")}</b>${demoTag(o)} <span class="muted small">${fmtDate(o.date)}${o.source?` · ${esc(o.source)}`:""}</span></div>
-      <div class="row">${avatar(o.owner,26)}<span class="num ${profitOf(o)>=0?"pos":"neg"}">${fmtZl(profitOf(o))}</span></div></div>
-    <div class="modal-b">${fields}</div>
-    <div class="modal-f"><button type="button" class="btn" data-edit="orders:${esc(o.id)}">Otwórz w oknie</button><div class="row"><button type="button" class="btn" data-ostatus="${esc(o.id)}:zamowione">Przenieś do „W realizacji”</button><button type="submit" class="btn primary">Zapisz zmiany</button></div></div>
-  </form>`;
-}
 function updCalcIn(frm){
   const g = k => num((frm.querySelector(`[name="${k}"]`)||{}).value);
   const p = g("price"), pr = p - g("cost") - g("shipping") - g("ads"), m = p ? pr/p*100 : 0;
   const el = frm.querySelector("[data-calc]"); if(!el) return;
   el.innerHTML = `<span>Klient zapłacił: <b class="num">${fmtZl2(p)}</b>${g("ship_paid")?` <span class="muted">(w tym wysyłka ${fmtZl2(g("ship_paid"))})</span>`:""}</span><span>Zysk: <b class="num ${pr>=0?"pos":"neg"}">${fmtZl(pr)}</b></span><span>Marża: <b class="num">${m.toFixed(1).replace(".",",")}%</b></span>`;
-}
-async function submitInline(frm){
-  const id = frm.dataset.oid, prev = S.orders[id]; if(!prev) return;
-  const fd = new FormData(frm), data = {...prev};
-  SCHEMA.orders.fields.forEach(f => { if(f.t==="calc") return; let v = fd.get(f.k); v = v == null ? "" : String(v).trim(); data[f.k] = f.t==="number" ? (v==="" ? "" : num(v)) : v; });
-  if(!data.number){ toast("Uzupełnij numer zamówienia."); return; }
-  if(prev.status!==data.status) data.statusAt = Date.now();
-  delete frm.dataset.dirty;
-  if(!(await put("orders", id, data))) return;
-  if(prev.status!==data.status) afterOrderStatus(data, prev.status); else { logAct(`Zmiana: #${data.number}`); toast("Zapisano"); }
 }
 function statusSelect(col, r){
   const list = col==="orders"?ORDER_ST:col==="products"?PROD_ST:col==="shops"?SHOP_ST:BOT_ST;
@@ -1198,7 +1223,7 @@ async function submitForm(){
   const label = data.name || data.title || ("#" + data.number);
   if(isNew){
     logAct(`Nowe: ${SCHEMA[col].one} ${label}`);
-    if(col==="orders"){ celebrate(.6); toast(`Nowe zamówienie #${data.number}! ${profitOf(data)>0?`+${fmtZl(profitOf(data))} zysku`:""}`); }
+    if(col==="orders"){ setTimeout(()=>{ location.hash = "zamowienia/" + encodeURIComponent(id); }, 50); celebrate(.6); toast(`Nowe zamówienie #${data.number}! ${profitOf(data)>0?`+${fmtZl(profitOf(data))} zysku`:""}`); }
     else toast(`Dodano: ${label}`);
   } else {
     if(col==="orders" && prev && prev.status!==data.status) afterOrderStatus(data, prev.status);
@@ -1380,7 +1405,7 @@ document.addEventListener("change", e => {
   const ofm = t.form && (t.form.id === "frm" && modalCtx && modalCtx.col==="orders" ? t.form : t.form.classList.contains("ofrm") ? t.form : null);
   if(ofm && ["productId","qty","ship_paid"].includes(t.name)){ orderAutofill(ofm, t.name); if(ofm.id==="frm") updCalc(); else updCalcIn(ofm); }
 });
-document.addEventListener("submit", e => { e.preventDefault(); const id = e.target.id; if(id==="frm") submitForm(); else if(e.target.classList.contains("ofrm")) submitInline(e.target); else if(id==="frmS"){ if(document.activeElement && document.activeElement.id==="oa-key") openaiAction("save"); else submitSettings(); } else if(id==="gLogin") doLogin(e.target); else if(id==="gForgot") doForgot(e.target); else if(id==="gNew") doNewPass(e.target); else if(id==="frmP") submitPass(e.target); });
+document.addEventListener("submit", e => { e.preventDefault(); const id = e.target.id; if(id==="frm") submitForm(); else if(e.target.classList.contains("dfrm")) submitSection(e.target); else if(id==="frmS"){ if(document.activeElement && document.activeElement.id==="oa-key") openaiAction("save"); else submitSettings(); } else if(id==="gLogin") doLogin(e.target); else if(id==="gForgot") doForgot(e.target); else if(id==="gNew") doNewPass(e.target); else if(id==="frmP") submitPass(e.target); });
 
 /* ---------- toasts & confetti ---------- */
 function toast(msg){ if(window.NHP_BRAND) NHP_BRAND.sound("pop"); const el = document.createElement("div"); el.className = "toast"; el.textContent = msg; $("#toasts").appendChild(el); setTimeout(()=>el.remove(), 3600); }
@@ -1398,6 +1423,173 @@ function celebrate(power=1){
     if(++f < 90) requestAnimationFrame(tick); else ctx.clearRect(0,0,W,H);
   })();
 }
+
+/* ---------- zamówienie: strona szczegółów (jak w Base) ---------- */
+const orderDetailId = () => { const m = location.hash.match(/^#zamowienia\/(.+)$/); return m ? decodeURIComponent(m[1]) : ""; };
+const itemsOf = o => Array.isArray(o.items) && o.items.length ? o.items : (o.productId ? [{productId:o.productId, qty:num(o.qty)||1, price: Math.round(((num(o.price) - shipPaidOf(o)) / (num(o.qty)||1))*100)/100}] : []);
+const itemName = x => (x.productId && byId("products", x.productId) ? byId("products", x.productId).name : x.name) || "Pozycja";
+const itemsTotal = o => itemsOf(o).reduce((s,x)=>s + num(x.price)*(num(x.qty)||1), 0);
+const dueOf = o => Math.round((itemsTotal(o) + shipPaidOf(o))*100)/100;
+const catCost = items => items.reduce((s,x)=>{ const p = x.productId && byId("products", x.productId); return s + (p ? num(p.cost)*(num(x.qty)||1) : 0); }, 0);
+const custOf = o => byId("customers", o.customerId) || {};
+const custName = o => (o.delivery && o.delivery.name) || (custOf(o).name) || "—";
+const addrLine = a => a ? [a.address, [a.zip, a.city].filter(Boolean).join(" "), a.country].filter(Boolean).join(", ") : "";
+const getK = (o, k) => k.split(".").reduce((v, p) => v == null ? v : v[p], o);
+const OSECS = {
+  info: [["price","Zapłacono (zł)","number"],["ship_paid","W tym wysyłka od klienta (zł)","number"],["payment_status","Status płatności","pay"],["pay_method","Sposób płatności"],
+         ["buyer_login","Klient (login)"],["buyer_email","E-mail"],["buyer_phone","Telefon"],["source","Źródło"],
+         ["carrier","Sposób wysyłki"],["cod","Pobranie","yesno"],["extra1","Pole dodatkowe 1"],["extra2","Pole dodatkowe 2"],["notes","Uwagi","textarea"]],
+  delivery: [["delivery.name","Imię i nazwisko"],["delivery.company","Firma"],["delivery.address","Adres"],["delivery.zip","Kod pocztowy"],["delivery.city","Miasto"],["delivery.region","Województwo"],["delivery.country","Kraj"]],
+  invoice: [["invoice.name","Imię i nazwisko"],["invoice.company","Firma"],["invoice.address","Adres"],["invoice.zip","Kod pocztowy"],["invoice.city","Miasto"],["invoice.country","Kraj"],["invoice.nip","NIP"]],
+  pickup: [["pickup.name","Nazwa"],["pickup.id","ID punktu"],["pickup.address","Adres"],["pickup.zip","Kod pocztowy"],["pickup.city","Miasto"]],
+  parcel: [["carrier","Przewoźnik"],["tracking","Numer przesyłki"]],
+  costs: [["cost","Koszt produktów (zł)","number"],["shipping","Nasz koszt wysyłki (zł)","number"],["ads","Reklama i prowizje (zł)","number"],["owner","Opiekun","person"]]
+};
+function secInput(o, [k, l, t], sec){
+  const v = getK(o, k) ?? (k.endsWith(".country") ? "Polska" : ""), id = `d-${sec}-${k.replace(".","-")}`;
+  let inp;
+  if(t==="textarea") inp = `<textarea id="${id}" name="${k}">${esc(v)}</textarea>`;
+  else if(t==="pay") inp = `<select id="${id}" name="${k}"><option value="">— nie dotyczy —</option>${PAY_ST.map(([a,b])=>`<option value="${a}" ${v===a?"selected":""}>${esc(b)}</option>`).join("")}</select>`;
+  else if(t==="yesno") inp = `<select id="${id}" name="${k}"><option value="" ${v?"":"selected"}>Nie</option><option value="1" ${v?"selected":""}>Tak</option></select>`;
+  else if(t==="person") inp = `<select id="${id}" name="${k}"><option value="">— nikt —</option>${team().map(p=>`<option value="${p.k}" ${v===p.k?"selected":""}>${esc(p.name)}</option>`).join("")}</select>`;
+  else inp = `<input id="${id}" name="${k}" ${t==="number"?'inputmode="decimal"':""} value="${esc(v)}" autocomplete="off">`;
+  return `<label class="od-l" for="${id}">${esc(l)}:</label><div class="od-v">${inp}</div>`;
+}
+const dots = v => (v === "" || v == null) ? `<span class="od-dots">…</span>` : v;
+function kv(rows){ return `<dl class="od-kv">${rows.map(([l, v]) => `<dt>${esc(l)}:</dt><dd>${dots(v)}</dd>`).join("")}</dl>`; }
+function secCard(o, sec, title, body, opts={}){
+  const editing = UI.osec === sec;
+  const btns = editing ? "" : `${opts.extraBtn||""}<button type="button" class="obtn sm" data-osec-edit="${sec}" title="Edytuj" aria-label="Edytuj: ${esc(title)}">${ic("pencil",16)}</button>`;
+  const inner = editing ? `<form class="ofrm dfrm" data-oid="${esc(o.id)}:${sec}" data-sec="${sec}" novalidate><div class="od-form">${OSECS[sec].map(f=>secInput(o,f,sec)).join("")}</div>
+      <div class="od-actions"><button type="button" class="btn" data-osec-cancel>Anuluj</button><button type="submit" class="btn primary">Zapisz</button></div></form>` : body;
+  return `<section class="card od-card ${opts.cls||""}"><div class="od-h"><h2>${opts.dot?`<i class="od-dot"></i>`:""}${esc(title)}</h2><div class="row">${btns}</div></div>${inner}</section>`;
+}
+function vOrderDetail(id){
+  const o = S.orders[id];
+  if(!o) return topbar("Zamówienie", "", `<button class="btn" data-oback>${ic("back",16)} Powrót do listy zamówień</button>`) + `<div class="card empty"><b>${mode==="loading" ? "Wczytuję zamówienie…" : "Nie ma takiego zamówienia. Mogło zostać usunięte."}</b></div>`;
+  const nav = OVIS.length ? OVIS : arr("orders").sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(x=>x.id);
+  const ix = nav.indexOf(id), prevId = ix > 0 ? nav[ix-1] : "", nextId = ix >= 0 && ix < nav.length-1 ? nav[ix+1] : "";
+  const c = custOf(o), items = itemsOf(o), due = dueOf(o), paid = num(o.price), pr = profitOf(o);
+  const paidCls = !paid ? "none" : paid + 0.005 >= due ? "full" : "part";
+  const st = opt(ORDER_ST, ost(o));
+  const d = o.delivery || {}, inv = o.invoice || {}, pk = o.pickup || {};
+  const editItems = UI.osec === "items";
+  const prodRows = items.map((x, i) => { const p = x.productId && byId("products", x.productId);
+    return editItems ? `<tr><td class="od-ph">${ic("products",22)}</td><td class="num muted">${esc(p ? p.id : "—")}</td>
+        <td>${p ? `<b>${esc(p.name)}</b>` : `<input name="name_${i}" value="${esc(x.name||"")}" placeholder="Nazwa produktu">`}</td>
+        <td><input class="od-num" name="qty_${i}" inputmode="numeric" value="${esc(num(x.qty)||1)}"></td><td><input class="od-num" name="price_${i}" inputmode="decimal" value="${esc(x.price ?? "")}"></td>
+        <td class="num">${fmtZl2(num(x.price)*(num(x.qty)||1))}</td><td class="r"><button type="button" class="obtn sm danger" data-oitem-del="${i}" aria-label="Usuń pozycję">${ic("trash",16)}</button></td></tr>`
+      : `<tr><td class="od-ph">${ic("products",22)}</td><td class="num"><span class="olink">${esc(p ? p.id : "—")}</span></td>
+        <td>${esc(itemName(x))}${p && p.link ? ` <a href="${esc(p.link)}" target="_blank" rel="noopener" class="small">(u dostawcy)</a>` : ""}</td>
+        <td class="num">${num(x.qty)||1}</td><td class="num">${fmtZl2(x.price)}</td><td class="num strong">${fmtZl2(num(x.price)*(num(x.qty)||1))}</td>
+        <td class="r"><details class="dd dd-r"><summary class="obtn sm" aria-label="Akcje pozycji">⋮</summary><div class="dd-m">
+          <button type="button" class="dd-i" data-osec-edit="items">Zmień ilość lub cenę</button>
+          ${p ? `<button type="button" class="dd-i" data-edit="products:${esc(p.id)}">Otwórz kartę produktu</button>` : ""}
+          <button type="button" class="dd-i" data-oitem-del="${i}">Usuń z zamówienia</button></div></details></td></tr>`; }).join("");
+  const catalog = arr("products").sort((a,b)=>String(a.name).localeCompare(String(b.name),"pl"));
+  const addSel = `<select class="od-add" data-oitem-add aria-label="Dodaj produkt do zamówienia"><option value="">＋ Dodaj produkty do zamówienia…</option>${catalog.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} · ${fmtZl2(p.price)}</option>`).join("")}<option value="__custom">Własna pozycja (spoza katalogu)</option></select>`;
+  const products = `<section class="card od-card od-prods">
+    ${editItems ? `<form class="ofrm dfrm" data-oid="${esc(o.id)}:items" data-sec="items" novalidate>` : ""}
+    <div class="tbl-wrap"><table class="od-table"><thead><tr><th>${ic("camera",18)}</th><th>ID prod.</th><th>Nazwa produktu</th><th>Ilość</th><th>Cena</th><th>Razem</th><th class="r">Akcje</th></tr></thead>
+    <tbody>${prodRows || `<tr><td colspan="7" class="muted" style="text-align:center;padding:22px">Brak produktów. Dodaj je poniżej.</td></tr>`}</tbody></table></div>
+    <div class="od-prods-f">${editItems ? `<div class="row"><button type="button" class="btn" data-osec-cancel>Anuluj</button><button type="submit" class="btn primary">Zapisz produkty</button></div></form>` : `${addSel}<span class="muted small">Razem produkty: <b class="num">${fmtZl2(itemsTotal(o))}</b> · z wysyłką: <b class="num">${fmtZl2(due)}</b></span>`}</div>
+  </section>`;
+  const infoBody = `<div class="od-info">
+      <div class="od-pay"><span>Zapłacono:</span><span class="od-paid ${paidCls}">${fmtZl2(paid)}</span><span class="muted">z ${fmtZl2(due)}</span>${paidCls!=="full" && due ? `<button type="button" class="btn sm" data-opaid>Oznacz jako opłacone</button>` : ""}</div>
+      ${kv([["Klient (login)", esc(o.buyer_login||"")], ["Imię i nazwisko", esc(custName(o)==="—"?"":custName(o))], ["E-mail", esc(o.buyer_email || c.email || "")], ["Telefon", (o.buyer_phone||c.phone) ? `${esc(o.buyer_phone||c.phone)} <a href="tel:${esc(String(o.buyer_phone||c.phone).replace(/\s/g,""))}" aria-label="Zadzwoń">${ic("phone",15)}</a>` : ""], ["Źródło", esc([o.source, o.page_slug?`/p/${o.page_slug}`:""].filter(Boolean).join(" · "))]])}
+      <hr>${kv([["Sposób wysyłki", esc(o.carrier||"")], ["Pobranie", o.cod ? "Tak" : "Nie"], ["Koszt wysyłki", fmtZl2(shipPaidOf(o))], ["Sposób płatności", esc(o.pay_method||"")], ["Płatność", o.payment_status ? pill(PAY_ST, o.payment_status) : ""]])}
+      <hr>${kv([["Pole dodatkowe 1", esc(o.extra1||"")], ["Pole dodatkowe 2", esc(o.extra2||"")], ["Uwagi", esc(o.notes||"")]])}
+    </div>`;
+  const side = `<div class="od-side">
+      <div class="od-st"><span class="od-sl">${ic("flag",17)} Status:</span><span class="obadge" style="--c:${st[2]}">${esc(st[1])}</span>
+        <details class="dd"><summary class="obtn sm">Przenieś<i class="dd-c"></i></summary><div class="dd-m">${ORDER_ST.map(([k,l,cl]) => `<button type="button" class="dd-i" data-ostatus="${esc(o.id)}:${k}" ${k===ost(o)?"disabled":""}><span class="dot" style="background:${cl}"></span>${esc(l)}</button>`).join("")}</div></details></div>
+      ${kv([["Opiekun", `${avatar(o.owner,22)} ${esc(pname(o.owner))}`], ["Data złożenia", o.createdAt ? fmtDT(o.createdAt) : fmtDate(o.date)], ["Data w statusie", o.statusAt ? fmtDT(o.statusAt) : ""], ["Numer zamówienia", `<span class="num">${esc(o.number||"")}</span>`]])}
+    </div>`;
+  const info = `<section class="card od-card od-infocard"><div class="od-h"><h2>Informacje o zamówieniu</h2><div class="row">
+      <details class="dd dd-r"><summary class="obtn">${ic("print",16)} Drukuj/Eksportuj<i class="dd-c"></i></summary><div class="dd-m"><button type="button" class="dd-i" data-o1="print">Drukuj zamówienie</button><button type="button" class="dd-i" data-o1="csv">Pobierz CSV</button></div></details>
+      <details class="dd dd-r"><summary class="obtn">Akcje<i class="dd-c"></i></summary><div class="dd-m">
+        <button type="button" class="dd-i" data-ostar="${esc(o.id)}">${o.starred?"Usuń gwiazdkę":"Oznacz gwiazdką"}</button>
+        <button type="button" class="dd-i" data-edit="orders:${esc(o.id)}">Edytuj wszystkie pola w oknie</button>
+        <button type="button" class="dd-i" data-o1="dup">Duplikuj zamówienie</button>
+        <button type="button" class="dd-i od-del" data-o1="del">Usuń zamówienie</button></div></details>
+    </div></div>
+    <div class="od-grid2">${UI.osec==="info" ? `<div>${secCard(o,"info","Edycja informacji","")}</div>` : `<div class="od-infowrap"><button type="button" class="obtn sm od-pen" data-osec-edit="info" title="Edytuj" aria-label="Edytuj informacje">${ic("pencil",16)}</button>${infoBody}</div>`}${side}</div></section>`;
+  const addr = (a, extra=[]) => kv([["Imię i nazwisko", esc(a.name||"")], ["Firma", esc(a.company||"")], ["Adres", esc(a.address||"")], ["Kod i miasto", esc([a.zip, a.city].filter(Boolean).join("  "))], ...extra]);
+  const delivery = secCard(o, "delivery", "Adres dostawy", addr(d, [["Województwo", esc(d.region||"")], ["Kraj", esc(d.country||"Polska")]]) + (!addrLine(d) && o.ship_to ? `<p class="small muted od-note">Z zamówienia: ${esc(o.ship_to)}</p>` : ""),
+    {extraBtn: `<button type="button" class="obtn sm" data-o1="copyaddr" title="Kopiuj adres do schowka" aria-label="Kopiuj adres">${ic("copy",16)}</button>`});
+  const invoice = secCard(o, "invoice", "Dane do faktury", addr(inv, [["Kraj", esc(inv.country||(inv.name?"Polska":""))], ["NIP", esc(inv.nip||"")]]),
+    {extraBtn: `<button type="button" class="obtn sm" data-o1="inv-from-del" title="Przepisz z adresu dostawy" aria-label="Przepisz z adresu dostawy">${ic("copy",16)}</button>`});
+  const pickup = secCard(o, "pickup", "Odbiór w punkcie", kv([["Nazwa", esc(pk.name||"")], ["ID", esc(pk.id||"")], ["Adres", esc(pk.address||"")], ["Kod i miasto", esc([pk.zip, pk.city].filter(Boolean).join("  "))]]));
+  const parcel = secCard(o, "parcel", "Przesyłki", o.tracking ? kv([["Przewoźnik", esc(o.carrier||"")], ["Numer przesyłki", `<b class="num">${esc(o.tracking)}</b>`]]) : `<p class="od-note">Nie nadano żadnych paczek. Kliknij ołówek i wpisz numer przesyłki, gdy paczka wyjdzie.</p>`, {dot:true});
+  const costs = secCard(o, "costs", "Informacje dodatkowe", kv([["Realizowane przez", `${avatar(o.owner,22)} ${esc(pname(o.owner))}`], ["Koszt produktów", fmtZl2(o.cost)], ["Nasz koszt wysyłki", fmtZl2(o.shipping)], ["Reklama i prowizje", fmtZl2(o.ads)], ["Zysk", `<b class="num ${pr>=0?"pos":"neg"}">${fmtZl2(pr)}</b>`], ["Marża", paid ? `${(pr/paid*100).toFixed(1).replace(".",",")}%` : ""]]));
+  return `<div class="od-top"><div class="od-title"><button type="button" class="ostar big${o.starred?" on":""}" data-ostar="${esc(o.id)}" aria-label="${o.starred?"Usuń gwiazdkę":"Oznacz gwiazdką"}">${ic("star",24)}</button>
+      <h1>Zamówienie <span class="num">${esc(o.number||"—")}</span></h1><span class="od-cust">${esc(custName(o))}</span>${demoTag(o)}</div>
+      <div class="row"><button type="button" class="obtn round" data-onav="${esc(prevId)}" ${prevId?"":"disabled"} aria-label="Poprzednie zamówienie">‹</button><button type="button" class="obtn round" data-onav="${esc(nextId)}" ${nextId?"":"disabled"} aria-label="Następne zamówienie">›</button>
+      <button type="button" class="btn od-back" data-oback>${ic("back",16)} Powrót do listy zamówień</button></div></div>
+    ${products}${info}
+    <div class="od-grid3">${delivery}${invoice}${pickup}</div>
+    <div class="od-grid2b">${parcel}${costs}</div>`;
+}
+async function saveOrder(id, next, msg){
+  const prev = S.orders[id]; if(!prev) return false;
+  if(prev.status !== next.status) next.statusAt = Date.now();
+  if(!(await put("orders", id, next))) return false;
+  if(prev.status !== next.status) afterOrderStatus(next, prev.status); else if(msg){ toast(msg); logAct(`Zmiana: #${next.number}`); }
+  return true;
+}
+function setItems(o, items){
+  const next = {...o, items};
+  next.cost = Math.round((num(o.cost) - catCost(itemsOf(o)) + catCost(items))*100)/100 || "";
+  next.productId = items[0] ? (items[0].productId || "") : ""; next.qty = items[0] ? (num(items[0].qty)||1) : "";
+  return next;
+}
+async function submitSection(frm){
+  const [id] = frm.dataset.oid.split(":"), sec = frm.dataset.sec, o = S.orders[id]; if(!o) return;
+  const fd = new FormData(frm);
+  let next;
+  if(sec === "items"){
+    const items = itemsOf(o).map((x, i) => ({...x, qty: Math.max(1, num(fd.get("qty_"+i)) || 1), price: num(fd.get("price_"+i)), ...(x.productId ? {} : {name: String(fd.get("name_"+i)||"").trim() || "Pozycja"})}));
+    next = setItems(o, items);
+  } else {
+    next = JSON.parse(JSON.stringify(o));
+    OSECS[sec].forEach(([k,,t]) => { let v = fd.get(k); v = v == null ? "" : String(v).trim(); if(t==="number") v = v==="" ? "" : num(v);
+      const path = k.split("."); let tgt = next; path.slice(0,-1).forEach(p => { tgt[p] = tgt[p] && typeof tgt[p]==="object" ? tgt[p] : {}; tgt = tgt[p]; }); tgt[path.at(-1)] = v; });
+  }
+  delete frm.dataset.dirty; UI.osec = null;
+  if(!(await saveOrder(id, next, "Zapisano"))) { UI.osec = sec; render(); }
+}
+async function orderAction(id, act){
+  const o = S.orders[id]; if(!o) return;
+  if(act==="print") return oprint([id]);
+  if(act==="csv") return ocsv([id]);
+  if(act==="copyaddr"){ const a = o.delivery||{}; const txt = [a.name||custName(o), a.company, a.address, [a.zip,a.city].filter(Boolean).join(" "), a.country].filter(Boolean).join("\n") || o.ship_to || "";
+    try{ await navigator.clipboard.writeText(txt); toast("Adres skopiowany"); }catch(e){ toast("Nie udało się skopiować"); } return; }
+  if(act==="inv-from-del"){ const a = o.delivery||{}; if(!addrLine(a) && !a.name){ toast("Najpierw uzupełnij adres dostawy."); return; } await saveOrder(id, {...o, invoice:{...(o.invoice||{}), name:a.name||"", company:a.company||"", address:a.address||"", zip:a.zip||"", city:a.city||"", country:a.country||"Polska"}}, "Dane do faktury przepisane z adresu dostawy"); return; }
+  if(act==="dup"){ const nid = uid("or"); const copy = {...JSON.parse(JSON.stringify(o)), id:nid, number: nextOrderNo(), date: TODAY(), createdAt: Date.now(), statusAt: Date.now(), status:"nowe", tracking:"", starred:false};
+    delete copy.demo; if(await put("orders", nid, copy)){ toast(`Utworzono kopię #${copy.number}`); location.hash = "zamowienia/" + encodeURIComponent(nid); } return; }
+  if(act==="del"){ const b = document.querySelector('[data-o1="del"]'); if(b && !b.dataset.sure){ b.dataset.sure = "1"; b.textContent = "Na pewno usunąć? Kliknij jeszcze raz"; return; }
+    const n = o.number; if(await del("orders", id)){ toast(`Usunięto zamówienie #${n}`); logAct(`Usunięto: zamówienie #${n}`); location.hash = "zamowienia"; } return; }
+}
+document.addEventListener("click", e => {
+  const t = e.target;
+  if(t.closest("[data-oback]")){ location.hash = "zamowienia"; return; }
+  const nv = t.closest("[data-onav]"); if(nv){ if(nv.dataset.onav) { UI.osec = null; location.hash = "zamowienia/" + encodeURIComponent(nv.dataset.onav); } return; }
+  const se = t.closest("[data-osec-edit]"); if(se){ UI.osec = se.dataset.osecEdit; render(); const f = document.querySelector("form.dfrm input,form.dfrm select,form.dfrm textarea"); if(f) f.focus(); return; }
+  if(t.closest("[data-osec-cancel]")){ const f = t.closest("form"); if(f) delete f.dataset.dirty; UI.osec = null; render(); return; }
+  const id = orderDetailId(); if(!id) return;
+  const a1 = t.closest("[data-o1]"); if(a1){ orderAction(id, a1.dataset.o1); return; }
+  if(t.closest("[data-opaid]")){ const o = S.orders[id]; if(o) saveOrder(id, {...o, price: dueOf(o), payment_status:"oplacone"}, "Oznaczono jako opłacone"); return; }
+  const dl = t.closest("[data-oitem-del]"); if(dl){ const o = S.orders[id]; if(!o) return; const items = itemsOf(o).filter((_, i) => i !== num(dl.dataset.oitemDel)); saveOrder(id, setItems(o, items), "Usunięto pozycję"); return; }
+});
+document.addEventListener("change", e => {
+  const t = e.target; if(!t.matches("[data-oitem-add]") || !t.value) return;
+  const id = orderDetailId(), o = S.orders[id]; if(!o) return;
+  if(t.value === "__custom"){ saveOrder(id, setItems(o, [...itemsOf(o), {name:"Nowa pozycja", qty:1, price:0}]), "").then(()=>{ UI.osec = "items"; render(); }); return; }
+  const p = byId("products", t.value); if(!p) return;
+  const items = [...itemsOf(o)]; const ex = items.find(x => x.productId === p.id);
+  if(ex) ex.qty = (num(ex.qty)||1) + 1; else items.push({productId:p.id, qty:1, price:num(p.price)});
+  saveOrder(id, setItems(o, items), `Dodano: ${p.name}`);
+});
 
 /* ---------- zamówienia: zaznaczanie i akcje zbiorcze ---------- */
 function oselDo(what){
@@ -1432,7 +1624,7 @@ async function obulk(cmd){
   const what = k==="status" ? `→ ${opt(ORDER_ST,v)[1]}` : k==="owner" ? `→ ${pname(v)}` : v==="1" ? "oznaczone gwiazdką" : "bez gwiazdki";
   if(n){ toast(`${n} ${n===1?"zamówienie":n<5?"zamówienia":"zamówień"} ${what}`); if(k!=="star") logAct(`Zbiorczo ${n} zamówień ${what}`); } else toast("Nic do zmiany");
 }
-function orowsFor(ids){ return ids.map(id=>S.orders[id]).filter(Boolean).map(o => ({nr:o.number||"", data:o.date||"", klient:nameOf("customers",o.customerId), produkt:nameOf("products",o.productId), ilosc:num(o.qty)||1, kwota:num(o.price), wysylka_klient:shipPaidOf(o), zysk:profitOf(o), status:opt(ORDER_ST,ost(o))[1], platnosc:o.payment_status?opt(PAY_ST,o.payment_status)[1]:"", przewoznik:o.carrier||"", przesylka:o.tracking||"", adres:o.ship_to||"", email:o.buyer_email||"", telefon:o.buyer_phone||"", opiekun:pname(o.owner), notatki:o.notes||""})); }
+function orowsFor(ids){ return ids.map(id=>S.orders[id]).filter(Boolean).map(o => ({nr:o.number||"", data:o.date||"", klient:custName(o), produkt:itemsOf(o).map(x=>`${num(x.qty)||1}x ${itemName(x)}`).join(", "), ilosc:itemsOf(o).reduce((s,x)=>s+(num(x.qty)||1),0)||1, kwota:num(o.price), wysylka_klient:shipPaidOf(o), zysk:profitOf(o), status:opt(ORDER_ST,ost(o))[1], platnosc:o.payment_status?opt(PAY_ST,o.payment_status)[1]:"", przewoznik:o.carrier||"", przesylka:o.tracking||"", adres:addrLine(o.delivery)||o.ship_to||"", email:o.buyer_email||"", telefon:o.buyer_phone||"", opiekun:pname(o.owner), notatki:o.notes||""})); }
 function ocsv(ids){
   const rows = orowsFor(ids); const cols = Object.keys(rows[0]);
   const q = v => `"${String(v).replace(/"/g,'""')}"`;
@@ -1454,11 +1646,11 @@ document.addEventListener("click", e => {
   const bk = t.closest("[data-obulk]"); if(bk){ if(!bk.disabled) obulk(bk.dataset.obulk); return; }
   const st = t.closest("[data-ostar]"); if(st){ const r = S.orders[st.dataset.ostar]; if(r) put("orders", r.id, {...r, starred: !r.starred}); return; }
   if(t.closest("[data-ostaronly]")){ UI.ostarOnly = !UI.ostarOnly; UI.opage = 1; render(); return; }
-  const pg = t.closest("[data-opage]"); if(pg){ UI.opage += num(pg.dataset.opage); UI.oexp = null; render(); $("#main").scrollTop = 0; return; }
+  const pg = t.closest("[data-opage]"); if(pg){ UI.opage += num(pg.dataset.opage); render(); $("#main").scrollTop = 0; return; }
   if(t.closest("[data-osort]")){ UI.osort = UI.osort==="asc" ? "desc" : "asc"; UI.opage = 1; render(); return; }
   if(t.closest("[data-ock]")){ const cb = t.closest("[data-ock]").querySelector("input"); if(t !== cb){ cb.click(); } return; }
   const row = t.closest("tr[data-orow]");
-  if(row && !t.closest("[data-stop],a,button,input,select")){ const id = row.dataset.orow; UI.oexp = UI.oexp===id ? null : id; render(); return; }
+  if(row && !t.closest("[data-stop],a,button,input,select")){ location.hash = "zamowienia/" + encodeURIComponent(row.dataset.orow); return; }
 });
 document.addEventListener("change", e => {
   const t = e.target;
