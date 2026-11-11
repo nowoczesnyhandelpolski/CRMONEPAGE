@@ -35,7 +35,7 @@ Zamówienie ląduje w istniejącej tabeli `public.records` (`col = orders`, stat
 
 Opublikowana strona dopisuje albo aktualizuje sklep: platforma `generator`, status `live`. Wycofanie ustawia sklep na `pauza`.
 
-Płatność nie jest jeszcze podłączona. Pole `pay_url` w odpowiedzi zamówienia jest puste, dopóki nie ustawisz `PAY_URL_TEMPLATE`. Status płatności nie zmienia statusu paczki. Gdy dojdzie Przelewy24, szablon może wyglądać tak:
+Płatność idzie przez Stripe (BLIK, Przelewy24, karta, Apple Pay, Google Pay; jedno zamówienie maks. 2500 zł). Po zapisaniu zamówienia `/p/<slug>/order` woła Supabase Edge Function `pay-session`, która bierze kwotę z rekordu zamówienia i zwraca adres płatności Stripe; kupujący jest tam przekierowany. Webhook `stripe-webhook` ustawia w tym zamówieniu `payment_status = oplacone`. Każda strona z ceną dostaje też automatycznie samodzielny link płatności (`pay-link`, pole `checkout_url`), a zakładka „Płatności” w panelu pokazuje linki i wpłaty. Klucze Stripe są w sekretach funkcji Supabase, nie w Cloudflare. `STRIPE_CHECKOUT=0` w Cloudflare wyłącza Stripe w formularzu. Status płatności nie zmienia statusu paczki. Własny operator nadal może mieć pierwszeństwo przez `PAY_URL_TEMPLATE`, np.:
 
 ```text
 https://twoj-operator.example/start?n={number}&kwota={total}&email={email}&slug={slug}

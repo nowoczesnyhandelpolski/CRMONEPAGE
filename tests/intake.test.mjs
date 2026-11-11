@@ -149,3 +149,40 @@ test("bez szablonu płatności pay_url jest puste, status i tak oczekuje", async
   assert.equal(res.body.total, 189);
   assert.equal((await store.getPage("kalendarz")).data.stock, null);
 });
+
+test("bez szablonu płatności zamówienie dostaje sesję Stripe na swoją kwotę", async () => {
+  const store = createMemoryStore();
+  await store.savePage(readyPage({ stock: null }));
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, body: JSON.parse(init.body) });
+    return new Response(JSON.stringify({ ok: true, url: "https://checkout.stripe.com/c/pay/cs_test_1" }), { status: 200 });
+  };
+  try {
+    const env = { SUPABASE_URL: "https://proj.supabase.co/" };
+    const res = await placeOrder(store, env, "kalendarz", orderBody({ bundle: 0, bump: false, marketing: false, client_req: "stripe" }), { ip: "6.6.6.6" });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.pay_url, "https://checkout.stripe.com/c/pay/cs_test_1");
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, "https://proj.supabase.co/functions/v1/pay-session");
+    assert.match(calls[0].body.order_id, /^or[0-9a-f]{12}$/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("błąd Stripe nie psuje zamówienia", async () => {
+  const store = createMemoryStore();
+  await store.savePage(readyPage({ stock: null }));
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("{}", { status: 503 });
+  try {
+    const res = await placeOrder(store, { SUPABASE_URL: "https://proj.supabase.co" }, "kalendarz", orderBody({ bundle: 0, bump: false, marketing: false, client_req: "stripe-blad" }), { ip: "7.7.7.7" });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.pay_url, null);
+    assert.equal(res.body.payment_status, "oczekuje");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
