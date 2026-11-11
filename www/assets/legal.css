@@ -1,0 +1,29 @@
+:root{--navy:#0B1B35;--navy2:#13294B;--red:#C8102E;--red2:#ff3b57;--ink:#0d1626;--mut:#5d6b82;--bg:#f5f7fb;--line:#e3e8f1}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:400 17px/1.7 Poppins,system-ui,sans-serif;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+a{color:var(--red)}
+h1,h2{font-family:Unbounded,Poppins,sans-serif;line-height:1.15;letter-spacing:-.02em}
+.wrap{width:min(860px,100% - 32px);margin-inline:auto}
+.top{background:var(--navy);color:#fff;padding:22px 0 64px;position:relative;overflow:hidden;isolation:isolate}
+.top::before{content:"";position:absolute;width:520px;height:520px;right:-180px;top:-240px;border-radius:50%;background:radial-gradient(circle,var(--red),transparent 65%);z-index:-1;opacity:.7}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:56px}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:#fff;font:700 15px/1.1 Unbounded,sans-serif}
+.brand img{width:40px;height:40px;border-radius:11px;box-shadow:0 0 0 1px rgba(255,255,255,.15)}
+.brand small{display:block;font:600 10px Poppins,sans-serif;letter-spacing:.32em;color:var(--red2)}
+.back{color:rgba(255,255,255,.8);text-decoration:none;font-weight:500;font-size:15px}
+.back:hover{color:#fff}
+.eyebrow{display:inline-block;font:600 13px Poppins,sans-serif;letter-spacing:.24em;text-transform:uppercase;color:var(--red2);margin-bottom:14px}
+.top h1{font-size:clamp(30px,5vw,48px);font-weight:700}
+.top p{color:rgba(255,255,255,.7);margin-top:14px}
+.doc{background:#fff;border-radius:28px;margin:-32px auto 72px;padding:clamp(26px,5vw,56px);box-shadow:0 40px 80px -50px rgba(13,22,38,.45);position:relative}
+.doc h2{font-size:20px;font-weight:700;margin:38px 0 12px}
+.doc h2:first-child{margin-top:0}
+.doc p,.doc li{color:#33405a}
+.doc p+p{margin-top:10px}
+.doc ul,.doc ol{padding-left:22px;display:grid;gap:6px;margin-top:8px}
+.box{background:var(--bg);border-radius:16px;padding:20px 22px;margin-top:10px;box-shadow:inset 0 0 0 1px var(--line)}
+.box b{color:var(--ink)}
+footer{background:#07122a;color:rgba(255,255,255,.7);padding:30px 0;font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+footer a{color:inherit;text-decoration:none}footer a:hover{color:#fff}
+footer nav{display:flex;gap:20px;flex-wrap:wrap}
