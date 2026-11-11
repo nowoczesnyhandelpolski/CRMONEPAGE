@@ -165,3 +165,9 @@ Dodatkowe zmienne (Production), obok tabeli wyżej:
 | `NHP_ENC_KEY` | **Secret** | 32 bajty, `openssl rand -base64 32`. Szyfruje klucz OpenAI z Ustawień |
 
 `_routes.json` obejmuje `/p/*`, `/sitemap.xml` i `/api/*`. Te wzorce nie mogą na siebie nachodzić — deploy Pages kończy się błędem 8000057.
+
+## Shopify i KSeF
+
+Baza produktów ma zakładki **Pobrane produkty** (jeszcze bez karty) i **Gotowe strony** (karta już jest). Status lejka (`pobrany` → `w przygotowaniu` → `strona gotowa` → `opublikowany w Shopify` → `wstrzymany` / `archiwum`) zmienia się z wiersza i hurtowo. Historia ląduje w `product_status_events`.
+
+Shopify i faktury FA(3) idą przez Pages Functions. Sekrety są tylko w Cloudflare. Lista nazw i kroków (aplikacja Shopify, zakresy, adresy webhooków, środowisko testowe KSeF) jest w [docs/shopify-ksef.md](docs/shopify-ksef.md).

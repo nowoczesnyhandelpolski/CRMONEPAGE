@@ -408,6 +408,9 @@
       CRM.UI.genExample = false;
       CRM.UI.genDraftId = null;
       await loadPages();
+      if (row.product_id && CRM.afterPageSaved) {
+        try { await CRM.afterPageSaved(row.product_id, row.status); } catch { /* sync Shopify jest dodatkowy */ }
+      }
       CRM.toast(row.status === "published" ? `Opublikowano /p/${slug}` : "Zapisano szkic");
       CRM.scheduleRender();
     }
@@ -425,6 +428,9 @@
       if (error) { CRM.toast("Nie udało się wycofać strony."); return; }
       CRM.logAct(`Wycofał stronę /p/${existing.slug}`);
       await loadPages();
+      if (row.product_id && CRM.afterPageSaved) {
+        try { await CRM.afterPageSaved(row.product_id, "draft"); } catch { /* sync Shopify jest dodatkowy */ }
+      }
       CRM.toast("Strona wróciła do szkicu");
       CRM.scheduleRender();
     }

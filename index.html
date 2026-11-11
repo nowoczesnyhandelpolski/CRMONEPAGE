@@ -654,7 +654,7 @@ const VIEWS = [
 const view = () => { const h = location.hash.slice(1); return VIEWS.some(v=>v[0]===h) ? h : "pulpit"; };
 const NAV_GROUPS = [
   { id: "zamowienia", label: "Zamówienia", icon: "orders", children: ["zamowienia", "klienci", "dostawcy", "leady"] },
-  { id: "produkty", label: "Produkty", icon: "products", children: ["baza-produktow", "aukcje", "import-wtyczki", "eksport", "generator"] }
+  { id: "produkty", label: "Produkty", icon: "products", children: ["baza-produktow", "faktury-ksef", "aukcje", "import-wtyczki", "eksport", "generator"] }
 ];
 function navGroupOpen(id, childActive){
   if (childActive) return true;
