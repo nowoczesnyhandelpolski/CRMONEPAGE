@@ -1073,6 +1073,7 @@ async function confirmDelete(){
 
 function openSettings(){
   const st = S.settings || {};
+  const sl = st.seller || {};
   const demoCount = COLS.reduce((s,c)=> s + arr(c).filter(r=>r.demo).length, 0);
   modalCtx = {settings:true};
   openModal(`<form id="frmS" novalidate>
@@ -1081,6 +1082,13 @@ function openSettings(){
       ${team().map((p,i) => `<div class="f"><label for="t-${p.k}">Wspólnik ${i+1}: imię</label><div class="row" style="flex-wrap:nowrap">${avatar(p.k,32)}<input id="t-${p.k}" name="${p.k}" value="${esc(p.name)}"></div></div><div class="f"><label for="e-${p.k}">E-mail do logowania</label><input id="e-${p.k}" name="e-${p.k}" type="email" value="${esc(((st.emails||{})[p.k])||"")}" placeholder="żeby CRM sam wiedział, kto pracuje"></div>`).join("")}
       <div class="f"><label for="s-goal">Cel miesięczny (zł)</label><input id="s-goal" name="goal" inputmode="decimal" value="${esc(st.goal||10000)}"></div>
       <div class="f"><label for="s-gt">Cel liczymy jako</label><select id="s-gt" name="goalType"><option value="profit" ${st.goalType!=="revenue"?"selected":""}>Zysk na czysto</option><option value="revenue" ${st.goalType==="revenue"?"selected":""}>Przychód</option></select></div>
+      <div class="f full"><label>Dane sprzedawcy</label><span class="small muted">Trafiają do regulaminu, polityki prywatności i stopki każdej karty produktu oraz na stronę www. Wpisz je raz. Puste pole NIP oznacza działalność nierejestrowaną.</span></div>
+      <div class="f"><label for="sl-name">Imię i nazwisko albo firma</label><input id="sl-name" name="sl-name" maxlength="160" value="${esc(sl.name||"")}" placeholder="Jan Kowalski"></div>
+      <div class="f"><label for="sl-mail">E-mail dla klientów</label><input id="sl-mail" name="sl-mail" type="email" maxlength="120" value="${esc(sl.email||"")}" placeholder="kontakt@nowoczesnyhandelpolski.pl"></div>
+      <div class="f full"><label for="sl-addr">Adres</label><input id="sl-addr" name="sl-addr" maxlength="200" value="${esc(sl.address||"")}" placeholder="ul. Polna 1, 00-001 Warszawa"></div>
+      <div class="f"><label for="sl-nip">NIP (opcjonalnie)</label><input id="sl-nip" name="sl-nip" inputmode="numeric" maxlength="20" value="${esc(sl.nip||"")}"></div>
+      <div class="f"><label for="sl-phone">Telefon (opcjonalnie)</label><input id="sl-phone" name="sl-phone" maxlength="40" value="${esc(sl.phone||"")}"></div>
+      <div class="f full"><label class="row" style="font-weight:400"><input type="checkbox" name="sl-vat" style="width:auto" ${sl.vat_exempt?"checked":""}> Zwolnienie z VAT (art. 113 ust. 1 ustawy o VAT)</label></div>
       <div class="f full"><label>Przykładowe dane</label><div class="row"><span class="small muted">${demoCount ? `${demoCount} wpisów oznaczonych jako „przykład”. Usuń je, gdy zaczniecie wpisywać prawdziwe dane.` : "Brak przykładowych danych. Wszystko tu jest Wasze."}</span>${demoCount?`<button type="button" class="btn danger sm" data-act="cleardemo">Usuń przykładowe dane</button>`:""}</div></div>
       <div class="f full" id="openaiBox"><p class="small muted">Ładuję połączenie z OpenAI…</p></div>
       <div class="f full"><label>Konto</label><span class="small muted">Zalogowano jako <b>${esc(sessionEmail)}</b>. Dane są we wspólnej bazie, zmiany wspólników widać na żywo.</span></div>
@@ -1092,7 +1100,10 @@ function openSettings(){
 async function submitSettings(){
   const fd = new FormData($("#frmS"));
   const t = {}, em = {}; ["p1","p2","p3"].forEach(k => { t[k] = String(fd.get(k)||"").trim().slice(0,30) || DEFAULT_TEAM[k]; em[k] = String(fd.get("e-"+k)||"").trim().toLowerCase().slice(0,120); });
-  await putSettings({team:t, emails:em, goal: num(fd.get("goal")) || 10000, goalType: fd.get("goalType")==="revenue"?"revenue":"profit"});
+  const sv = (k, n) => String(fd.get(k)||"").trim().slice(0,n);
+  const seller = { name: sv("sl-name",160), address: sv("sl-addr",200), nip: sv("sl-nip",20).replace(/[\s-]/g,""), email: sv("sl-mail",120).toLowerCase(), phone: sv("sl-phone",40), vat_exempt: fd.get("sl-vat")==="on" };
+  if(seller.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(seller.email)){ toast("Popraw e-mail sprzedawcy."); return; }
+  await putSettings({team:t, emails:em, goal: num(fd.get("goal")) || 10000, goalType: fd.get("goalType")==="revenue"?"revenue":"profit", seller});
   autoMe();
   closeModal(); toast("Ustawienia zapisane");
 }

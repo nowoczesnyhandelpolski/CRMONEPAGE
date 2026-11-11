@@ -31,35 +31,38 @@
 <main class="wrap doc">
   <h2>1. Kto jest administratorem Twoich danych</h2>
   <p>Administratorem danych osobowych przekazywanych za pośrednictwem serwisu nowoczesnyhandelpolski.pl jest:</p>
-  <div class="box" id="dane-firmy">
-    <b>Nowoczesny Handel Polski</b><br>
-    [pełna nazwa firmy / imię i nazwisko przedsiębiorcy]<br>
-    [adres siedziby]<br>
-    NIP: [NIP] · REGON: [REGON]<br>
-    E-mail: [adres e-mail do kontaktu]
-  </div>
+  <div class="box" id="dane-firmy" data-seller>
+        <b>Nowoczesny Handel Polski</b><br>
+        Dane sprzedawcy są podane w stopce każdej strony produktu.
+      </div>
   <p>We wszystkich sprawach dotyczących Twoich danych możesz pisać na powyższy adres e-mail albo przez formularz kontaktowy na stronie głównej.</p>
 
   <h2>2. Jakie dane zbieramy i po co</h2>
-  <p>Zbieramy tylko te dane, które sam nam przekażesz w formularzu kontaktowym: imię i nazwisko lub nazwę firmy, adres e-mail, numer telefonu (opcjonalnie), temat i treść wiadomości.</p>
+  <p>Zbieramy tylko te dane, które sam nam przekażesz: w formularzu kontaktowym (imię i nazwisko lub nazwę firmy, adres e-mail, numer telefonu — opcjonalnie, temat i treść wiadomości) oraz przy zamówieniu na stronie produktu (imię i nazwisko, adres dostawy lub paczkomat, e-mail, telefon).</p>
   <ul>
     <li><b>Odpowiedź na wiadomość i dalsza korespondencja</b> — na podstawie Twojej zgody (art. 6 ust. 1 lit. a RODO) oraz naszego prawnie uzasadnionego interesu, jakim jest kontakt z osobami, które do nas piszą (art. 6 ust. 1 lit. f RODO).</li>
     <li><b>Podjęcie działań przed zawarciem umowy</b>, jeśli pytasz o współpracę lub zamówienie (art. 6 ust. 1 lit. b RODO).</li>
+    <li><b>Realizacja zamówienia i dostawa</b> — wykonanie umowy sprzedaży (art. 6 ust. 1 lit. b RODO).</li>
+    <li><b>Księgowość i podatki</b> — obowiązek prawny (art. 6 ust. 1 lit. c RODO).</li>
     <li><b>Ustalenie, dochodzenie lub obrona roszczeń</b> — prawnie uzasadniony interes administratora (art. 6 ust. 1 lit. f RODO).</li>
   </ul>
-  <p>Podanie danych jest dobrowolne, ale bez adresu e-mail nie będziemy mogli Ci odpowiedzieć.</p>
+  <p>Podanie danych jest dobrowolne, ale bez adresu e-mail nie będziemy mogli Ci odpowiedzieć, a bez danych do wysyłki nie zrealizujemy zamówienia.</p>
 
   <h2>3. Jak długo przechowujemy dane</h2>
-  <p>Dane z formularza przechowujemy przez czas potrzebny do obsługi Twojej sprawy, a następnie nie dłużej niż 2 lata od ostatniego kontaktu, chyba że dłuższy okres wynika z przepisów prawa lub z zawartej z nami umowy. Jeżeli cofniesz zgodę, usuniemy dane, o ile nie mamy innej podstawy do ich przechowywania.</p>
+  <p>Dane z zamówień przechowujemy przez czas realizacji umowy, a dokumenty księgowe przez 5 lat od końca roku podatkowego. Dane potrzebne do obsługi reklamacji i roszczeń — do upływu terminu przedawnienia. Dane z formularza przechowujemy przez czas potrzebny do obsługi Twojej sprawy, a następnie nie dłużej niż 2 lata od ostatniego kontaktu, chyba że dłuższy okres wynika z przepisów prawa lub z zawartej z nami umowy. Jeżeli cofniesz zgodę, usuniemy dane, o ile nie mamy innej podstawy do ich przechowywania.</p>
 
   <h2>4. Komu przekazujemy dane</h2>
-  <p>Nie sprzedajemy Twoich danych i nie przekazujemy ich w celach marketingowych. Dostęp do nich mogą mieć wyłącznie podmioty, które technicznie obsługują nasz serwis, działające na nasze zlecenie:</p>
+  <p>Nie sprzedajemy Twoich danych i nie przekazujemy ich w celach marketingowych. Dane otrzymują wyłącznie podmioty, które pomagają nam zrealizować zamówienie lub obsłużyć serwis:</p>
   <ul>
-    <li>dostawca hostingu strony i poczty e-mail,</li>
-    <li>dostawca bazy danych, w której zapisywane są wiadomości z formularza (Supabase),</li>
-    <li>osoby z naszego zespołu, które odpowiadają na wiadomości.</li>
+    <li>dostawca towaru i firma kurierska — imię i nazwisko, adres i telefon, żeby wysłać paczkę,</li>
+    <li>operator płatności Stripe — dane potrzebne do płatności (Stripe jest osobnym administratorem danych płatniczych),</li>
+    <li>Cloudflare — hosting strony,</li>
+    <li>Supabase — baza danych, w której zapisywane są zamówienia i wiadomości,</li>
+    <li>home.pl — poczta e-mail,</li>
+    <li>biuro rachunkowe, jeżeli z niego korzystamy,</li>
+    <li>osoby z naszego zespołu, które obsługują zamówienia i odpowiadają na wiadomości.</li>
   </ul>
-  <p>Jeżeli którykolwiek z tych dostawców przetwarza dane poza Europejskim Obszarem Gospodarczym, odbywa się to na podstawie standardowych klauzul umownych zatwierdzonych przez Komisję Europejską lub innego mechanizmu przewidzianego w RODO.</p>
+  <p>Część dostawców (Stripe, Cloudflare) może przetwarzać dane poza Europejskim Obszarem Gospodarczym na podstawie standardowych klauzul umownych zatwierdzonych przez Komisję Europejską lub programu EU-US Data Privacy Framework.</p>
 
   <h2>5. Twoje prawa</h2>
   <p>W każdej chwili masz prawo do:</p>
@@ -92,5 +95,7 @@
   </div>
 </footer>
 <script>document.getElementById("yr").textContent = new Date().getFullYear();</script>
+<script src="config.js"></script>
+<script src="assets/seller.js" defer></script>
 </body>
 </html>
