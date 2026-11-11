@@ -1272,20 +1272,20 @@
         minus: "Na razie to plan — zakładka nie jest jeszcze zbudowana\nNajpierw trzeba podpiąć śledzenie zakupów (Pixel Meta, konwersje Google)"
       },
       "up-20261111-platnosci": {
-        v: 1, who: "p1", date: "2026-11-11", stage: "pending", cat: "sklepy", title: "Płatności BLIK, Przelewy24 i kartą (Stripe) na stronach produktów",
+        v: 2, who: "p1", date: "2026-11-11", stage: "live", cat: "sklepy", title: "Płatności BLIK, Przelewy24 i kartą (Stripe) na stronach produktów",
         before: "Strona produktu zbierała tylko zamówienie.\nNa pieniądze czekaliśmy na przelew.",
         after: "Klient płaci od razu: BLIK, Przelewy24 albo karta, na dokładną kwotę.\nOpłacone zamówienie samo dostaje status „Opłacone”.\nW panelu jest zakładka Płatności z listą wpłat.",
         benefit: "Pieniądze od razu i mniej porzuconych zamówień.",
         plus: "Płatność w kilka sekund\nStatus płatności ustawia się sam",
-        minus: "Stripe bierze prowizję od każdej płatności\nCzeka na kliknięcie Merge w PR #16 na GitHubie"
+        minus: "Stripe bierze prowizję od każdej płatności"
       },
       "up-20261111-social": {
-        v: 1, who: "p1", date: "2026-11-11", stage: "pending", cat: "social", title: "Zakładka Social media (Facebook, TikTok, Instagram)",
+        v: 2, who: "p1", date: "2026-11-11", stage: "live", cat: "social", title: "Zakładka Social media (Facebook, TikTok, Instagram)",
         before: "Social media prowadziliśmy poza panelem, bez wspólnego planu.",
         after: "W panelu jest zakładka Social media z podglądem autopilota postów dla sklepów.",
         benefit: "Posty dla każdego sklepu w jednym miejscu, bez ręcznego pilnowania.",
         plus: "Wszystko w jednym miejscu\nAutopilot podpowiada posty",
-        minus: "Konta FB / TikTok / Instagram trzeba założyć i podpiąć\nCzeka na kliknięcie Merge w PR #16"
+        minus: "Konta FB / TikTok / Instagram trzeba jeszcze założyć i podpiąć"
       },
       "up-20261111-www": {
         v: 1, who: "p1", date: "2026-11-11", stage: "pending", cat: "sklepy", title: "Strona www: tradycyjne wartości, polityka prywatności i regulamin",
