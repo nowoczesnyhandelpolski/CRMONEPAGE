@@ -166,6 +166,10 @@ Dodatkowe zmienne (Production), obok tabeli wyżej:
 
 `_routes.json` obejmuje `/p/*`, `/sitemap.xml` i `/api/*`. Te wzorce nie mogą na siebie nachodzić — deploy Pages kończy się błędem 8000057.
 
+## Skrzynka i tablica
+
+Wiadomości mają czat, **tablicę** (przypięte ogłoszenia zespołu), skrzynkę IMAP/SMTP sklepu i formularze ze stron. Poczta nie wisi na stałym gnieździe: panel pobiera listy przy otwarciu i przyciskiem „Odśwież”. Autoresponder domyślnie robi szkic do zatwierdzenia. Sekrety i ograniczenia: [docs/poczta.md](docs/poczta.md).
+
 ## Shopify i KSeF
 
 Baza produktów ma zakładki **Pobrane produkty** (jeszcze bez karty) i **Gotowe strony** (karta już jest). Status lejka (`pobrany` → `w przygotowaniu` → `strona gotowa` → `opublikowany w Shopify` → `wstrzymany` / `archiwum`) zmienia się z wiersza i hurtowo. Historia ląduje w `product_status_events`.

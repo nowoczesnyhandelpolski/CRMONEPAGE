@@ -61,6 +61,11 @@
       .chat-tip{font-size:12px;color:var(--muted);line-height:1.5}
       .lightbox{position:fixed;inset:0;z-index:80;background:rgba(7,18,38,.85);display:grid;place-items:center;padding:20px;cursor:zoom-out}
       .lightbox img{max-width:100%;max-height:100%;border-radius:12px}
+      .board{display:grid;gap:12px}
+      .board-card{padding:14px 16px}
+      .board-card.pin{border-color:color-mix(in srgb,var(--red) 50%,var(--line));box-shadow:inset 4px 0 0 var(--red)}
+      .board-top{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px}
+      .board form textarea,.board-edit{width:100%;min-height:72px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface-2);font:inherit}
       @media(max-width:900px){.chat{grid-template-columns:1fr}.chat-side{display:none}.cm{max-width:90%}.chat-box{height:calc(100vh - 300px)}}
     `;
     document.head.appendChild(css);
@@ -89,6 +94,57 @@
     const online = new Set();
     const typing = {};
     let rt = null, lastTypingSent = 0;
+    CRM.S.board = CRM.S.board || [];
+    CRM.S.boardAdmin = false;
+    CRM.UI.boardDraft = CRM.UI.boardDraft || "";
+    CRM.UI.boardEdit = CRM.UI.boardEdit || "";
+    async function loadBoard() {
+      if (!CRM.SB?.from) return;
+      const { data, error } = await CRM.SB.from("team_board").select("*").order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(100);
+      if (error) { CRM.S.boardError = /does not exist|schema cache|PGRST/i.test(String(error.message || "")) ? "Brakuje tablicy. Uruchom ponownie supabase.sql." : String(error.message || error); return; }
+      CRM.S.boardError = "";
+      const { sortBoard } = await import("./lib/mail-text.mjs");
+      CRM.S.board = sortBoard(data || []);
+    }
+    function canTouchBoard(post) {
+      const email = String(CRM.sessionEmail || "").toLowerCase();
+      return Boolean(post && (String(post.author_email || "").toLowerCase() === email || CRM.S.boardAdmin));
+    }
+    CRM.readyFns.push(async () => {
+      try { const { data } = await CRM.SB.rpc("is_board_admin"); CRM.S.boardAdmin = data === true; } catch { CRM.S.boardAdmin = false; }
+      await loadBoard();
+      if (CRM.SB.channel) {
+        try {
+          CRM.SB.channel("team-board-live")
+            .on("postgres_changes", { event: "*", schema: "public", table: "team_board" }, () => { loadBoard().then(() => { if (CRM.UI.msgTab === "board") CRM.scheduleRender(); }); })
+            .subscribe();
+        } catch { /* realtime tablicy jest dodatkowe */ }
+      }
+    });
+    function boardView() {
+      const posts = CRM.S.board || [];
+      const cards = posts.map((post) => {
+        const when = post.created_at ? new Date(post.created_at).toLocaleString("pl-PL") : "";
+        const mine = canTouchBoard(post);
+        const editing = CRM.UI.boardEdit === post.id;
+        const tools = mine ? `<span class="row">${post.pinned ? `<button class="btn sm" type="button" data-board="unpin" data-id="${esc(post.id)}">Odepnij</button>` : `<button class="btn sm" type="button" data-board="pin" data-id="${esc(post.id)}">Przypnij</button>`}<button class="btn sm" type="button" data-board="edit" data-id="${esc(post.id)}">Edytuj</button><button class="btn sm danger" type="button" data-board="del" data-id="${esc(post.id)}">Usuń</button></span>` : "";
+        const body = editing
+          ? `<textarea class="board-edit" id="board-edit-${esc(post.id)}">${esc(post.body || "")}</textarea><div class="row" style="margin-top:8px"><button class="btn sm primary" type="button" data-board="save" data-id="${esc(post.id)}">Zapisz</button><button class="btn sm" type="button" data-board="cancel">Anuluj</button></div>`
+          : `<div style="white-space:pre-wrap">${esc(post.body || "")}</div>`;
+        return `<article class="card board-card ${post.pinned ? "pin" : ""}"><div class="board-top"><div><b>${esc(post.author_name || "Zespół")}</b> <span class="small muted">${esc(when)}</span>${post.pinned ? ` <span class="pill" style="--c:var(--red)">Przypięte</span>` : ""}</div>${tools}</div>${body}</article>`;
+      }).join("");
+      return `<div class="board"><form class="card pad" id="boardForm"><h2 style="margin-bottom:8px">Nowy wpis</h2><textarea id="boardText" maxlength="2000" placeholder="Ogłoszenie dla całego zespołu…">${esc(CRM.UI.boardDraft || "")}</textarea><div class="row" style="margin-top:8px"><button class="btn primary" type="submit">Opublikuj</button><button class="btn" type="button" data-board="pin-new">Opublikuj i przypnij</button></div></form>${CRM.S.boardError ? `<div class="banner">${esc(CRM.S.boardError)}</div>` : ""}${cards || `<div class="card"><div class="empty"><b>Tablica jest pusta</b>Przypięte wpisy zostają na górze u wszystkich.</div></div>`}</div>`;
+    }
+    async function saveBoard(body, pinned) {
+      const text = String(body || "").trim();
+      if (!text) { CRM.toast("Wpisz treść."); return; }
+      const name = (CRM.team().find((p) => p.k === CRM.me) || {}).name || "";
+      const { error } = await CRM.SB.from("team_board").insert({ body: text.slice(0, 2000), author_key: CRM.me, author_name: name, pinned: Boolean(pinned) });
+      if (error) { CRM.toast(String(error.message || "Nie udało się zapisać wpisu.")); return; }
+      CRM.UI.boardDraft = "";
+      await loadBoard();
+      CRM.scheduleRender();
+    }
     CRM.readyFns.push(async () => {
       seen = new Set(msgs().map((m) => m.id));
       if (rt || !CRM.SB.channel) return;
@@ -143,22 +199,29 @@
       const u = unread();
       document.title = u ? `(${u}) ${baseTitle}` : baseTitle;
       const customers = CRM.arr("messages").filter((m) => (m.status || "nowe") === "nowe").length;
-      return { wiadomosci: customers + u };
+      return { wiadomosci: customers + u + Number(CRM.S.mailUnread || 0) };
     });
     document.addEventListener("visibilitychange", () => { if (!document.hidden && isChatOpen()) CRM.scheduleRender(); });
 
     /* ---------- widok ---------- */
-    function vInbox() {
+    function tabsHtml() {
       const u = unread();
       const cust = CRM.arr("messages").filter((m) => (m.status || "nowe") === "nowe").length;
-      const tabs = `<div class="msg-tabs chips">
-        <button class="chip" data-chat="tab" data-tab="team" aria-pressed="${CRM.UI.msgTab === "team"}">💬 Czat zespołu${u ? ` · ${u}` : ""}</button>
-        <button class="chip" data-chat="tab" data-tab="clients" aria-pressed="${CRM.UI.msgTab === "clients"}">✉️ Od klientów${cust ? ` · ${cust}` : ""}</button></div>`;
+      const mailU = Number(CRM.S.mailUnread || 0);
+      const tab = CRM.UI.msgTab || "team";
+      const btn = (id, label) => `<button class="chip" type="button" data-chat="tab" data-tab="${id}" aria-pressed="${tab === id}">${label}</button>`;
+      return `<div class="msg-tabs chips">${btn("team", `💬 Czat zespołu${u ? ` · ${u}` : ""}`)}${btn("board", "📌 Tablica")}${btn("mail", `📥 Skrzynka${mailU ? ` · ${mailU}` : ""}`)}${btn("clients", `✉️ Od klientów${cust ? ` · ${cust}` : ""}`)}</div>`;
+    }
+    CRM.mailTabs = tabsHtml;
+    function vInbox() {
+      const tabs = tabsHtml();
       if (CRM.UI.msgTab === "clients") {
         const html = baseMessages();
         const out = html.replace(/(<div class="top">[\s\S]*?<\/div><div class="row">[\s\S]*?<\/div><\/div>)/, `$1${tabs}`);
         return out === html ? tabs + html : out;
       }
+      if (CRM.UI.msgTab === "mail" && CRM.renderMail) return CRM.renderMail(tabs);
+      if (CRM.UI.msgTab === "board") return top() + tabs + boardView();
       return top() + tabs + chatView();
     }
     function top() {
@@ -333,11 +396,55 @@
       const f = [...e.clipboardData.files].find((x) => /^image\//.test(x.type));
       if (f) { e.preventDefault(); sendImage(f); }
     });
+    document.addEventListener("submit", (e) => {
+      if (e.target.id !== "boardForm") return;
+      e.preventDefault();
+      const text = document.getElementById("boardText")?.value || CRM.UI.boardDraft;
+      saveBoard(text, false);
+    });
+    document.addEventListener("input", (e) => {
+      if (e.target.id === "boardText") CRM.UI.boardDraft = e.target.value;
+    });
     document.addEventListener("click", (e) => {
+      const board = e.target.closest("[data-board]");
+      if (board) {
+        const act = board.dataset.board;
+        const id = board.dataset.id;
+        if (act === "pin-new") { e.preventDefault(); saveBoard(document.getElementById("boardText")?.value || CRM.UI.boardDraft, true); return; }
+        if (act === "edit") { CRM.UI.boardEdit = id; CRM.scheduleRender(); return; }
+        if (act === "cancel") { CRM.UI.boardEdit = ""; CRM.scheduleRender(); return; }
+        if (act === "save") {
+          const text = document.getElementById(`board-edit-${id}`)?.value || "";
+          CRM.SB.from("team_board").update({ body: text.trim().slice(0, 2000) }).eq("id", id).then(({ error }) => {
+            if (error) CRM.toast("Tylko autor albo administrator tablicy może to zmienić.");
+            else { CRM.UI.boardEdit = ""; loadBoard().then(() => CRM.scheduleRender()); }
+          });
+          return;
+        }
+        if (act === "pin" || act === "unpin") {
+          CRM.SB.from("team_board").update({ pinned: act === "pin" }).eq("id", id).then(({ error }) => {
+            if (error) CRM.toast("Tylko autor albo administrator tablicy może to zmienić.");
+            else loadBoard().then(() => CRM.scheduleRender());
+          });
+          return;
+        }
+        if (act === "del" && confirm("Usunąć ten wpis z tablicy?")) {
+          CRM.SB.from("team_board").delete().eq("id", id).then(({ error }) => {
+            if (error) CRM.toast("Tylko autor albo administrator tablicy może to usunąć.");
+            else loadBoard().then(() => CRM.scheduleRender());
+          });
+        }
+        return;
+      }
       const t = e.target.closest("[data-chat]");
       if (!t) return;
       const a = t.dataset.chat;
-      if (a === "tab") { CRM.UI.msgTab = t.dataset.tab; CRM.scheduleRender(); }
+      if (a === "tab") {
+        CRM.UI.msgTab = t.dataset.tab;
+        if (t.dataset.tab === "board") loadBoard().then(() => CRM.scheduleRender());
+        if (t.dataset.tab === "mail" && CRM.openMail) CRM.openMail();
+        CRM.scheduleRender();
+      }
       else if (a === "emo") {
         const ta = document.getElementById("chatText");
         if (!ta) return;
