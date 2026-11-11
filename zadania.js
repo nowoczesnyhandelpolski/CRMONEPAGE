@@ -154,9 +154,9 @@
       .tk-pc .who{display:flex;align-items:center;gap:10px}
       .tk-pc .who b{font:700 18px var(--display)}
       .tk-pc .who small{display:block;color:var(--muted);font-size:12px}
-      .tk-pc .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+      .tk-pc .nums{display:grid;grid-template-columns:1.7fr 1fr 1fr;gap:8px;margin:12px 0}
       .tk-pc .nums div{background:var(--surface-2);border-radius:10px;padding:8px}
-      .tk-pc .nums strong{display:block;font:700 20px var(--display)}
+      .tk-pc .nums strong{display:block;font:700 20px var(--display);white-space:nowrap}
       .tk-pc .nums span{font-size:11px;color:var(--muted);font-weight:600}
       .tk-share{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-bottom:10px}
       .tk-share i{display:block;height:100%;background:var(--pc)}
@@ -322,7 +322,7 @@
     const fmtTs = (ts) => new Date(ts).toLocaleString("pl-PL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
     const fmtHm = (ts) => new Date(ts).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
     const fmtMin = (m) => { m = Math.round(+m || 0); if (!m) return "0 h"; const h = Math.floor(m / 60), r = m % 60; return h ? (r ? `${h} h ${r} min` : `${h} h`) : `${r} min`; };
-    const hrs = (m) => { const v = Math.round((+m || 0) / 6) / 10; return (v ? v.toLocaleString("pl-PL") : "0") + " h"; };
+    const hrs = fmtMin; // czytelnie: „3 h 48 min” zamiast „3,8 h”
     function parseDur(s) {
       s = String(s || "").toLowerCase().replace(/,/g, ".").trim();
       if (!s) return 0;
