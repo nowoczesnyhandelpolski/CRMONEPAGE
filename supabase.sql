@@ -1368,3 +1368,7 @@ grant execute on function public.apply_shopify_inbound(uuid, jsonb) to service_r
 grant execute on function public.next_ksef_invoice_number() to service_role;
 grant execute on function public.record_page_view(text) to anon, authenticated, service_role;
 
+
+-- Realizacja zamówień (fulfil_settings, fulfil_rules, fulfilments, fulfil_log, klucze w Vault, cron nhp-fulfil)
+-- jest wdrożona migracjami Supabase: fulfilment_queue, fulfilment_ordered_at, fulfilment_cron.
+-- Kod funkcji Edge: supabase/functions/fulfil (logika: lib/fulfil-core.mjs, testy: tests/fulfil.test.mjs).
