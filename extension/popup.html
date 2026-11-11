@@ -21,22 +21,31 @@
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  html, body { margin: 0; width: 400px; }
+  html, body { margin: 0; width: 360px; }
   body {
-    max-height: 600px;
+    max-height: 560px;
     overflow: auto;
     background: var(--bg);
     color: var(--ink);
     font-family: Poppins, ui-sans-serif, sans-serif;
-    font-size: 13px;
-    line-height: 1.4;
+    font-size: 12px;
+    line-height: 1.35;
   }
+  body.dock { width: 100%; max-height: none; min-height: 100%; }
+  body.dock .vbanner, body.dock .vb-art { display: none; }
+  body.dock .brandbar { padding: 8px 8px 12px; }
+  body.dock .brandbar img { width: min(150px, 70%); }
+  body.dock.is-collapsed .brandbar img,
+  body.dock.is-collapsed .flag,
+  body.dock.is-collapsed main { display: none; }
+  body.dock.is-collapsed { width: 48px; background: var(--navy); }
+  body.dock.is-collapsed #collapse { writing-mode: vertical-rl; height: 112px; margin: 0; }
   .brandbar {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     background: var(--navy);
-    padding: 16px 16px 20px;
+    padding: 8px 10px 12px;
     position: relative;
   }
   .flag {
@@ -46,7 +55,8 @@
     flex: none;
     background: linear-gradient(#fff 0 50%, var(--red) 50%);
   }
-  .brandbar img { width: min(210px, 100%); height: auto; display: block; }
+  .brandbar img { width: min(168px, 100%); height: auto; display: block; }
+  #collapse { margin-left: auto; border: 0; background: transparent; color: #fff; font: 700 11px/1 Poppins, sans-serif; cursor: pointer; padding: 6px; }
   .brandbar::after {
     content: "";
     position: absolute;
@@ -58,8 +68,8 @@
     position: relative;
     overflow: hidden;
     color: #fff;
-    min-height: 108px;
-    padding: 14px 16px 22px;
+    min-height: 0;
+    padding: 8px 10px 14px;
     background:
       radial-gradient(90% 140% at 100% 0%, #24477E 0, transparent 58%),
       radial-gradient(70% 120% at 0% 100%, #0A1A33 0, transparent 70%),
@@ -109,10 +119,10 @@
   }
   .vbanner h2 {
     position: relative;
-    margin: 6px 0 4px;
-    max-width: 16ch;
+    margin: 4px 0 2px;
+    max-width: 18ch;
     color: #fff;
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 700;
     letter-spacing: -.02em;
     line-height: 1.15;
@@ -125,7 +135,7 @@
     font-size: 12px;
     font-weight: 500;
   }
-  main { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  main { padding: 8px; display: flex; flex-direction: column; gap: 8px; }
   .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .tabs button {
     border: 1px solid var(--line);
@@ -249,6 +259,7 @@
 <header class="brandbar">
   <span class="flag" aria-hidden="true"></span>
   <img src="logo-white.svg" alt="Nowoczesny Handel Polski">
+  <button type="button" id="collapse" hidden>Zwiń</button>
 </header>
 <section class="vbanner">
   <div class="vb-grid"></div>
@@ -277,7 +288,26 @@
     <label>Adres panelu<input id="base" type="url" placeholder="https://panel.nowoczesnyhandelpolski.pl" autocomplete="off"></label>
     <label>Klucz API<input id="key" type="password" placeholder="nhp_…" autocomplete="off"></label>
     <button class="btn primary" id="save" type="button">Zapisz ustawienia</button>
+    <button class="btn primary" id="capture-offer" type="button" hidden>Zapisz tę ofertę</button>
+    <button class="btn" id="show-panel" type="button">Pokaż panel na stronie</button>
     <p class="note" id="msg"></p>
+  </section>
+
+  <section class="card" id="dest">
+    <h2 class="sec">Gdzie zapisać</h2>
+    <label class="check"><input id="dest-nhp" type="checkbox" checked> Zapisz w NHP</label>
+    <p class="hint">Domyślnie włączone. Produkty trafiają do bazy NHP, a wszystkie zdjęcia na nasz serwer.</p>
+    <label class="check"><input id="dest-own" type="checkbox"> Wyślij na własny serwer</label>
+    <label>Adres endpointu (HTTP lub HTTPS)
+      <input id="own-url" type="url" placeholder="https://sklep.example/nhp" autocomplete="off">
+    </label>
+    <label>Token Bearer (opcjonalnie)
+      <input id="own-token" type="password" autocomplete="off">
+    </label>
+    <p class="hint">Przeglądarka nie obsługuje FTP. To musi być adres HTTP albo HTTPS. Token zostaje tylko w tej przeglądarce.</p>
+    <label class="check"><input id="own-files" type="checkbox"> Dołącz pliki zdjęć (multipart). Bez tego idzie JSON z adresami zdjęć.</label>
+    <button class="btn" id="own-test" type="button">Testuj połączenie</button>
+    <p class="note" id="own-msg"></p>
   </section>
 
   <section class="card" id="shop" hidden>
@@ -298,6 +328,7 @@
     </div>
     <p id="shop-progress">Gotowe do skanu.</p>
     <button class="btn" id="upload-images" type="button">Wgraj zdjęcia na serwer</button>
+    <p class="hint">Pliki pobierają się na dysk. Zaznaczone miejsca dostają te same produkty i zdjęcia.</p>
     <div class="exports">
       <button class="ecard" type="button" data-file="csv"><b>CSV</b><span>Tabela produktów</span></button>
       <button class="ecard" type="button" data-file="xlsx"><b>XLSX</b><span>Arkusz Excel</span></button>
@@ -305,7 +336,7 @@
       <button class="ecard" type="button" data-file="images"><b>Zdjęcia</b><span>Pliki na dysk</span></button>
       <button class="ecard" type="button" data-file="full"><b>Wszystko</b><span>Pełny pakiet ZIP</span></button>
     </div>
-    <button class="btn primary" id="send-nhp" type="button">Wyślij do NHP</button>
+    <button class="btn primary" id="send-nhp" type="button">Zapisz w wybranych miejscach</button>
     <p class="note" id="shop-msg"></p>
     <p id="shop-errors"></p>
   </section>

@@ -85,6 +85,15 @@ test("okienko wtyczki ma tokeny panelu, lokalny Poppins i karty eksportu", () =>
   assert.match(popup, /logo-white\.svg/);
   assert.match(popup, /class="flag"/);
   assert.match(popup, /width: 22px/);
+  assert.match(popup, /width: 360px/);
+  assert.match(popup, /Zapisz w NHP/);
+  assert.match(popup, /Wyślij na własny serwer/);
+  assert.match(popup, /Testuj połączenie/);
+  assert.match(popup, /FTP/);
+  assert.match(overlay, /min\(360px, 30vw\)/);
+  assert.match(overlay, /80vh/);
+  assert.match(content, /nhp-frame/);
+  assert.match(content, /nhpPanelCollapsed/);
   assert.match(popup, /href="fonts\.css"/);
   assert.match(fonts, /fonts\/poppins-latin-700\.woff2/);
   assert.match(fonts, /fonts\/poppins-latin-ext-700\.woff2/);

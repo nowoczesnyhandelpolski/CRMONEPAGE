@@ -2,19 +2,79 @@ const base = document.getElementById("base");
 const key = document.getElementById("key");
 const msg = document.getElementById("msg");
 const shopMsg = document.getElementById("shop-msg");
+const ownMsg = document.getElementById("own-msg");
+const ownUrl = document.getElementById("own-url");
+const ownToken = document.getElementById("own-token");
+const destNhp = document.getElementById("dest-nhp");
+const destOwn = document.getElementById("dest-own");
+const ownFiles = document.getElementById("own-files");
 let latestShop = null;
+let latestTab = null;
+let pageOrigins = [];
+const docked = new URLSearchParams(location.search).get("dock") === "1";
 const progress = document.getElementById("shop-progress");
 const domainEl = document.getElementById("shop-domain");
 const imageDomain = document.getElementById("image-domain");
 const example = document.getElementById("image-example");
 
+if (docked) {
+  document.body.classList.add("dock");
+  document.getElementById("collapse").hidden = false;
+  document.getElementById("capture-offer").hidden = false;
+  document.getElementById("show-panel").hidden = true;
+}
+
 const settings = globalThis.chrome?.storage?.local;
-(settings ? settings.get(["apiBase", "apiKey", "imageDomain", "shopMode"]) : Promise.resolve({})).then((stored) => {
+(settings ? settings.get(["apiBase", "apiKey", "imageDomain", "shopMode", "ownEndpoint", "ownToken", "saveToNhp", "sendToOwn", "ownFiles", "nhpPanelCollapsed"]) : Promise.resolve({})).then((stored) => {
   base.value = stored.apiBase || "https://panel.nowoczesnyhandelpolski.pl";
   key.value = stored.apiKey || "";
   imageDomain.value = stored.imageDomain || "";
+  ownUrl.value = stored.ownEndpoint || "";
+  ownToken.value = stored.ownToken || "";
+  destNhp.checked = stored.saveToNhp !== "0";
+  destOwn.checked = stored.sendToOwn === "1";
+  ownFiles.checked = stored.ownFiles === "1";
   showExample();
   if (stored.shopMode === "shop") showTab("shop");
+  if (docked && stored.nhpPanelCollapsed === "1") setCollapsed(true);
+});
+
+function setCollapsed(on) {
+  document.body.classList.toggle("is-collapsed", !!on);
+  const button = document.getElementById("collapse");
+  button.textContent = on ? "NHP" : "Zwiń";
+  button.setAttribute("aria-label", on ? "Rozwiń panel" : "Zwiń panel");
+}
+
+document.getElementById("collapse").addEventListener("click", () => {
+  const on = !document.body.classList.contains("is-collapsed");
+  setCollapsed(on);
+  settings?.set({ nhpPanelCollapsed: on ? "1" : "0" });
+  parent.postMessage({ source: "nhp-panel", type: "collapsed", on }, "*");
+});
+
+function rememberDest() {
+  settings?.set({
+    saveToNhp: destNhp.checked ? "1" : "0",
+    sendToOwn: destOwn.checked ? "1" : "0",
+    ownFiles: ownFiles.checked ? "1" : "0",
+    ownEndpoint: ownUrl.value.trim(),
+    ownToken: ownToken.value.trim()
+  });
+}
+destNhp.addEventListener("change", rememberDest);
+destOwn.addEventListener("change", rememberDest);
+ownFiles.addEventListener("change", rememberDest);
+ownUrl.addEventListener("change", rememberDest);
+ownToken.addEventListener("change", rememberDest);
+
+window.addEventListener("message", (event) => {
+  if (event.data?.source !== "nhp-host") return;
+  if (event.data.type === "status") {
+    msg.textContent = event.data.text || "";
+    if (event.data.bad) msg.classList.add("bad");
+  }
+  if (event.data.type === "origins") pageOrigins = event.data.origins || [];
 });
 
 const HERO = {
@@ -79,23 +139,63 @@ function paint(state) {
   document.getElementById("shop-errors").textContent = errors.slice(-5).map((e) => e.error).join("\n");
 }
 
-async function ensureHosted() {
-  if (!document.getElementById("host-images").checked) return { ok: true, skipped: true };
-  const origins = new Set();
+function imageOrigins() {
+  const origins = new Set(pageOrigins);
   for (const product of latestShop?.products || []) {
     for (const url of product.images || []) {
       try { origins.add(`${new URL(url).origin}/*`); } catch { /* pomiń */ }
     }
   }
-  if (origins.size) {
-    const granted = await chrome.permissions.request({ origins: [...origins] });
+  return [...origins];
+}
+
+function ownOrigin() {
+  const raw = ownUrl.value.trim();
+  if (!raw) return "";
+  try { return `${new URL(raw).origin}/*`; }
+  catch { return ""; }
+}
+
+async function grantExportOrigins() {
+  const origins = new Set(imageOrigins());
+  const own = destOwn.checked ? ownOrigin() : "";
+  if (own) origins.add(own);
+  if (!origins.size) return true;
+  return chrome.permissions.request({ origins: [...origins] });
+}
+
+async function ensureHosted() {
+  if (!document.getElementById("host-images").checked) return { ok: true, skipped: true };
+  const origins = imageOrigins();
+  if (origins.length) {
+    const granted = await chrome.permissions.request({ origins });
     if (!granted) return { ok: false, error: "Bez zgody na serwery zdjęć nie wgram plików." };
   }
   return chrome.runtime.sendMessage({ type: "shop-upload" });
 }
 
+async function deliverChosen() {
+  rememberDest();
+  if (!destNhp.checked && !destOwn.checked) {
+    return { ok: false, error: "Zaznacz „Zapisz w NHP” albo „Wyślij na własny serwer”." };
+  }
+  if (destOwn.checked && !ownOrigin()) {
+    return { ok: false, error: "Wpisz adres HTTP lub HTTPS. Przeglądarka nie obsługuje FTP." };
+  }
+  const granted = await grantExportOrigins();
+  if (!granted) return { ok: false, error: "Bez zgody Chrome nie wyślę danych na ten adres." };
+  return chrome.runtime.sendMessage({
+    type: "shop-deliver",
+    toNhp: destNhp.checked,
+    toOwn: destOwn.checked,
+    ownFiles: ownFiles.checked,
+    imageDomain: imageDomain.value.trim()
+  });
+}
+
 (async () => {
   const tab = await activeHttpTab();
+  latestTab = tab;
   if (tab) domainEl.textContent = new URL(tab.url).hostname;
   const state = await chrome.runtime.sendMessage({ type: "shop-state" });
   paint(state);
@@ -151,7 +251,11 @@ document.getElementById("upload-images").addEventListener("click", async () => {
 document.querySelector(".exports").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-file]");
   if (!button) return;
-  if (button.dataset.file !== "images") {
+  if (destNhp.checked || destOwn.checked) {
+    const sent = await deliverChosen();
+    shopMsg.textContent = sent?.message || sent?.error || "";
+    if (sent && sent.ok === false) return;
+  } else if (button.dataset.file !== "images" && document.getElementById("host-images").checked) {
     const hosted = await ensureHosted();
     if (hosted && hosted.ok === false) { shopMsg.textContent = hosted.error; return; }
   }
@@ -176,10 +280,54 @@ document.querySelector(".exports").addEventListener("click", async (event) => {
 });
 
 document.getElementById("send-nhp").addEventListener("click", async () => {
-  const hosted = await ensureHosted();
-  if (hosted && hosted.ok === false) { shopMsg.textContent = hosted.error; return; }
-  shopMsg.textContent = "Wysyłam szkice…";
-  const res = await chrome.runtime.sendMessage({ type: "shop-send", imageDomain: imageDomain.value.trim() });
-  if (!res?.ok) shopMsg.textContent = res?.error || "Nie udało się wysłać.";
-  else shopMsg.textContent = `Zapisano ${res.saved} z ${res.total}. Oznaczone brakiem ceny: ${res.flagged}.`;
+  shopMsg.textContent = "Zapisuję…";
+  const res = await deliverChosen();
+  shopMsg.textContent = res?.message || res?.error || "Nie udało się zapisać.";
+});
+
+document.getElementById("own-test").addEventListener("click", async () => {
+  rememberDest();
+  let origin = "";
+  try { origin = `${new URL(ownUrl.value.trim()).origin}/*`; }
+  catch {
+    ownMsg.textContent = "Wpisz pełny adres HTTP lub HTTPS. Przeglądarka nie obsługuje FTP.";
+    return;
+  }
+  if (!/^https?:\/\//i.test(ownUrl.value.trim())) {
+    ownMsg.textContent = "Podaj adres HTTP lub HTTPS. Przeglądarka nie wysyła plików przez FTP.";
+    return;
+  }
+  const granted = await chrome.permissions.request({ origins: [origin] });
+  if (!granted) { ownMsg.textContent = "Chrome nie dostał zgody na ten adres."; return; }
+  const res = await chrome.runtime.sendMessage({ type: "own-test" });
+  ownMsg.textContent = res?.message || res?.error || "Brak odpowiedzi.";
+});
+
+document.getElementById("capture-offer").addEventListener("click", async () => {
+  rememberDest();
+  const origins = new Set(pageOrigins);
+  if (destOwn.checked && ownOrigin()) origins.add(ownOrigin());
+  if (origins.size) {
+    const granted = await chrome.permissions.request({ origins: [...origins] });
+    if (!granted) { msg.textContent = "Bez zgody nie wyślę zdjęć ani danych na własny serwer."; return; }
+  }
+  parent.postMessage({
+    source: "nhp-panel",
+    type: "capture",
+    toNhp: destNhp.checked,
+    toOwn: destOwn.checked,
+    ownFiles: ownFiles.checked
+  }, "*");
+});
+
+document.getElementById("show-panel").addEventListener("click", async () => {
+  if (!latestTab?.id || !latestTab.url || !/^https?:/i.test(latestTab.url)) {
+    msg.textContent = "Otwórz kartę sklepu albo oferty (adres http lub https).";
+    return;
+  }
+  const origin = `${new URL(latestTab.url).origin}/*`;
+  const granted = await chrome.permissions.request({ origins: [origin] });
+  if (!granted) { msg.textContent = "Bez zgody na tę stronę panel się nie przypnie."; return; }
+  await chrome.scripting.executeScript({ target: { tabId: latestTab.id }, files: ["content.js"] });
+  msg.textContent = "Panel jest przy prawej krawędzi. Możesz go zwinąć do zakładki.";
 });
