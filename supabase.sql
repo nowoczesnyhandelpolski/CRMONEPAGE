@@ -988,3 +988,383 @@ grant execute on function public.openai_connection_models(text, text) to authent
 grant execute on function public.openai_connection_clear() to authenticated, service_role;
 grant execute on function public.openai_connection_cipher(text) to authenticated, service_role;
 
+-- =====================================================================
+-- Shopify, statusy produktów, statystyki stron i faktury KSeF.
+-- Skrypt można puścić ponownie. Nie kasuje danych.
+-- Sekrety sklepu i token KSeF NIE są w bazie — tylko w Cloudflare.
+-- status (active/flagged) zostaje oznaczeniem braków danych.
+-- workflow_status to lejek sprzedaży.
+-- =====================================================================
+
+alter table public.products add column if not exists workflow_status text not null default 'pobrany';
+alter table public.products add column if not exists shopify_product_id text;
+alter table public.products add column if not exists shopify_variant_id text;
+alter table public.products add column if not exists shopify_handle text;
+alter table public.products add column if not exists shopify_url text;
+alter table public.products add column if not exists shopify_status text;
+alter table public.products add column if not exists shopify_synced_at timestamptz;
+alter table public.products add column if not exists shopify_sync_error text;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'products_workflow_status_check'
+  ) then
+    alter table public.products add constraint products_workflow_status_check
+      check (workflow_status in ('pobrany', 'w_przygotowaniu', 'strona_gotowa', 'opublikowany', 'wstrzymany', 'archiwum'));
+  end if;
+end $$;
+
+create unique index if not exists products_shopify_id on public.products (shopify_product_id) where shopify_product_id is not null and shopify_product_id <> '';
+create index if not exists products_workflow on public.products (workflow_status);
+
+create table if not exists public.product_status_events (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references public.products(id) on delete cascade,
+  from_status text,
+  to_status text not null,
+  actor uuid,
+  note text not null default '',
+  created_at timestamptz not null default now()
+);
+create index if not exists product_status_events_product on public.product_status_events (product_id, created_at desc);
+
+create table if not exists public.shopify_sync_queue (
+  id bigint generated always as identity primary key,
+  product_id uuid not null references public.products(id) on delete cascade,
+  reason text not null default 'product',
+  created_at timestamptz not null default now(),
+  done_at timestamptz,
+  error text
+);
+create index if not exists shopify_sync_queue_pending on public.shopify_sync_queue (created_at) where done_at is null;
+
+create table if not exists public.shopify_orders (
+  id uuid primary key default gen_random_uuid(),
+  shopify_order_id text not null unique,
+  order_number text,
+  email text,
+  financial_status text not null default 'pending',
+  currency text not null default 'PLN',
+  total numeric,
+  taxes_included boolean not null default true,
+  customer_name text,
+  billing jsonb not null default '{}'::jsonb,
+  raw jsonb not null default '{}'::jsonb,
+  placed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.shopify_order_lines (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references public.shopify_orders(id) on delete cascade,
+  shopify_line_id text not null,
+  product_id uuid references public.products(id) on delete set null,
+  shopify_product_id text,
+  sku text,
+  title text,
+  quantity integer not null default 1,
+  unit_price numeric,
+  line_total numeric,
+  unique (order_id, shopify_line_id)
+);
+create index if not exists shopify_order_lines_product on public.shopify_order_lines (product_id);
+create index if not exists shopify_order_lines_shopify_product on public.shopify_order_lines (shopify_product_id);
+
+create table if not exists public.ksef_invoices (
+  id uuid primary key default gen_random_uuid(),
+  shopify_order_id text not null unique,
+  invoice_number text unique,
+  ksef_number text,
+  ksef_reference text,
+  session_reference text,
+  status text not null default 'szkic',
+  xml text,
+  error text,
+  env text,
+  issued_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'ksef_invoices_status_check'
+  ) then
+    alter table public.ksef_invoices add constraint ksef_invoices_status_check
+      check (status in ('szkic', 'oczekuje_konfiguracji', 'wyslana', 'przyjeta', 'odrzucona', 'blad'));
+  end if;
+end $$;
+
+create table if not exists public.ksef_counters (
+  ym text primary key,
+  n integer not null
+);
+
+create table if not exists public.page_metrics (
+  page_id text primary key,
+  slug text not null,
+  views bigint not null default 0,
+  last_view_at timestamptz
+);
+create index if not exists page_metrics_slug on public.page_metrics (slug);
+
+create table if not exists public.page_view_days (
+  page_id text not null,
+  day date not null,
+  views integer not null default 0,
+  primary key (page_id, day)
+);
+
+create table if not exists public.shopify_state (
+  id integer primary key default 1 check (id = 1),
+  last_orders_pull timestamptz,
+  last_error text
+);
+insert into public.shopify_state (id) values (1) on conflict (id) do nothing;
+
+create table if not exists public.shopify_webhook_events (
+  id text primary key,
+  topic text,
+  created_at timestamptz not null default now()
+);
+
+-- Zespół czyta. Zapis kolejek, zamówień i faktur robi serwer (service_role) albo trigger.
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'product_status_events','shopify_sync_queue','shopify_orders','shopify_order_lines',
+    'ksef_invoices','page_metrics','page_view_days','shopify_state'
+  ]
+  loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists zespol_czyta on public.%I', t);
+    execute format('create policy zespol_czyta on public.%I for select to authenticated using (public.is_team())', t);
+    execute format('revoke all on public.%I from anon', t);
+    execute format('grant select on public.%I to authenticated', t);
+    execute format('grant all on public.%I to service_role', t);
+  end loop;
+end $$;
+
+alter table public.ksef_counters enable row level security;
+alter table public.shopify_webhook_events enable row level security;
+revoke all on public.ksef_counters from anon, authenticated;
+revoke all on public.shopify_webhook_events from anon, authenticated;
+grant all on public.ksef_counters to service_role;
+grant all on public.shopify_webhook_events to service_role;
+
+create or replace view public.product_sales
+with (security_invoker = true) as
+select
+  p.id as product_id,
+  count(distinct o.id) filter (
+    where o.financial_status in ('paid', 'partially_paid', 'partially_refunded')
+  )::integer as orders_count,
+  coalesce(sum(l.quantity) filter (
+    where o.financial_status in ('paid', 'partially_paid', 'partially_refunded')
+  ), 0)::integer as units_sold,
+  coalesce(sum(l.line_total) filter (
+    where o.financial_status in ('paid', 'partially_paid', 'partially_refunded')
+  ), 0)::numeric as revenue
+from public.products p
+left join public.shopify_order_lines l on l.product_id = p.id
+left join public.shopify_orders o on o.id = l.order_id
+group by p.id;
+
+revoke all on public.product_sales from anon, public;
+grant select on public.product_sales to authenticated, service_role;
+
+create or replace function public.nhp_product_workflow_history()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    insert into public.product_status_events (product_id, from_status, to_status, note)
+    values (new.id, null, new.workflow_status, 'utworzenie');
+    return new;
+  end if;
+  if new.workflow_status is distinct from old.workflow_status then
+    insert into public.product_status_events (product_id, from_status, to_status, actor, note)
+    values (new.id, old.workflow_status, new.workflow_status, auth.uid(), '');
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.nhp_queue_shopify_product()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if coalesce(current_setting('nhp.skip_shopify_sync', true), '') = '1' then
+    return new;
+  end if;
+  if new.shopify_product_id is null
+     and new.workflow_status not in ('strona_gotowa', 'opublikowany', 'wstrzymany', 'archiwum') then
+    return new;
+  end if;
+  insert into public.shopify_sync_queue (product_id, reason)
+  values (new.id, 'product');
+  return new;
+end;
+$$;
+
+create or replace function public.nhp_queue_shopify_page()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id uuid;
+begin
+  if coalesce(current_setting('nhp.skip_shopify_sync', true), '') = '1' then
+    return new;
+  end if;
+  if new.product_id is not null and new.product_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    v_id := new.product_id::uuid;
+    insert into public.shopify_sync_queue (product_id, reason)
+    select p.id, 'page'
+    from public.products p
+    where p.id = v_id
+      and (
+        p.shopify_product_id is not null
+        or p.workflow_status in ('strona_gotowa', 'opublikowany', 'wstrzymany', 'archiwum')
+      );
+  end if;
+  if tg_op = 'UPDATE'
+     and old.product_id is distinct from new.product_id
+     and old.product_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    v_id := old.product_id::uuid;
+    insert into public.shopify_sync_queue (product_id, reason)
+    select p.id, 'page'
+    from public.products p
+    where p.id = v_id and p.shopify_product_id is not null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists products_workflow_history on public.products;
+create trigger products_workflow_history
+  after insert or update of workflow_status on public.products
+  for each row execute function public.nhp_product_workflow_history();
+
+drop trigger if exists products_shopify_queue on public.products;
+create trigger products_shopify_queue
+  after update of workflow_status, price, description, name, catalog_name, ean, sku, images, description_sections
+  on public.products
+  for each row execute function public.nhp_queue_shopify_product();
+
+drop trigger if exists pages_shopify_queue on public.pages;
+create trigger pages_shopify_queue
+  after insert or update of data, status, name, slug, product_id on public.pages
+  for each row execute function public.nhp_queue_shopify_page();
+
+-- Zmiana z Shopify nie wraca od razu do sklepu (flaga transakcji).
+create or replace function public.apply_shopify_inbound(p_product_id uuid, p_patch jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_workflow text;
+begin
+  perform set_config('nhp.skip_shopify_sync', '1', true);
+  v_workflow := nullif(p_patch->>'workflow_status', '');
+  if v_workflow is not null and v_workflow not in (
+    'pobrany', 'w_przygotowaniu', 'strona_gotowa', 'opublikowany', 'wstrzymany', 'archiwum'
+  ) then
+    raise exception 'Nieznany status produktu.';
+  end if;
+  update public.products set
+    name = coalesce(nullif(p_patch->>'name', ''), name),
+    catalog_name = coalesce(nullif(p_patch->>'catalog_name', ''), catalog_name),
+    description = case when p_patch ? 'description' then left(p_patch->>'description', 20000) else description end,
+    price = case when nullif(p_patch->>'price', '') is not null then (p_patch->>'price')::numeric else price end,
+    sku = coalesce(nullif(p_patch->>'sku', ''), sku),
+    ean = coalesce(nullif(p_patch->>'ean', ''), ean),
+    workflow_status = coalesce(v_workflow, workflow_status),
+    shopify_product_id = coalesce(nullif(p_patch->>'shopify_product_id', ''), shopify_product_id),
+    shopify_variant_id = coalesce(nullif(p_patch->>'shopify_variant_id', ''), shopify_variant_id),
+    shopify_handle = coalesce(nullif(p_patch->>'shopify_handle', ''), shopify_handle),
+    shopify_url = coalesce(nullif(p_patch->>'shopify_url', ''), shopify_url),
+    shopify_status = coalesce(nullif(p_patch->>'shopify_status', ''), shopify_status),
+    shopify_synced_at = now(),
+    shopify_sync_error = null,
+    updated_at = now()
+  where id = p_product_id;
+end;
+$$;
+
+create or replace function public.next_ksef_invoice_number()
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_key text := to_char(now() at time zone 'Europe/Warsaw', 'YYYYMM');
+  v_ym text := to_char(now() at time zone 'Europe/Warsaw', 'YYYY/MM');
+  v_n integer;
+begin
+  insert into public.ksef_counters (ym, n) values (v_key, 1)
+  on conflict (ym) do update set n = public.ksef_counters.n + 1
+  returning n into v_n;
+  return 'FV/' || v_ym || '/' || lpad(v_n::text, 4, '0');
+end;
+$$;
+
+create or replace function public.record_page_view(p_slug text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id text;
+  v_day date := (now() at time zone 'Europe/Warsaw')::date;
+begin
+  if p_slug is null or p_slug !~ '^[a-z0-9-]{1,70}$' then
+    return;
+  end if;
+  select id into v_id from public.pages where slug = p_slug and status = 'published' limit 1;
+  if v_id is null then
+    return;
+  end if;
+  insert into public.page_metrics (page_id, slug, views, last_view_at)
+  values (v_id, p_slug, 1, now())
+  on conflict (page_id) do update
+    set views = public.page_metrics.views + 1,
+        slug = excluded.slug,
+        last_view_at = now();
+  insert into public.page_view_days (page_id, day, views)
+  values (v_id, v_day, 1)
+  on conflict (page_id, day) do update
+    set views = public.page_view_days.views + 1;
+end;
+$$;
+
+revoke all on function public.nhp_product_workflow_history() from public, anon;
+revoke all on function public.nhp_queue_shopify_product() from public, anon;
+revoke all on function public.nhp_queue_shopify_page() from public, anon;
+revoke all on function public.apply_shopify_inbound(uuid, jsonb) from public, anon, authenticated;
+revoke all on function public.next_ksef_invoice_number() from public, anon, authenticated;
+revoke all on function public.record_page_view(text) from public;
+-- Trigger przy zapisie zespołu wymaga EXECUTE. To funkcje trigger — PostgREST ich nie woła jak zwykłego RPC.
+grant execute on function public.nhp_product_workflow_history() to authenticated, service_role;
+grant execute on function public.nhp_queue_shopify_product() to authenticated, service_role;
+grant execute on function public.nhp_queue_shopify_page() to authenticated, service_role;
+grant execute on function public.apply_shopify_inbound(uuid, jsonb) to service_role;
+grant execute on function public.next_ksef_invoice_number() to service_role;
+grant execute on function public.record_page_view(text) to anon, authenticated, service_role;
+
