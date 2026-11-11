@@ -6,6 +6,7 @@
      worklog    — wpisy czasu pracy (kto, ile minut, nad czym)
      tasklog    — historia zadań (kto co zmienił)
      updates    — wpisy listy zmian: jak było → jak jest → co to da → plusy → minusy
+     shifts     — czas w pracy: „Zaczynam pracę” → „Kończę pracę” (kto, od, do, co zrobił)
    Podpięcie: <script src="zadania.js"></script> obok chat.js / oferty.js (przed config.js). */
 (function () {
   window.NHP_HOOKS = window.NHP_HOOKS || [];
@@ -184,15 +185,37 @@
       .tk-me p{margin:2px 0 0;color:var(--muted)}
       .tk-rv{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}.tk-name .tk-rv{margin-left:0}
       .tk-rv .btn{padding:4px 10px;font-size:12px}
-      .tk-legend{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font:700 15px var(--display);margin:0 0 16px}
-      .tk-legend span{padding:7px 14px;border-radius:99px;border:2px solid transparent}
-      .tk-legend i{font-style:normal;color:var(--muted)}
-      .tk-legend .l1{background:color-mix(in srgb,var(--bad) 14%,var(--surface));border-color:color-mix(in srgb,var(--bad) 40%,transparent)}
-      .tk-legend .l2{background:color-mix(in srgb,var(--good) 14%,var(--surface));border-color:color-mix(in srgb,var(--good) 45%,transparent)}
-      .tk-legend .l3{background:color-mix(in srgb,var(--info) 14%,var(--surface));border-color:color-mix(in srgb,var(--info) 40%,transparent)}
-      .tk-legend .l4,.tk-legend .l5{background:var(--surface);border-color:var(--line)}
-      .tk-sh{font-size:22px;margin:24px 0 12px;display:flex;gap:10px;align-items:center}
-      .tk-sh .n{font:700 13px var(--body);background:var(--surface-2);border:1px solid var(--line);border-radius:99px;padding:1px 10px;color:var(--muted)}
+      #tkShift{position:sticky;top:0;z-index:30;padding:10px clamp(16px,3vw,36px) 0}
+      .tk-shbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 10px 9px 16px;border-radius:14px;font-size:15px;box-shadow:var(--shadow)}
+      .tk-shbar.on{background:color-mix(in srgb,var(--good) 18%,var(--surface));border:2px solid color-mix(in srgb,var(--good) 55%,transparent)}
+      .tk-shbar.off{background:var(--surface);border:2px dashed color-mix(in srgb,var(--warn) 60%,var(--line))}
+      .tk-shbar .tk-sht{flex:1;min-width:0}
+      .tk-shbar .clk{font:700 17px var(--display);font-variant-numeric:tabular-nums}
+      .tk-dot{width:12px;height:12px;border-radius:50%;background:var(--grey);flex:none}
+      .tk-shbar.on .tk-dot{background:var(--good);box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 60%,transparent);animation:tkPulse 1.8s infinite}
+      .tk-shbar.off .tk-dot{background:var(--warn)}
+      @keyframes tkPulse{70%{box-shadow:0 0 0 9px transparent}}
+      .tk-shw{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+      .tk-shw span{margin-right:4px}
+      .btn.tk-stop{background:var(--bad);border-color:var(--bad);color:#fff;font-weight:700}
+      .btn.tk-stop:hover{filter:brightness(1.08);background:var(--bad)}
+      .btn.tk-go{background:var(--good);border-color:var(--good);color:#fff;box-shadow:none;font-weight:700}
+      .btn.tk-go:hover{background:var(--good);border-color:var(--good);filter:brightness(1.08)}
+      .tk-ask p{margin:0 0 6px}
+      .tk-early summary{cursor:pointer;color:var(--muted);font-size:13px;font-weight:600}
+      .tk-early input{margin-top:6px;max-width:160px}
+      .tk-stage{font:700 12px var(--display);padding:3px 10px;border-radius:99px;white-space:nowrap;background:var(--surface-2);border:1px solid var(--line)}
+      .tk-stage.live{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,transparent)}
+      .tk-stage.pending{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+      .tk-stage.plan{color:var(--info);border-color:color-mix(in srgb,var(--info) 45%,transparent)}
+      .tk-ask .big{font:700 26px var(--display);margin-bottom:8px}
+      .tk-sel{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:7px 10px;font-weight:600}
+      .tk-sh{display:flex;align-items:center;gap:10px;margin:22px 0 12px}
+      .tk-sh h2{font-size:22px}
+      .tk-pc .tk-live{display:block;color:var(--good);font-size:13px;font-weight:700}
+      .tk-pc.live{box-shadow:0 0 0 2px color-mix(in srgb,var(--good) 50%,transparent),var(--shadow)}
+      .tk-mxd{margin:0 0 6px}
+      @media(max-width:860px){#tkShift{position:fixed;left:0;right:0;bottom:0;top:auto;padding:0 8px 8px}.tk-shbar{font-size:14px;gap:8px}.tk-shw{display:none}body{padding-bottom:76px}.toasts{bottom:84px}}
       .tk-new{background:var(--red);color:#fff;font:800 12px var(--display);padding:3px 10px;border-radius:99px;letter-spacing:.08em}
       .tk-u{background:var(--surface);border:1px solid var(--line);border-top:6px solid var(--c);border-radius:20px;box-shadow:var(--shadow);padding:18px 22px 20px;margin-bottom:18px}
       .tk-u.new{box-shadow:0 0 0 3px color-mix(in srgb,var(--red) 45%,transparent),var(--shadow)}
@@ -217,7 +240,7 @@
       .tk-u footer{margin-top:12px;font-size:13px;color:var(--muted)}
       .tk-hist{margin-top:24px}
       .tk-hist summary{padding:16px 18px;font:700 16px var(--display);cursor:pointer}
-      @media(max-width:640px){.tk-bj{grid-template-columns:1fr}.tk-bj .arr{transform:rotate(90deg);height:26px}.tk-pmx{grid-template-columns:1fr}.tk-u{padding:16px}.tk-legend{font-size:13px}}
+      @media(max-width:640px){.tk-bj{grid-template-columns:1fr}.tk-bj .arr{transform:rotate(90deg);height:26px}.tk-pmx{grid-template-columns:1fr}.tk-u{padding:16px}}
       @media(max-width:1100px){.tk-lh,.tk-row{grid-template-columns:30px minmax(0,1fr) 36px 90px 140px}.tk-row > .c-prio,.tk-row > .c-time,.tk-lh > .c-prio,.tk-lh > .c-time{display:none}}
       @media(max-width:860px){.tk-people{grid-template-columns:1fr}.tk-day{min-height:78px}.tk-ct{font-size:11px}}
       @media(max-width:640px){
@@ -237,7 +260,7 @@
     document.head.appendChild(css);
 
     /* ---------- dane ---------- */
-    const NEW_COLS = ["taskcats", "tcomments", "worklog", "tasklog", "updates"];
+    const NEW_COLS = ["taskcats", "tcomments", "worklog", "tasklog", "updates", "shifts"];
     NEW_COLS.forEach((c) => { if (!CRM.COLS.includes(c)) CRM.COLS.push(c); CRM.S[c] = CRM.S[c] || {}; });
     const zi = CRM.VIEWS.findIndex((v) => v[0] === "zadania");
     CRM.VIEWS.splice(zi >= 0 ? zi + 1 : CRM.VIEWS.length, 0, ["zmiany", "Lista zmian i update'y", "inbox"]);
@@ -250,6 +273,7 @@
     const PR = [["wysoki", "Wysoki", "var(--bad)"], ["sredni", "Średni", "var(--warn)"], ["niski", "Niski", "var(--grey)"]];
     const RECUR = [["", "Nie powtarzaj"], ["daily", "Codziennie"], ["weekly", "Co tydzień"], ["monthly", "Co miesiąc"]];
     const KINDS = [["zmiana", "Zmiana / ulepszenie", "var(--good)", "✨"], ["praca", "Wykonana praca", "var(--info)", "🛠️"], ["decyzja", "Decyzja", "var(--violet)", "🤝"], ["problem", "Problem", "var(--bad)", "⚠️"]];
+    const STAGES = [["", "— nie dotyczy —"], ["live", "✅ Działa"], ["pending", "⏳ Czeka na wdrożenie"], ["plan", "📝 Plan"]];
     const PERIODS = [["today", "Dziś"], ["7", "7 dni"], ["30", "30 dni"], ["month", "Ten miesiąc"], ["all", "Od początku"]];
     const DEF_CATS = [
       ["sklepy", "Sklepy i strony", "🛍️", "#2F6FD6"], ["produkty", "Produkty i dostawcy", "📦", "#C98A00"],
@@ -358,6 +382,7 @@
       if (cur && cur.id === id) return;
       if (cur) stopTimer(true);
       lsSet(tKey(), JSON.stringify({ id, start: Date.now() }));
+      if (!openShift(me())) startShift(true);
       const t = CRM.S.tasks[id];
       if (t && t.status === "todo") patch(id, { status: "doing" }, `${t.title} → W trakcie`, false);
       CRM.toast("Stoper włączony. Kliknij Stop, gdy skończysz.");
@@ -383,6 +408,94 @@
       if (!cur || !CRM.S.tasks[cur.id]) return "";
       return `<span class="tk-timer">⏱ <button class="tk-linkb" style="background:none;padding:0;text-decoration:none;color:#fff" data-tk="open" data-id="${esc(cur.id)}">${esc(CRM.S.tasks[cur.id].title)}</button> <span class="t" data-tk-clock>${fmtClock(Date.now() - cur.start)}</span><button data-tk="timer-stop">Stop</button></span>`;
     }
+
+
+    /* ---------- czas w pracy: „Zaczynam pracę” / „Kończę pracę” ---------- */
+    const openShift = (k) => CRM.arr("shifts").filter((x) => x.who === k && !x.end).sort((a, b) => b.start - a.start)[0] || null;
+    const shiftMin = (x, from = 0) => Math.max(0, Math.round(((+x.end || Date.now()) - Math.max(+x.start, from)) / 6e4));
+    const fmtSince = (ts) => (isoOf(new Date(ts)) === today() ? fmtHm(ts) : `${fmtD(isoOf(new Date(ts)))} ${fmtHm(ts)}`);
+    const dayMinOf = (k, iso) => CRM.arr("shifts").filter((x) => x.who === k && isoOf(new Date(+x.start)) === iso).reduce((a, x) => a + shiftMin(x), 0);
+    async function startShift(quiet, from) {
+      if (openShift(me())) return;
+      let ts = Date.now();
+      if (from) { const d = new Date(); const [h, m] = from.split(":").map(Number); d.setHours(h, m || 0, 0, 0); if (isFinite(d.getTime()) && d.getTime() < ts) ts = d.getTime(); }
+      if (!(await CRM.put("shifts", CRM.uid("sh"), { who: me(), start: ts, end: null, date: today() }))) return;
+      CRM.put("activity", CRM.uid("ac"), { ts, who: me(), text: "Zaczyna pracę", src: "zadania" });
+      try { sessionStorage.setItem("tk-shift-asked", me()); } catch (e) {}
+      if (!quiet) { CRM.toast("Miłej pracy! Na koniec kliknij „Kończę pracę” na górze."); if (window.NHP_BRAND) NHP_BRAND.sound("pop"); }
+      paintShift(true);
+    }
+    async function endShift(summary, endTs) {
+      const x = openShift(me());
+      if (!x) return;
+      if (getTimer()) await stopTimer(true);
+      const end = Math.max(+x.start + 6e4, Math.min(endTs || Date.now(), Date.now()));
+      const done = { ...x, end, minutes: shiftMin({ ...x, end }), summary: String(summary || "").trim().slice(0, 1000) };
+      if (!(await CRM.put("shifts", x.id, done))) return;
+      CRM.put("activity", CRM.uid("ac"), { ts: end, who: me(), text: `Kończy pracę (${fmtMin(done.minutes)})`, src: "zadania" });
+      CRM.toast(`Zapisano ${fmtMin(done.minutes)} pracy. Dzięki!`);
+      paintShift(true);
+    }
+    function openStartAsk() {
+      const name = pname(me());
+      const now = CRM.arr("shifts").filter((x) => !x.end && x.who !== me()).map((x) => pname(x.who));
+      CRM.openModal(`<form id="tkShiftAsk" novalidate>
+        <div class="modal-h"><h2 id="mTitle">Cześć${name && name !== "Ja" ? ", " + esc(name) : ""}! 👋</h2><button type="button" class="btn ghost sm" data-tk="shift-skip" aria-label="Zamknij">✕</button></div>
+        <div class="modal-b"><div class="f full tk-ask"><p class="big">Zaczynasz pracę?</p><p>Panel zapisze Twój czas pracy. Na koniec kliknij <b>„Kończę pracę”</b> na zielonym pasku u góry.</p>${now.length ? `<p class="small muted">Teraz pracuje: ${esc(now.join(", "))}</p>` : ""}</div>
+        <details class="f full tk-early"><summary>Pracujesz już od jakiegoś czasu? Wpisz, od której</summary><label for="tks-from" class="small muted">Zacząłem(am) dziś o:</label><input id="tks-from" name="from" type="time" max="${fmtHm(Date.now())}"></details></div>
+        <div class="modal-f"><button type="button" class="btn" data-tk="shift-skip">Tylko zaglądam</button><button type="submit" class="btn primary tk-go">▶ Zaczynam pracę</button></div>
+      </form>`);
+    }
+    function openEndAsk() {
+      const x = openShift(me());
+      if (!x) return;
+      const todayMin = dayMinOf(me(), today());
+      CRM.openModal(`<form id="tkShiftEnd" novalidate>
+        <div class="modal-h"><h2 id="mTitle">Kończysz pracę?</h2><button type="button" class="btn ghost sm" data-act="close" aria-label="Zamknij">✕</button></div>
+        <div class="modal-b"><div class="f full tk-ask"><p class="big">⏱ ${esc(fmtMin(shiftMin(x)))}</p><p>Pracujesz od ${esc(fmtSince(x.start))}.${todayMin > shiftMin(x) ? ` Dziś razem: <b>${esc(fmtMin(todayMin))}</b>.` : ""}</p></div>
+        <div class="f full"><label for="tks-sum">Co dziś zrobiłeś(aś)? (1–2 zdania, opcjonalnie)</label><textarea id="tks-sum" name="summary" placeholder="np. Odpisałem klientom i dodałem 2 produkty."></textarea></div></div>
+        <div class="modal-f"><button type="button" class="btn" data-act="close">Pracuję dalej</button><button type="submit" class="btn primary tk-stop">■ Kończę pracę</button></div>
+      </form>`);
+    }
+    const dtLocal = (ts) => new Date(ts - new Date(ts).getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
+    function openForgot(x) {
+      const guess = new Date(Math.min(+x.start + 8 * 3600e3, Date.now()));
+      CRM.openModal(`<form id="tkShiftFix" novalidate>
+        <div class="modal-h"><h2 id="mTitle">Nie zakończyłeś(aś) pracy</h2></div>
+        <div class="modal-b"><div class="f full tk-ask"><p>Zacząłeś(aś) <b>${esc(fmtSince(x.start))}</b> i nie kliknąłeś(aś) „Kończę pracę”. O której mniej więcej skończyłeś(aś)?</p></div>
+        <div class="f"><label for="tkf-end">Koniec pracy (dzień i godzina)</label><input id="tkf-end" name="end" type="datetime-local" value="${dtLocal(guess.getTime())}" min="${dtLocal(+x.start)}" max="${dtLocal(Date.now())}"></div></div>
+        <div class="modal-f"><span></span><button type="submit" class="btn primary">Zapisz koniec pracy</button></div>
+      </form>`);
+    }
+    function askShift() {
+      if (!CRM.S.settings || document.getElementById("scrim").classList.contains("open") || document.querySelector(".app[hidden]")) return;
+      const x = openShift(me());
+      if (x) { if (isoOf(new Date(+x.start)) !== today() || Date.now() - x.start > 14 * 3600e3) openForgot(x); return; }
+      let asked = "";
+      try { asked = sessionStorage.getItem("tk-shift-asked") || ""; } catch (e) {}
+      if (asked !== me()) openStartAsk();
+    }
+    let lastShiftHtml = "";
+    function paintShift(force) {
+      let el = document.getElementById("tkShift");
+      const app = document.querySelector(".app");
+      if (!app || app.hidden || !CRM.S.settings) { if (el) el.hidden = true; return; }
+      if (!el) { el = document.createElement("div"); el.id = "tkShift"; const host = document.querySelector(".mainwrap"); if (!host) return; host.prepend(el); }
+      el.hidden = false;
+      const x = openShift(me());
+      const others = CRM.arr("shifts").filter((o) => !o.end && o.who !== me() && isTeam(o.who));
+      const who = others.length ? `<span class="tk-shw">Teraz pracuje: ${others.map((o) => `${av(o.who, 22)}<span>${esc(pname(o.who))}</span>`).join("")}</span>` : "";
+      const html = x
+        ? `<div class="tk-shbar on"><span class="tk-dot"></span><span class="tk-sht"><b>Pracujesz</b> od ${esc(fmtSince(x.start))} · <span class="clk" data-tk-shift>${fmtClock(Date.now() - x.start)}</span></span>${who}<button type="button" class="btn tk-stop" data-tk="shift-end">■ Kończę pracę</button></div>`
+        : `<div class="tk-shbar off"><span class="tk-dot"></span><span class="tk-sht">Nie jesteś w pracy</span>${who}<button type="button" class="btn primary tk-go" data-tk="shift-start">▶ Zaczynam pracę</button></div>`;
+      const key = html.replace(/<span class="clk"[^>]*>[^<]*<\/span>/, "");
+      if (!force && key === lastShiftHtml) return;
+      lastShiftHtml = key; el.innerHTML = html;
+    }
+    setInterval(() => {
+      const x = CRM.S.settings && openShift(me());
+      document.querySelectorAll("[data-tk-shift]").forEach((el) => { el.textContent = x ? fmtClock(Date.now() - x.start) : ""; });
+    }, 1000);
 
     /* ---------- statusy: zrobione / akceptacja ---------- */
     const needsReview = (t) => t.reviewer && t.reviewer !== me() && t.status !== "review";
@@ -639,7 +752,7 @@
       const myOpen = open.filter((t) => t.owner === me() && t.status !== "review").length;
       const tabs = [["moje", "Moje zadania", myOpen + myRev], ["lista", "Lista"], ["tablica", "Tablica"], ["kalendarz", "Kalendarz"], ["rozliczenie", "Rozliczenie"]]
         .map(([k, l, n]) => `<button type="button" data-tk="view" data-v="${k}" aria-pressed="${U.view === k}">${l}${n ? `<span class="n">${n}</span>` : ""}</button>`).join("");
-      const sum = `<div class="tk-sum"><div><b>${open.length}</b>otwartych</div><div class="${late ? "bad" : ""}"><b>${late}</b>po terminie</div><div class="vio"><b>${rev.length}</b>do akceptacji</div><div class="ok"><b>${doneWeek}</b>zrobionych w 7 dni</div>${timerPill()}</div>`;
+      const sum = `<div class="tk-sum"><div><b>${open.length}</b>otwartych</div>${late ? `<div class="bad"><b>${late}</b>po terminie</div>` : ""}${rev.length ? `<div class="vio"><b>${rev.length}</b>do akceptacji</div>` : ""}${doneWeek ? `<div class="ok"><b>${doneWeek}</b>zrobionych w 7 dni</div>` : ""}${timerPill()}</div>`;
       const sub = doneWeek ? `W tym tygodniu odhaczyliście już ${doneWeek}. Tak trzymać!` : "Zlecaj, odhaczaj, rozliczaj — wszystko w jednym miejscu.";
       const actions = `<button class="btn" type="button" data-tk="cats">🏷️ Kategorie</button><button class="btn primary" type="button" data-tk="new">${CRM.ic("plus", 16)} Nowe zadanie</button>`;
       let body = "";
@@ -768,11 +881,12 @@
       const s = since(period);
       const team = CRM.team();
       const per = {};
-      team.forEach((p) => (per[p.k] = { min: 0, done: 0, onTime: 0, withDue: 0, ups: 0, cms: 0, given: 0, cats: {} }));
+      team.forEach((p) => (per[p.k] = { work: 0, min: 0, done: 0, onTime: 0, withDue: 0, ups: 0, cms: 0, given: 0, cats: {} }));
       const bump = (k, cat, f, v) => { if (!per[k]) return; per[k][f] += v; cat = catOf(cat) ? cat : ""; const c = (per[k].cats[cat] = per[k].cats[cat] || { min: 0, done: 0 }); if (f === "min") c.min += v; if (f === "done") c.done += v; };
       CRM.arr("worklog").forEach((w) => { if (tsOfDate(w.date, w.ts) >= s) bump(w.who, w.cat || (CRM.S.tasks[w.taskId] || {}).cat, "min", +w.minutes || 0); });
       CRM.arr("updates").forEach((u) => { if (tsOfDate(u.date, u.ts) >= s) { bump(u.who, u.cat, "ups", 1); if (+u.minutes) bump(u.who, u.cat, "min", +u.minutes); } });
       CRM.arr("tcomments").forEach((c) => { if (+c.ts >= s && per[c.who]) per[c.who].cms++; });
+      CRM.arr("shifts").forEach((x) => { if (per[x.who] && (+x.end || Date.now()) > s) per[x.who].work += shiftMin(x, s); });
       const done = T().filter((t) => t.status === "done" && +t.doneAt >= s);
       done.forEach((t) => {
         const k = t.doneBy || t.owner;
@@ -781,7 +895,8 @@
       });
       T().forEach((t) => { if (+t.createdAt >= s && t.createdBy && t.owner && t.owner !== t.createdBy && per[t.createdBy]) per[t.createdBy].given++; });
       const totalMin = Object.values(per).reduce((a, p) => a + p.min, 0);
-      return { per, totalMin, done, s };
+      const totalWork = Object.values(per).reduce((a, p) => a + p.work, 0);
+      return { per, totalMin, totalWork, done, s };
     }
     const periodChips = (key) => `<div class="tk-period">${PERIODS.map(([k, l]) => `<button type="button" class="chip" data-tk="period" data-key="${key}" data-v="${k}" aria-pressed="${U[key] === k}">${l}</button>`).join("")}</div>`;
     function vReport() {
@@ -793,12 +908,12 @@
         const late = open.filter((t) => t.due && daysTo(t.due) < 0 && t.status !== "review").length;
         const estDone = st.done.filter((t) => (t.doneBy || t.owner) === p.k);
         const est = estDone.reduce((a, t) => a + (+t.estimateMin || 0), 0), real = estDone.reduce((a, t) => a + spentOf(t.id), 0);
-        return `<tr><td>${av(p.k, 24)} <b>${esc(p.name)}</b></td><td class="r num strong">${x.done}</td><td class="r num">${x.withDue ? Math.round((x.onTime / x.withDue) * 100) + "%" : "—"}</td><td class="r num">${open.length}</td><td class="r num ${late ? "neg" : ""}">${late}</td><td class="r num strong">${hrs(x.min)}</td><td class="r num">${est ? `${hrs(real)} / ${hrs(est)}` : "—"}</td><td class="r num">${x.given}</td><td class="r num">${all.filter((t) => t.status === "review" && t.reviewer === p.k).length}</td></tr>`;
+        return `<tr><td>${av(p.k, 24)} <b>${esc(p.name)}</b></td><td class="r num strong">${x.done}</td><td class="r num">${x.withDue ? Math.round((x.onTime / x.withDue) * 100) + "%" : "—"}</td><td class="r num">${open.length}</td><td class="r num ${late ? "neg" : ""}">${late}</td><td class="r num strong">${hrs(x.work)}</td><td class="r num">${hrs(x.min)}</td><td class="r num">${est ? `${hrs(real)} / ${hrs(est)}` : "—"}</td><td class="r num">${x.given}</td><td class="r num">${all.filter((t) => t.status === "review" && t.reviewer === p.k).length}</td></tr>`;
       }).join("");
       const doneRows = st.done.sort((a, b) => b.doneAt - a.doneAt).map((t) => `<tr data-tk="open" data-id="${esc(t.id)}"><td class="muted num">${esc(fmtD(isoOf(new Date(+t.doneAt))))}</td><td class="strong">${esc(t.title)}</td><td>${catChip(t.cat)}</td><td>${av(t.doneBy || t.owner, 22)} ${esc(pname(t.doneBy || t.owner))}</td><td>${t.approvedBy ? `${av(t.approvedBy, 20)} ${esc(pname(t.approvedBy))}` : `<span class="muted small">bez akceptacji</span>`}</td><td class="r num">${hrs(spentOf(t.id))}</td><td class="small" style="max-width:280px">${richText((t.result || "").slice(0, 160))}</td></tr>`).join("");
       return `<div class="row" style="justify-content:space-between;margin-bottom:12px">${periodChips("period")}<div class="row"><button type="button" class="btn sm" data-tk="csv-tasks">⬇ Zadania CSV</button><button type="button" class="btn sm" data-tk="csv-time">⬇ Czas pracy CSV</button></div></div>
-        <div class="card" style="margin-bottom:16px"><div class="pad sec-h" style="margin:0;padding-bottom:4px"><h2>Rozliczenie osób</h2><span class="hint">zrobione i czas w wybranym okresie · otwarte i po terminie na dziś</span></div>
-        <div class="tbl-wrap"><table><thead><tr><th>Osoba</th><th class="r">Zrobione</th><th class="r">W terminie</th><th class="r">Otwarte</th><th class="r">Po terminie</th><th class="r">Czas pracy</th><th class="r">Czas vs plan</th><th class="r">Zlecił(a)</th><th class="r">Do jego akcept.</th></tr></thead><tbody>${rows}</tbody></table></div></div>
+        <div class="card" style="margin-bottom:16px"><div class="pad sec-h" style="margin:0;padding-bottom:4px"><h2>Rozliczenie osób</h2><span class="hint">„W pracy” = od „Zaczynam pracę” do „Kończę pracę”</span></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Osoba</th><th class="r">Zrobione</th><th class="r">W terminie</th><th class="r">Otwarte</th><th class="r">Po terminie</th><th class="r">W pracy</th><th class="r">Przy zadaniach</th><th class="r">Czas vs plan</th><th class="r">Zlecił(a)</th><th class="r">Do jego akcept.</th></tr></thead><tbody>${rows}</tbody></table></div></div>
         <div class="card"><div class="pad sec-h" style="margin:0;padding-bottom:4px"><h2>Zamknięte zadania</h2><span class="hint">${st.done.length} w okresie · kliknij, by zobaczyć szczegóły</span></div>
         ${doneRows ? `<div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Zadanie</th><th>Kategoria</th><th>Zrobił(a)</th><th>Zaakceptował(a)</th><th class="r">Czas</th><th>Efekt</th></tr></thead><tbody>${doneRows}</tbody></table></div>` : `<div class="empty"><b>Brak zamkniętych zadań w tym okresie</b>Zmień okres albo odhacz pierwsze zadanie.</div>`}</div>`;
     }
@@ -819,7 +934,8 @@
       const s = since(U[periodKey] || U.period);
       dl(`czas-pracy-${today()}.csv`, [["Data", "Osoba", "Kategoria", "Zadanie / wpis", "Minuty", "Godziny", "Notatka"],
         ...CRM.arr("worklog").filter((w) => tsOfDate(w.date, w.ts) >= s).sort((a, b) => tsOfDate(a.date, a.ts) - tsOfDate(b.date, b.ts)).map((w) => [w.date, pname(w.who), catName(w.cat || (CRM.S.tasks[w.taskId] || {}).cat), (CRM.S.tasks[w.taskId] || {}).title || "", w.minutes, (w.minutes / 60).toFixed(2).replace(".", ","), w.note || ""]),
-        ...CRM.arr("updates").filter((u) => +u.minutes && tsOfDate(u.date, u.ts) >= s).map((u) => [u.date, pname(u.who), catName(u.cat), u.title, u.minutes, (u.minutes / 60).toFixed(2).replace(".", ","), "wpis z listy zmian"])]);
+        ...CRM.arr("updates").filter((u) => +u.minutes && tsOfDate(u.date, u.ts) >= s).map((u) => [u.date, pname(u.who), catName(u.cat), u.title, u.minutes, (u.minutes / 60).toFixed(2).replace(".", ","), "wpis z listy zmian"]),
+        ...CRM.arr("shifts").filter((x) => (+x.end || Date.now()) > s).sort((a, b) => a.start - b.start).map((x) => { const m = shiftMin(x, s); return [isoOf(new Date(+x.start)), pname(x.who), "W pracy", `${fmtHm(x.start)}–${x.end ? fmtHm(x.end) : "trwa"}`, m, (m / 60).toFixed(2).replace(".", ","), x.summary || ""]; })]);
     }
 
     /* ---------- widok: Lista zmian ---------- */
@@ -829,19 +945,21 @@
       lsSet(seenKey, String(Date.now()));
       const st = stats(U.zPeriod);
       const team = CRM.team();
-      const q = norm(U.zq);
       const ups = CRM.arr("updates")
-        .filter((u) => tsOfDate(u.date, u.ts) >= st.s && (U.zWho === "all" || u.who === U.zWho) && (!q || norm([u.title, u.before, u.after, u.benefit, u.plus, u.minus].join(" ")).includes(q)))
+        .filter((u) => tsOfDate(u.date, u.ts) >= st.s && (U.zWho === "all" || u.who === U.zWho))
         .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")) || (+b.ts || 0) - (+a.ts || 0));
       const people = team.map((p) => {
         const x = st.per[p.k];
-        const share = st.totalMin ? Math.round((x.min / st.totalMin) * 100) : 0;
-        const cl = Object.entries(x.cats).filter(([, v]) => v.min || v.done).sort((a, b) => b[1].min - a[1].min || b[1].done - a[1].done).slice(0, 5);
+        const live = openShift(p.k);
+        const last = CRM.arr("shifts").filter((o) => o.who === p.k && o.end).sort((a, b) => b.end - a.end)[0];
+        const status = live ? `<span class="tk-live">🟢 pracuje teraz · od ${esc(fmtSince(live.start))}</span>` : last ? `<small>ostatnio: ${esc(fmtSince(last.end))}</small>` : `<small>jeszcze nie zaczął(a) pracy w panelu</small>`;
+        const share = st.totalWork ? Math.round((x.work / st.totalWork) * 100) : 0;
+        const cl = Object.entries(x.cats).filter(([, v]) => v.min || v.done).sort((a, b) => b[1].min - a[1].min || b[1].done - a[1].done).slice(0, 4);
         const maxMin = Math.max(1, ...cl.map(([, v]) => v.min));
-        return `<div class="card tk-pc" style="--pc:var(--${p.k})"><div class="who">${av(p.k, 40)}<div><b>${esc(p.name)}</b><small>${st.totalMin ? `${share}% czasu pracy zespołu` : "brak wpisanego czasu"}</small></div></div>
-          <div class="nums"><div><strong>${hrs(x.min)}</strong><span>czas pracy</span></div><div><strong>${x.done}</strong><span>zadań zrobionych</span></div><div><strong>${x.ups}</strong><span>update'ów</span></div></div>
-          <div class="tk-share" title="Udział w czasie pracy zespołu"><i style="width:${share}%"></i></div>
-          ${cl.length ? cl.map(([c, v]) => `<div class="tk-pcat" style="--c:${catColor(c)}"><span class="nm">${esc(catName(c))}</span><span class="bar"><i style="width:${Math.round((v.min / maxMin) * 100)}%"></i></span><span class="v">${v.min ? hrs(v.min) : ""}${v.done ? ` · ${v.done}✓` : ""}</span></div>`).join("") : `<div class="small muted">Nic jeszcze w tym okresie.</div>`}
+        return `<div class="card tk-pc ${live ? "live" : ""}" style="--pc:var(--${p.k})"><div class="who">${av(p.k, 40)}<div><b>${esc(p.name)}</b>${status}</div></div>
+          <div class="nums"><div><strong>${hrs(x.work)}</strong><span>w pracy</span></div><div><strong>${x.done}</strong><span>zadań zrobionych</span></div><div><strong>${x.ups}</strong><span>update'ów</span></div></div>
+          ${st.totalWork ? `<div class="tk-share" title="${share}% czasu pracy zespołu"><i style="width:${share}%"></i></div>` : ""}
+          ${cl.length ? `<div class="small muted" style="margin-bottom:2px">Nad czym:</div>` + cl.map(([c, v]) => `<div class="tk-pcat" style="--c:${catColor(c)}"><span class="nm">${esc(catName(c))}</span><span class="bar"><i style="width:${Math.round((v.min / maxMin) * 100)}%"></i></span><span class="v">${v.min ? hrs(v.min) : ""}${v.done ? ` · ${v.done}✓` : ""}</span></div>`).join("") : ""}
         </div>`;
       }).join("");
       const allCats = [...cats().map((c) => c.id), ""];
@@ -851,20 +969,19 @@
         const tot = vals.reduce((a, v) => a + v.min, 0), totD = vals.reduce((a, v) => a + v.done, 0);
         return `<tr><td>${catChip(c)}</td>${vals.map((v) => `<td class="num ${v.min || v.done ? "" : "z"}">${v.min ? hrs(v.min) : "—"}${v.done ? ` <span class="small muted">· ${v.done}✓</span>` : ""}</td>`).join("")}<td class="num strong">${hrs(tot)}${totD ? ` <span class="small muted">· ${totD}✓</span>` : ""}</td></tr>`;
       }).join("");
-      const mx = mxRows ? `<div class="card" style="margin-bottom:16px"><div class="pad sec-h" style="margin:0;padding-bottom:4px"><h2>Kto nad czym pracował</h2><span class="hint">godziny · ✓ = zrobione zadania</span></div><div class="tbl-wrap"><table class="tk-mx"><thead><tr><th>Kategoria</th>${team.map((p) => `<th>${esc(p.name)}</th>`).join("")}<th>Razem</th></tr></thead><tbody>${mxRows}</tbody><tfoot><tr><td><b>Razem</b></td>${team.map((p) => `<td class="num strong">${hrs(st.per[p.k].min)} <span class="small muted">· ${st.per[p.k].done}✓</span></td>`).join("")}<td class="num strong">${hrs(st.totalMin)}</td></tr></tfoot></table></div></div>` : "";
-      const who = [["all", "Wszyscy"], ...team.map((p) => [p.k, p.name]), ["claude", "Claude"]].map(([k, l]) => `<button type="button" class="chip" data-tk="zwho" data-v="${k}" aria-pressed="${U.zWho === k}">${k !== "all" ? av(k, 18) : ""}${esc(l)}</button>`).join("");
-      const kinds = [["all", "Wszystko"], ["zadania", "Zadania"], ["czas", "Czas pracy"], ["inne", "Reszta panelu"]].map(([k, l]) => `<option value="${k}" ${U.zKind === k ? "selected" : ""}>${l}</option>`).join("");
-      const legend = `<div class="tk-legend" aria-label="Jak czytać kartę"><span class="l1">❌ Było</span><i>➜</i><span class="l2">✅ Jest</span><i>➜</i><span class="l3">🎯 Co nam to daje</span><i>➜</i><span class="l4">👍 Plusy</span><span class="l5">👎 Minusy</span></div>`;
+      const mx = mxRows ? `<details class="card tk-hist tk-mxd"><summary>📊 Nad czym pracowaliśmy (godziny przy zadaniach)</summary><div class="tbl-wrap"><table class="tk-mx"><thead><tr><th>Kategoria</th>${team.map((p) => `<th>${esc(p.name)}</th>`).join("")}<th>Razem</th></tr></thead><tbody>${mxRows}</tbody></table></div></details>` : "";
+      const who = [["all", "Wszyscy"], ...team.map((p) => [p.k, p.name])].map(([k, l]) => `<button type="button" class="chip" data-tk="zwho" data-v="${k}" aria-pressed="${U.zWho === k}">${k !== "all" ? av(k, 18) : ""}${esc(l)}</button>`).join("");
+      const kinds = [["all", "Wszystko"], ["czas", "Praca i czas"], ["zadania", "Zadania"], ["inne", "Reszta panelu"]].map(([k, l]) => `<option value="${k}" ${U.zKind === k ? "selected" : ""}>${l}</option>`).join("");
+      const period = `<select data-tkin="zPeriod" aria-label="Okres" class="tk-sel">${PERIODS.map(([k, l]) => `<option value="${k}" ${U.zPeriod === k ? "selected" : ""}>${l}</option>`).join("")}</select>`;
       const fresh = ups.filter((u) => +u.ts > U.zSeen && u.who !== me()).length;
-      return top("Lista zmian i update'y", "Co się zmieniło w firmie — jak było, jak jest i co nam to daje. Plus kto ile pracował.", `<button class="btn" type="button" data-tk="csv-time-z">⬇ Czas pracy CSV</button><button class="btn primary" type="button" data-tk="new-up">${CRM.ic("plus", 16)} Dodaj update</button>`) +
-        legend +
-        `<div class="tk-bar">${periodChips("zPeriod")}<div class="chips">${who}</div><label class="search">${CRM.ic("search", 16)}<input id="tk-zq" data-tkin="zq" placeholder="Szukaj w update'ach…" value="${esc(U.zq)}" autocomplete="off"></label></div>
-        <h2 class="tk-sh">📣 Update'y <span class="n">${ups.length}</span>${fresh ? `<span class="tk-new">${fresh} NOWE</span>` : ""}</h2>
-        ${ups.length ? ups.map(upCard).join("") : `<div class="card"><div class="empty"><b>Brak update'ów w tym okresie</b>Zmień okres na „Od początku” albo dodaj pierwszy update.<div style="margin-top:12px"><button class="btn primary" type="button" data-tk="new-up">${CRM.ic("plus", 16)} Dodaj update</button></div></div></div>`}
-        <h2 class="tk-sh">👥 Kto ile pracował</h2>
+      return top("Lista zmian i update'y", "", `<button class="btn primary" type="button" data-tk="new-up">${CRM.ic("plus", 16)} Dodaj update</button>`) +
+        `<div class="tk-bar">${period}<div class="chips">${who}</div></div>
+        <div class="tk-sh"><h2>👥 Kto ile pracował</h2><button type="button" class="btn ghost sm" data-tk="csv-time-z">⬇ CSV</button></div>
         <div class="tk-people">${people}</div>${mx}
-        <details class="card tk-hist" ${U.zHist ? "open" : ""}><summary>📜 Pełna historia — każde kliknięcie w panelu</summary>
-          <div class="tk-bar" style="padding:0 16px"><select data-tkin="zKind" aria-label="Rodzaj">${kinds}</select></div>
+        <div class="tk-sh"><h2>📣 Update'y</h2>${fresh ? `<span class="tk-new">${fresh} NOWE</span>` : ""}</div>
+        ${ups.length ? ups.map(upCard).join("") : `<div class="card"><div class="empty small"><b>Brak update'ów w tym okresie</b><div style="margin-top:10px"><button class="btn primary" type="button" data-tk="new-up">${CRM.ic("plus", 16)} Dodaj update</button></div></div></div>`}
+        <details class="card tk-hist" ${U.zHist ? "open" : ""}><summary>📜 Pełna historia — każde kliknięcie</summary>
+          <div class="tk-bar" style="padding:0 16px"><select data-tkin="zKind" aria-label="Rodzaj" class="tk-sel">${kinds}</select></div>
           <div style="padding:0 16px 16px">${feedHtml(st.s)}</div>
         </details>`;
     }
@@ -875,6 +992,7 @@
       if (K === "wpisy") CRM.arr("updates").forEach((u) => { const ts = tsOfDate(u.date, u.ts); if (ts >= s && okWho(u.who)) ev.push({ type: "up", ts: +u.ts || ts, day: u.date || isoOf(new Date(+u.ts)), r: u, text: [u.title, u.before, u.after, u.benefit, u.plus, u.minus].join(" ") }); });
       if (K === "all" || K === "zadania") CRM.arr("tasklog").forEach((l) => { if (+l.ts >= s && okWho(l.who) && l.kind !== "edit") ev.push({ type: "tl", ts: +l.ts, r: l, text: l.text }); });
       if (K === "all" || K === "czas") CRM.arr("worklog").forEach((w) => { const ts = tsOfDate(w.date, w.ts); if (ts >= s && okWho(w.who)) ev.push({ type: "wl", ts: +w.ts || ts, day: w.date || isoOf(new Date(+w.ts)), r: w, text: ((CRM.S.tasks[w.taskId] || {}).title || "") + " " + (w.note || "") }); });
+      if (K === "all" || K === "czas") CRM.arr("shifts").forEach((x) => { if ((+x.end || Date.now()) >= s && okWho(x.who)) ev.push({ type: "sh", ts: +x.start, day: isoOf(new Date(+x.start)), r: x, text: x.summary || "" }); });
       if (K === "all" || K === "inne") Object.values(CRM.S.activityAll || {}).forEach((a) => { if (a.src !== "zadania" && +a.ts >= s && okWho(a.who)) ev.push({ type: "ac", ts: +a.ts, r: a, text: a.text }); });
       const list = ev.filter((e) => !q || norm(e.text).includes(q)).map((e) => ({ ...e, day: e.day || isoOf(new Date(e.ts)) })).sort((a, b) => b.day.localeCompare(a.day) || b.ts - a.ts);
       if (!list.length) return `<div class="empty small"><b>Pusto w tym okresie</b>Tu widać każde kliknięcie: nowe zadania, zamknięcia, czas pracy.</div>`;
@@ -886,8 +1004,7 @@
         if (d !== day) {
           flush(); day = d;
           const dayMin = {};
-          CRM.arr("worklog").forEach((w) => { if (w.date === d) dayMin[w.who] = (dayMin[w.who] || 0) + (+w.minutes || 0); });
-          CRM.arr("updates").forEach((u) => { if (u.date === d && +u.minutes) dayMin[u.who] = (dayMin[u.who] || 0) + +u.minutes; });
+          CRM.team().forEach((p) => { const m = dayMinOf(p.k, d); if (m) dayMin[p.k] = m; });
           const lbl = new Date(d + "T12:00:00").toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
           html += `<div class="tk-dayh">${esc(daysTo(d) === 0 ? "Dziś" : daysTo(d) === -1 ? "Wczoraj" : lbl)}<span>${Object.entries(dayMin).filter(([k]) => isTeam(k)).map(([k, m]) => `${esc(pname(k))}: ${hrs(m)}`).join(" · ")}</span></div>`;
         }
@@ -900,6 +1017,7 @@
     }
     function lineHtml(e) {
       const r = e.r;
+      if (e.type === "sh") return `<div class="tk-line" style="--c:var(--good)"><span class="ico">${r.end ? "🕘" : "🟢"}</span>${av(r.who, 22)}<span class="tx"><b>${esc(pname(r.who))}</b> ${r.end ? `pracował(a) ${esc(fmtHm(r.start))}–${esc(fmtHm(r.end))} · <b>${esc(fmtMin(shiftMin(r)))}</b>` : `pracuje od ${esc(fmtHm(r.start))} · <b>${esc(fmtMin(shiftMin(r)))}</b>`}${r.summary ? ` — ${esc(r.summary)}` : ""}</span><span class="tm">${esc(fmtHm(r.start))}</span></div>`;
       if (e.type === "wl") {
         const t = CRM.S.tasks[r.taskId];
         return `<div class="tk-line" style="--c:var(--info)"><span class="ico">⏱</span>${av(r.who, 22)}<span class="tx"><b>${esc(pname(r.who))}</b> pracował(a) <b>${esc(fmtMin(r.minutes))}</b>${t ? ` nad <button type="button" class="tk-linkb" data-tk="open" data-id="${esc(t.id)}">${esc(t.title)}</button>` : ""}${r.note && r.note !== "stoper" && r.note !== "przy zamknięciu" ? ` — ${esc(r.note)}` : ""} ${catChip(r.cat || (t || {}).cat)}</span><span class="tm">${esc(fmtHm(r.ts))}</span></div>`;
@@ -923,7 +1041,7 @@
       const when = new Date(tsOfDate(u.date, u.ts)).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
       const empty = (txt) => `<p class="muted">${txt}</p>`;
       return `<article class="tk-u ${isNew ? "new" : ""}" style="--c:${k[2]}">
-        <header>${av(u.who, 36)}<div class="who"><b>${esc(pname(u.who))}</b><span>${esc(when)} · ${k[3]} ${esc(k[1])}${u.cat ? " · " + esc(catName(u.cat)) : ""}</span></div>${isNew ? `<span class="tk-new">NOWE</span>` : ""}<button type="button" class="tk-x" data-tk="edit-up" data-id="${esc(u.id)}" title="Edytuj" aria-label="Edytuj update">✏️</button></header>
+        <header>${av(u.who, 36)}<div class="who"><b>${esc(pname(u.who))}</b><span>${esc(when)} · ${k[3]} ${esc(k[1])}${u.cat ? " · " + esc(catName(u.cat)) : ""}</span></div>${u.stage ? `<span class="tk-stage ${esc(u.stage)}">${esc(optL(STAGES, u.stage))}</span>` : ""}${isNew ? `<span class="tk-new">NOWE</span>` : ""}<button type="button" class="tk-x" data-tk="edit-up" data-id="${esc(u.id)}" title="Edytuj" aria-label="Edytuj update">✏️</button></header>
         <h3>${esc(u.title || "Update")}</h3>
         <div class="tk-bj"><div class="was"><div class="lb">❌ BYŁO</div>${bullets(u.before) || empty("—")}</div><div class="arr" aria-hidden="true">➜</div><div class="is"><div class="lb">✅ JEST</div>${bullets(u.after) || empty("—")}</div></div>
         ${u.benefit ? `<div class="tk-gives"><div class="lb">🎯 CO NAM TO DAJE</div>${bullets(u.benefit)}</div>` : ""}
@@ -943,6 +1061,7 @@
           <div class="f"><label for="tku-k">Rodzaj</label>${optSelect("name", "kind", KINDS.map((k) => [k[0], k[3] + " " + k[1]]), u.kind, "tku-k")}</div>
           <div class="f"><label for="tku-c">Kategoria</label>${catSelect("cat", u.cat, "tku-c")}</div>
           <div class="f"><label for="tku-d">Kiedy</label><input id="tku-d" name="date" type="date" value="${esc(u.date || today())}"></div>
+          <div class="f"><label for="tku-st">Stan</label>${optSelect("name", "stage", STAGES, u.stage || "", "tku-st")}</div>
           <div class="f"><label for="tku-m">Ile czasu to zajęło</label><input id="tku-m" name="dur" value="${+u.minutes ? esc(fmtMin(u.minutes)) : ""}" placeholder="np. 2h albo 30m" autocomplete="off"></div>
           <div class="f"><label for="tku-task">Dotyczy zadania</label><select id="tku-task" name="taskId"><option value="">— żadnego —</option>${recent.map((t) => `<option value="${esc(t.id)}" ${u.taskId === t.id ? "selected" : ""}>${esc(t.title.slice(0, 60))}</option>`).join("")}</select></div>
           <div class="f full"><label for="tku-b">❌ BYŁO — jak było przedtem?</label><textarea id="tku-b" name="before" placeholder="np. Każdą fakturę wpisywaliśmy ręcznie. Zajmowało to godzinę dziennie.">${esc(u.before || "")}</textarea></div>
@@ -959,7 +1078,7 @@
       if (!g("title")) { const el = form.querySelector("#tku-t"); el.setCustomValidity("Napisz w kilku słowach, co się zmieniło"); el.reportValidity(); setTimeout(() => el.setCustomValidity(""), 1500); return; }
       const id = form.dataset.id || CRM.uid("up");
       const prev = CRM.S.updates[id] || {};
-      const data = { ...prev, title: g("title"), who: g("who") || me(), kind: g("kind") || "zmiana", cat: g("cat"), date: g("date") || today(), minutes: parseDur(g("dur")), taskId: g("taskId"), before: g("before"), after: g("after"), benefit: g("benefit"), plus: g("plus"), minus: g("minus"), ts: prev.ts || Date.now() };
+      const data = { ...prev, title: g("title"), who: g("who") || me(), kind: g("kind") || "zmiana", cat: g("cat"), date: g("date") || today(), minutes: parseDur(g("dur")), taskId: g("taskId"), stage: g("stage"), before: g("before"), after: g("after"), benefit: g("benefit"), plus: g("plus"), minus: g("minus"), ts: prev.ts || Date.now() };
       if (data.taskId && !data.cat) data.cat = (CRM.S.tasks[data.taskId] || {}).cat || "";
       if (await CRM.put("updates", id, data)) {
         CRM.closeModal();
@@ -1141,8 +1260,49 @@
       refreshDrawer(true);
     }
 
-    /* Update'y o zmianach w samym panelu — dopisuje je ten moduł (autor: Claude). Podbicie „v” odświeża tekst. */
+    /* Update'y dopisywane przez ten moduł: zmiany w panelu (autor: Claude) i praca zrobiona z Claude w innych miejscach.
+       Podbicie „v” odświeża tekst; wpisu poprawionego ręcznie w panelu (bez „seeded”) nie nadpisujemy. */
     const CLAUDE_UPDATES = {
+      "up-20261111-kampanie": {
+        v: 1, who: "p1", date: "2026-11-11", stage: "plan", cat: "reklamy", title: "Kampanie reklamowe Meta i Google Ads — plan zakładki",
+        before: "W panelu nie było miejsca na płatne reklamy.\nNie było wiadomo, ile zarabia każda reklama.",
+        after: "Jest plan zakładki Kampanie: Meta i Google Ads w jednym miejscu.\nZysk z reklamy liczony dla każdego produktu (cena zakupu i wysyłka są już w bazie).",
+        benefit: "Wydajemy na reklamy tylko tam, gdzie wraca więcej, niż kosztują.",
+        plus: "Korzysta z danych, które już mamy\nMeta i Google w jednym widoku",
+        minus: "Na razie to plan — zakładka nie jest jeszcze zbudowana\nNajpierw trzeba podpiąć śledzenie zakupów (Pixel Meta, konwersje Google)"
+      },
+      "up-20261111-platnosci": {
+        v: 1, who: "p1", date: "2026-11-11", stage: "pending", cat: "sklepy", title: "Płatności BLIK, Przelewy24 i kartą (Stripe) na stronach produktów",
+        before: "Strona produktu zbierała tylko zamówienie.\nNa pieniądze czekaliśmy na przelew.",
+        after: "Klient płaci od razu: BLIK, Przelewy24 albo karta, na dokładną kwotę.\nOpłacone zamówienie samo dostaje status „Opłacone”.\nW panelu jest zakładka Płatności z listą wpłat.",
+        benefit: "Pieniądze od razu i mniej porzuconych zamówień.",
+        plus: "Płatność w kilka sekund\nStatus płatności ustawia się sam",
+        minus: "Stripe bierze prowizję od każdej płatności\nCzeka na kliknięcie Merge w PR #16 na GitHubie"
+      },
+      "up-20261111-social": {
+        v: 1, who: "p1", date: "2026-11-11", stage: "pending", cat: "social", title: "Zakładka Social media (Facebook, TikTok, Instagram)",
+        before: "Social media prowadziliśmy poza panelem, bez wspólnego planu.",
+        after: "W panelu jest zakładka Social media z podglądem autopilota postów dla sklepów.",
+        benefit: "Posty dla każdego sklepu w jednym miejscu, bez ręcznego pilnowania.",
+        plus: "Wszystko w jednym miejscu\nAutopilot podpowiada posty",
+        minus: "Konta FB / TikTok / Instagram trzeba założyć i podpiąć\nCzeka na kliknięcie Merge w PR #16"
+      },
+      "up-20261111-www": {
+        v: 1, who: "p1", date: "2026-11-11", stage: "pending", cat: "sklepy", title: "Strona www: tradycyjne wartości, polityka prywatności i regulamin",
+        before: "Strona firmowa była tylko na home.pl.\nNie było polityki prywatności ani regulaminu.",
+        after: "Nowa treść: tradycyjne wartości i „Dlaczego warto nam zaufać”.\nJest polityka prywatności i regulamin.\nFormularz kontaktowy zapisuje leady w panelu.",
+        benefit: "Klient bardziej ufa firmie, a my spełniamy wymogi RODO.",
+        plus: "Zgodność z prawem\nLepsze pierwsze wrażenie\nLeady z formularza od razu w panelu",
+        minus: "Czeka na Merge PR #14 i #17\nTrzeba przestawić DNS w home.pl na Cloudflare\nBrakuje danych firmy (NIP, REGON, adres) w polityce"
+      },
+      "up-praca-start": {
+        v: 1, cat: "tech", title: "Panel zapisuje czas pracy: „Zaczynam pracę” i „Kończę pracę”",
+        before: "Panel nie wiedział, kto i ile pracuje.\nW „Kto ile pracował” było 0 h.",
+        after: "Po zalogowaniu panel pyta: „Zaczynasz pracę?”.\nNa górze cały czas jest zielony pasek z zegarem.\nNa koniec klikasz „Kończę pracę”.",
+        benefit: "Każda godzina Kamila, Michała i Agaty zapisuje się sama.",
+        plus: "Jedno kliknięcie na start, jedno na koniec\nWidać, kto teraz pracuje\nZapomniane zakończenie panel poprawi przy następnym logowaniu",
+        minus: "Trzeba pamiętać o „Kończę pracę” (pasek o tym przypomina)"
+      },
       "up-start-zadania": {
         v: 2, cat: "tech", title: "Zadania działają teraz jak w Asanie",
         before: "Zadania to były 3 kolumny z kartkami.\nNie dało się zlecić zadania i sprawdzić, czy jest zrobione.\nNie było widać, kto ile pracuje.",
@@ -1169,13 +1329,15 @@
       }
       for (const [id, u] of Object.entries(CLAUDE_UPDATES)) {
         const cur = CRM.S.updates[id];
-        if (!cur || (cur.who === "claude" && (cur.v || 0) < u.v)) await CRM.put("updates", id, { who: "claude", kind: "zmiana", ts: cur ? cur.ts : Date.now(), date: cur ? cur.date : today(), ...u });
+        if (!cur || ((cur.seeded || cur.who === "claude") && (cur.v || 0) < u.v)) await CRM.put("updates", id, { who: "claude", kind: "zmiana", ts: cur ? cur.ts : Date.now(), date: cur ? cur.date : today(), seeded: true, ...u });
       }
+      paintShift(true);
+      setTimeout(askShift, 1800);
     });
 
     /* ---------- liczniki w menu + odświeżanie panelu ---------- */
     CRM.badgeFns.push(() => {
-      queueMicrotask(() => refreshDrawer(false));
+      queueMicrotask(() => { refreshDrawer(false); paintShift(false); });
       const m = me();
       const mine = T().filter((t) => t.owner === m && t.status !== "done" && t.status !== "review").length;
       const rev = T().filter((t) => t.status === "review" && t.reviewer === m).length;
@@ -1243,6 +1405,9 @@
         case "csv-time-z": csvTime("zPeriod"); break;
         case "timer-start": startTimer(id); refreshDrawer(true); break;
         case "timer-stop": await stopTimer(true); refreshDrawer(true); break;
+        case "shift-start": CRM.closeModal(); await startShift(); break;
+        case "shift-end": openEndAsk(); break;
+        case "shift-skip": try { sessionStorage.setItem("tk-shift-asked", me()); } catch (err) {} CRM.closeModal(); break;
         case "dup": if (t) { const nid = await createTask({ ...t, id: undefined, title: t.title + " (kopia)", status: "todo", doneAt: null, doneBy: "", approvedBy: "", approvedAt: null, result: "", createdBy: me(), createdAt: Date.now(), subtasks: (t.subtasks || []).map((s) => ({ ...s, id: CRM.uid("st"), done: false })) }); if (nid) openTask(nid); } break;
         case "del": {
           if (!t) break;
@@ -1334,8 +1499,16 @@
     });
     document.addEventListener("submit", (e) => {
       const id = e.target.id;
-      if (!["tkDone", "tkRej", "tkUp", "tkNew", "tkCats"].includes(id)) return;
+      if (!["tkDone", "tkRej", "tkUp", "tkNew", "tkCats", "tkShiftAsk", "tkShiftEnd", "tkShiftFix"].includes(id)) return;
       e.preventDefault();
+      if (id === "tkShiftAsk") { const from = e.target.from ? e.target.from.value : ""; CRM.closeModal(); startShift(false, from); return; }
+      if (id === "tkShiftEnd") { const sm = e.target.summary.value; CRM.closeModal(); endShift(sm); return; }
+      if (id === "tkShiftFix") {
+        const x = openShift(me()), v = e.target.end.value;
+        CRM.closeModal();
+        if (x) { const t = v ? new Date(v).getTime() : NaN; endShift("", isFinite(t) ? t : Math.min(+x.start + 8 * 3600e3, Date.now())).then(() => setTimeout(askShift, 400)); }
+        return;
+      }
       if (id === "tkDone") submitComplete(e.target);
       else if (id === "tkRej") submitReject(e.target);
       else if (id === "tkUp") submitUpdate(e.target);
