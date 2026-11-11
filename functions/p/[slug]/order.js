@@ -1,4 +1,4 @@
-import { createSupabaseStore } from "../../../lib/supabase-store.mjs";
+import { createSupabaseStore, hasServiceKey, pageApi } from "../../../lib/supabase-store.mjs";
 import { placeOrder } from "../../../lib/intake.mjs";
 import { clientIp, json, readJson } from "../../_util.js";
 
@@ -6,7 +6,9 @@ export async function onRequestPost(context) {
   try {
     const body = await readJson(context.request);
     const slug = decodeURIComponent(context.params.slug || "");
-    const result = await placeOrder(createSupabaseStore(context.env), context.env, slug, body, { ip: clientIp(context.request) });
+    const result = hasServiceKey(context.env)
+      ? await placeOrder(createSupabaseStore(context.env), context.env, slug, body, { ip: clientIp(context.request) })
+      : await pageApi(context.env, "order", { slug, body, ip: clientIp(context.request) });
     if (result.status === 200) {
       console.log(JSON.stringify({ msg: "order", slug, number: result.body.number, payment_status: result.body.payment_status }));
     }
