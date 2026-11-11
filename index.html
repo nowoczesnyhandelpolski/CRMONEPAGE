@@ -368,7 +368,8 @@ const I = {
   mail:'<path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/>',
   inbox:'<path d="M3 13h5l2 3h4l2-3h5v6H3z"/><path d="M3 13 6 5h12l3 8"/>',
   key:'<circle cx="8" cy="15" r="4"/><path d="m11.5 15 8-8M16 7l2 2M18 5l2 2"/>',
-  down:'<path d="M12 4v12M7 11l5 5 5-5M5 20h14"/>'
+  down:'<path d="M12 4v12M7 11l5 5 5-5M5 20h14"/>',
+  doc:'<path d="M6 3h9l3 3v15H6z"/><path d="M15 3v3h3M8 12h8M8 16h6"/>'
 };
 const ic = (n, s=18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
 
@@ -654,7 +655,7 @@ const VIEWS = [
 const view = () => { const h = location.hash.slice(1); return VIEWS.some(v=>v[0]===h) ? h : "pulpit"; };
 const NAV_GROUPS = [
   { id: "zamowienia", label: "Zamówienia", icon: "orders", children: ["zamowienia", "klienci", "dostawcy", "leady"] },
-  { id: "produkty", label: "Produkty", icon: "products", children: ["baza-produktow", "aukcje", "import-wtyczki", "eksport", "generator"] }
+  { id: "produkty", label: "Produkty", icon: "products", children: ["baza-produktow", "faktury", "aukcje", "import-wtyczki", "eksport", "generator"] }
 ];
 function navGroupOpen(id, childActive){
   if (childActive) return true;

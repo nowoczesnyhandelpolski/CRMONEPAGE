@@ -2,17 +2,29 @@
 (function () {
   window.NHP_HOOKS = window.NHP_HOOKS || [];
   window.NHP_HOOKS.push(function (CRM) {
-    const T = () => CRM.UI.trade || (CRM.UI.trade = { tier: "s1", status: "all", category: "all", q: "", selected: {}, format: "staging", videoFormat: "9:16", seconds: 18, detail: null, freshKey: "" });
-    CRM.S.trade = { products: [], auctions: [], batches: [], items: [], categories: [], commissions: [], keys: [], accounts: [], error: "" };
+    const T = () => CRM.UI.trade || (CRM.UI.trade = { tier: "s1", status: "all", category: "all", q: "", selected: {}, picked: {}, format: "staging", videoFormat: "9:16", seconds: 18, detail: null, freshKey: "", tab: "pobrane", history: {}, didAutoSync: false });
+    CRM.S.trade = { products: [], auctions: [], batches: [], items: [], categories: [], commissions: [], keys: [], accounts: [], pages: [], stats: [], orders: [], invoices: [], events: [], error: "" };
+    const WF = [
+      ["pobrany", "Pobrany", "var(--grey)"],
+      ["w_przygotowaniu", "W przygotowaniu", "var(--warn)"],
+      ["strona_gotowa", "Strona gotowa", "var(--info)"],
+      ["opublikowany", "Opublikowany w Shopify", "var(--good)"],
+      ["wstrzymany", "Wstrzymany", "var(--violet)"],
+      ["archiwum", "Archiwum", "var(--muted)"]
+    ];
+    const wfLabel = (code) => WF.find((row) => row[0] === code)?.[1] || code || "Pobrany";
+    const wfColor = (code) => WF.find((row) => row[0] === code)?.[2] || "var(--grey)";
 
     CRM.VIEWS.push(
       ["baza-produktow", "Baza produktów", "products"],
+      ["faktury", "Faktury KSeF", "doc"],
       ["aukcje", "Aukcje", "orders"],
       ["import-wtyczki", "Import", "inbox"],
       ["eksport", "Eksport", "down"],
       ["klucze-api", "Klucze API", "key"]
     );
     CRM.VIEW_FNS["baza-produktow"] = () => viewProducts();
+    CRM.VIEW_FNS.faktury = () => viewInvoices();
     CRM.VIEW_FNS.aukcje = () => viewAuctions();
     CRM.VIEW_FNS["import-wtyczki"] = () => viewImport();
     CRM.VIEW_FNS.eksport = () => viewExport();
@@ -50,6 +62,12 @@
       ui.ensureTierCss();
       const annCss = document.getElementById("ext-ann-css");
       if (annCss) annCss.textContent = Ann.EXT_ANN_CSS;
+      if (!document.getElementById("nhp-commerce-css")) {
+        const style = document.createElement("style");
+        style.id = "nhp-commerce-css";
+        style.textContent = ".wf-tabs{display:flex;gap:8px;margin:0 0 14px;flex-wrap:wrap}.stat-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:12px 0}.mini-stat{padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}.mini-stat b{display:block;font-family:var(--display);font-size:18px}.hist{margin:8px 0 0;padding:0;list-style:none}.hist li{padding:6px 0;border-top:1px solid var(--line);font-size:13px}@media(max-width:800px){.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}";
+        document.head.appendChild(style);
+      }
       await reload();
       const flag = new URLSearchParams(location.search).get("allegro");
       if (flag === "ok") CRM.toast("Konto Allegro podłączone.");
@@ -79,6 +97,11 @@
       t.commissions = await load("commissions", sb.from("category_commissions").select("*").order("label"));
       t.keys = await load("keys", sb.from("api_keys").select("id,label,created_at,last_used_at,revoked_at").order("created_at", { ascending: false }));
       t.accounts = await load("accounts", sb.from("allegro_accounts").select("id,shop,login,seller_id,expires_at,last_error").order("created_at", { ascending: false }));
+      t.pages = await load("pages", sb.from("pages").select("id,slug,name,status,product_id,updated_at").order("updated_at", { ascending: false }).limit(1000));
+      t.stats = await load("stats", sb.from("product_stats").select("product_id,orders_count,units_sold,revenue,currency,views,sessions").limit(1000));
+      t.orders = await load("orders", sb.from("shopify_orders").select("id,shopify_order_id,order_number,email,financial_status,currency,total,line_items,buyer,gateway,paid_at,cancelled_at,created_at").order("created_at", { ascending: false }).limit(200));
+      t.invoices = await load("invoices", sb.from("ksef_invoices").select("id,shopify_order_id,invoice_number,status,ksef_reference,ksef_number,error,gross,currency,issued_at,created_at").order("created_at", { ascending: false }).limit(200));
+      t.events = await load("events", sb.from("shopify_events").select("id,topic,shopify_id,created_at").order("created_at", { ascending: false }).limit(12));
     }
 
     function top(title, sub, actions) {
@@ -99,6 +122,30 @@
       const { panelFetch } = await import("./lib/panel-api.mjs");
       return panelFetch(CRM.SB, path, { method, body });
     }
+
+    CRM.shopifyPush = async function (ids, { create = false, force = false } = {}) {
+      const list = [...new Set((ids || []).filter(Boolean))].slice(0, 20);
+      if (!list.length) return { pushed: [], errors: [] };
+      if (window.NHP_LOCAL) {
+        if (create || force) CRM.toast("Shopify działa na wdrożonym panelu, nie w lokalnej piaskownicy.");
+        return { pushed: [], errors: [] };
+      }
+      const linked = create
+        ? list
+        : list.filter((id) => CRM.S.trade.products.some((product) => product.id === id && product.shopify_product_id));
+      if (!linked.length) return { pushed: [], errors: [] };
+      try {
+        const res = await call("/api/shopify/push", "POST", { product_ids: linked, create, force });
+        await reload();
+        const view = location.hash.slice(1);
+        if (view === "baza-produktow" || view === "faktury") CRM.scheduleRender();
+        if (res.errors?.length) CRM.toast(res.errors[0]);
+        return res;
+      } catch (err) {
+        CRM.toast(err.message || "Nie udało się wysłać do Shopify.");
+        return { pushed: [], errors: [err.message] };
+      }
+    };
 
     function sourceOfProduct(p) {
       return {
@@ -134,6 +181,7 @@
       const { error } = await CRM.SB.from("pages").insert({ id, slug, name: draft.name, status: "draft", product_id: productId || null, data: draft.data });
       if (error) { CRM.toast("Nie udało się utworzyć szkicu strony."); return; }
       if (CRM.loadPages) await CRM.loadPages();
+      await reload();
       CRM.UI.genId = id;
       location.hash = "generator";
       CRM.toast("Szkic strony zapisany. Publikacja zostaje ręczna.");
@@ -227,44 +275,215 @@
       </div>`;
     }
 
+    function pagesOf(productId) {
+      return (CRM.S.trade.pages || []).filter((page) => page.product_id === productId);
+    }
+    function pageFor(productId) {
+      const pages = pagesOf(productId);
+      return pages.find((page) => page.status === "published") || pages[0] || null;
+    }
+    function hasPage(productId) {
+      return pagesOf(productId).length > 0;
+    }
+    function statsOf(productId) {
+      return (CRM.S.trade.stats || []).find((row) => row.product_id === productId) || { orders_count: 0, units_sold: 0, revenue: 0, views: 0, sessions: 0, currency: "PLN" };
+    }
+    function workflowOf(product) {
+      return WF.some((row) => row[0] === product?.workflow_status) ? product.workflow_status : "pobrany";
+    }
+    function pageCell(product) {
+      const page = pageFor(product.id);
+      if (!page) return '<span class="pill" style="--c:var(--grey)">Brak strony</span>';
+      const label = page.status === "published" ? "Opublikowana" : "Szkic";
+      const color = page.status === "published" ? "var(--good)" : "var(--info)";
+      return `<span class="pill" style="--c:${color}">${label}</span> <button class="btn sm" type="button" data-stop data-nhp="open-page" data-id="${CRM.esc(page.id)}">Otwórz</button>` +
+        (page.status === "published" ? ` <a data-stop href="/p/${CRM.esc(page.slug)}" target="_blank" rel="noopener">/p/${CRM.esc(page.slug)}</a>` : "");
+    }
+    function shopifyCell(product) {
+      if (!product.shopify_product_id) return '<span class="muted">nie wysłano</span>';
+      const url = product.shopify_url ? `<a data-stop href="${CRM.esc(product.shopify_url)}" target="_blank" rel="noopener">${CRM.esc(product.shopify_handle || "sklep")}</a>` : CRM.esc(product.shopify_handle || product.shopify_product_id);
+      const state = product.shopify_status === "deleted" ? " · usunięty w Shopify" : "";
+      return `${url}${state}`;
+    }
+    function statusSelect(product) {
+      const current = workflowOf(product);
+      return `<select data-stop data-wf="${CRM.esc(product.id)}">${WF.map((row) => `<option value="${row[0]}" ${row[0] === current ? "selected" : ""}>${row[1]}</option>`).join("")}</select>`;
+    }
+    function pickedIds() {
+      return Object.keys(T().picked || {}).filter((id) => T().picked[id]);
+    }
+    function integrationBanner() {
+      const shop = T().shopifyStatus;
+      const ksef = T().ksefStatus;
+      const shopLine = !shop ? "Sprawdzam Shopify…" : shop.configured
+        ? `Shopify: ${CRM.esc(shop.shop || shop.domain || "połączony")}${shop.error ? ` — ${CRM.esc(shop.error)}` : ""}`
+        : "Shopify nie jest podłączony. Sekrety: SHOPIFY_STORE_DOMAIN, SHOPIFY_ADMIN_TOKEN, SHOPIFY_WEBHOOK_SECRET.";
+      const ksefLine = !ksef ? "Sprawdzam KSeF…" : `KSeF ${CRM.esc(ksef.env || "test")}: ${ksef.configured ? "gotowy" : "brak sekretów"} · faktury automatyczne ${ksef.auto ? "włączone" : "wyłączone"}`;
+      const err = T().integrationError ? `<div class="banner">${CRM.esc(T().integrationError)}</div>` : "";
+      return err + `<div class="card pad" style="margin-bottom:14px"><p style="margin:0 0 8px">${shopLine}</p><p class="small muted" style="margin:0 0 10px">${ksefLine} Instrukcja jest w docs/shopify-ksef.md.</p><div class="row">
+        <button class="btn sm" type="button" data-nhp="shopify-webhooks" ${shop?.configured ? "" : "disabled"}>Zarejestruj webhooki</button>
+        <button class="btn sm" type="button" data-nhp="shopify-pull" ${shop?.configured ? "" : "disabled"}>Pobierz zamówienia</button>
+        <button class="btn sm" type="button" data-nhp="shopify-sync">Synchronizuj zmiany</button>
+      </div></div>`;
+    }
+    function kickIntegration() {
+      if (window.NHP_LOCAL || T().statusLoaded) return;
+      T().statusLoaded = true;
+      Promise.all([
+        call("/api/shopify/status", "GET").catch((err) => ({ configured: false, error: err.message })),
+        call("/api/ksef/status", "GET").catch((err) => ({ configured: false, env: "test", auto: true, error: err.message }))
+      ]).then(([shop, ksef]) => {
+        T().shopifyStatus = shop;
+        T().ksefStatus = ksef;
+        CRM.scheduleRender();
+      }).catch((err) => {
+        T().integrationError = err.message;
+        CRM.scheduleRender();
+      });
+    }
+    function kickAutoSync() {
+      if (window.NHP_LOCAL || T().didAutoSync) return;
+      const ids = CRM.S.trade.products.filter((product) => product.shopify_dirty && product.shopify_product_id).map((product) => product.id);
+      if (!ids.length) return;
+      T().didAutoSync = true;
+      CRM.shopifyPush(ids, { create: false });
+    }
+
     function viewProducts() {
-      const q = (T().q || "").toLowerCase();
-      const rows = CRM.S.trade.products.filter((p) => !q || `${p.catalog_name} ${p.name} ${p.ean} ${p.producer}`.toLowerCase().includes(q));
-      const body = rows.map((p) => `<tr data-nhp="open" data-kind="product" data-id="${p.id}">
-        <td class="strong">${CRM.esc(p.catalog_name || p.name)}</td>
-        <td>${CRM.esc(p.ean || "—")}</td>
-        <td class="num">${money(p.price)}</td>
-        <td class="num">${money(p.base_price)}</td>
-        <td>${CRM.esc(p.producer || "—")}</td>
-        <td>${p.status === "flagged" ? '<span class="pill" style="--c:var(--bad)">Brak ceny</span>' : CRM.esc(p.status || "")}</td>
-      </tr>`).join("");
-      const detail = detailCard();
-      return top("Baza produktów", "Katalog wewnętrzny. Nazwa katalogowa zostaje taka, jak na źródle. Osobno od zamówień w CRM.", `<button class="btn" type="button" data-nhp="reload">Odśwież</button>`) +
-        banner() + detail +
-        `<div class="toolbar"><label class="search">${CRM.ic("search", 16)}<input id="q-trade" data-trade-q placeholder="Nazwa, EAN, producent" value="${CRM.esc(T().q || "")}"></label></div>` +
-        (rows.length ? `<div class="card tbl-wrap"><table><thead><tr><th>Nazwa katalogowa</th><th>EAN</th><th>Cena</th><th>Bazowa</th><th>Producent</th><th>Status</th></tr></thead><tbody>${body}</tbody></table></div>` : `<div class="card"><div class="empty"><b>Pusta baza</b>Zaimportuj ofertę wtyczką albo dodaj ją z aukcji.</div></div>`);
+      kickIntegration();
+      kickAutoSync();
+      const ui = T();
+      const q = (ui.q || "").toLowerCase();
+      const tab = ui.tab === "gotowe" ? "gotowe" : "pobrane";
+      const all = CRM.S.trade.products.filter((product) => !q || `${product.catalog_name} ${product.name} ${product.ean} ${product.producer}`.toLowerCase().includes(q));
+      const gotowe = all.filter((product) => hasPage(product.id));
+      const pobrane = all.filter((product) => !hasPage(product.id));
+      const rows = tab === "gotowe" ? gotowe : pobrane;
+      const head = tab === "gotowe"
+        ? "<th></th><th>Nazwa katalogowa</th><th>Status</th><th>Strona</th><th>Shopify</th><th>Zamówienia</th><th>Szt.</th><th>Przychód</th><th>Wyświetlenia</th>"
+        : "<th></th><th>Nazwa katalogowa</th><th>EAN</th><th>Cena</th><th>Producent</th><th>Status</th><th>Strona</th>";
+      const body = rows.map((product) => {
+        const stats = statsOf(product.id);
+        const priceGap = product.price == null ? ' <span class="pill" style="--c:var(--bad)">Brak ceny</span>' : "";
+        if (tab === "gotowe") {
+          return `<tr data-nhp="open" data-kind="product" data-id="${product.id}">
+            <td data-stop><input type="checkbox" data-pick-product="${product.id}" ${ui.picked?.[product.id] ? "checked" : ""}></td>
+            <td class="strong">${CRM.esc(product.catalog_name || product.name)}</td>
+            <td data-stop>${statusSelect(product)}${priceGap}</td>
+            <td>${pageCell(product)}</td>
+            <td>${shopifyCell(product)}</td>
+            <td class="num">${stats.orders_count || 0}</td>
+            <td class="num">${stats.units_sold || 0}</td>
+            <td class="num">${money(stats.revenue)}</td>
+            <td class="num">${stats.views || 0}<div class="small muted">${stats.sessions || 0} sesji</div></td>
+          </tr>`;
+        }
+        return `<tr data-nhp="open" data-kind="product" data-id="${product.id}">
+          <td data-stop><input type="checkbox" data-pick-product="${product.id}" ${ui.picked?.[product.id] ? "checked" : ""}></td>
+          <td class="strong">${CRM.esc(product.catalog_name || product.name)}</td>
+          <td>${CRM.esc(product.ean || "—")}</td>
+          <td class="num">${money(product.price)}</td>
+          <td>${CRM.esc(product.producer || "—")}</td>
+          <td data-stop>${statusSelect(product)}${priceGap}</td>
+          <td>${pageCell(product)}</td>
+        </tr>`;
+      }).join("");
+      const bulk = `<div class="row">
+        <select id="wf-bulk">${WF.map((row) => `<option value="${row[0]}">${row[1]}</option>`).join("")}</select>
+        <button class="btn sm" type="button" data-nhp="wf-bulk">Ustaw status zaznaczonym</button>
+        <button class="btn sm primary" type="button" data-nhp="shopify-send">Wyślij zaznaczone do Shopify</button>
+      </div>`;
+      return top("Baza produktów", "Pobrane nie mają jeszcze strony. Gotowe strony to produkty z kartą one-page. Status zmienia się też hurtowo.", `<button class="btn" type="button" data-nhp="reload">Odśwież</button>`) +
+        banner() + integrationBanner() + detailCard() +
+        `<div class="wf-tabs" role="tablist">
+          <button class="chip" type="button" data-nhp="tab" data-tab="pobrane" aria-pressed="${tab === "pobrane" ? "true" : "false"}" role="tab">Pobrane produkty <span class="num">${pobrane.length}</span></button>
+          <button class="chip" type="button" data-nhp="tab" data-tab="gotowe" aria-pressed="${tab === "gotowe" ? "true" : "false"}" role="tab">Gotowe strony <span class="num">${gotowe.length}</span></button>
+        </div>` +
+        `<div class="toolbar"><label class="search">${CRM.ic("search", 16)}<input id="q-trade" data-trade-q placeholder="Nazwa, EAN, producent" value="${CRM.esc(ui.q || "")}"></label>${bulk}</div>` +
+        (rows.length ? `<div class="card tbl-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>` : `<div class="card"><div class="empty"><b>${tab === "gotowe" ? "Brak gotowych stron" : "Pusta lista pobranych"}</b>${tab === "gotowe" ? "Zrób stronę z produktu albo z importu." : "Zaimportuj ofertę wtyczką. Produkty ze stroną są w zakładce Gotowe strony."}</div></div>`);
     }
 
     function detailCard() {
       const d = T().detail;
-      if (!d) return "";
-      if (d.kind === "product") {
-        const p = CRM.S.trade.products.find((x) => x.id === d.id);
-        if (!p) return "";
-        return `<section class="card pad" style="margin-bottom:14px">
-          <div class="sec-h"><h2>${CRM.esc(p.catalog_name || p.name)}</h2><button class="btn sm" type="button" data-nhp="close">Zamknij</button></div>
-          <p class="muted small">EAN ${CRM.esc(p.ean || "—")} · ${CRM.esc(p.category || "bez kategorii")} · dostawa ${money(p.delivery_cost)} · bazowa ${money(p.base_price)}</p>
-          ${tierBlock()}
-          <div class="row">
-            <button class="btn primary" type="button" data-nhp="page" data-kind="product" data-id="${p.id}">Zrób stronę</button>
-            <button class="btn" type="button" data-nhp="generate" data-kind="product" data-id="${p.id}">Generuj</button>
-            <button class="btn" type="button" data-nhp="video" data-kind="product" data-id="${p.id}">Złóż wideo</button>
-          </div>
-          ${videoFields()}
-          <p class="small muted">S1 to sam tekst. S1 Pro dokłada 1 zdjęcie AI. S1 Max dokłada 5 zdjęć i każe złożyć wideo tutaj, nie w zewnętrznym serwisie. Cudze zdjęcia na stronie dostają brak prawa, dopóki go nie potwierdzisz.</p>
-        </section>`;
-      }
-      return "";
+      if (!d || d.kind !== "product") return "";
+      const p = CRM.S.trade.products.find((x) => x.id === d.id);
+      if (!p) return "";
+      const page = pageFor(p.id);
+      const stats = statsOf(p.id);
+      const history = (T().history || {})[p.id] || [];
+      const hist = history.length ? `<ul class="hist">${history.map((row) => `<li><b>${CRM.esc(wfLabel(row.to_status))}</b> <span class="muted">${CRM.esc(row.from_status ? wfLabel(row.from_status) + " → " : "")}${row.created_at ? new Date(row.created_at).toLocaleString("pl-PL") : ""} · ${CRM.esc(row.source || "panel")}</span>${row.note ? `<div>${CRM.esc(row.note)}</div>` : ""}</li>`).join("")}</ul>` : `<p class="small muted">Brak historii statusu.</p>`;
+      const shop = p.shopify_product_id
+        ? `<p>Shopify: ${shopifyCell(p)} · status sklepu ${CRM.esc(p.shopify_status || "—")}${p.shopify_synced_at ? ` · sync ${CRM.esc(new Date(p.shopify_synced_at).toLocaleString("pl-PL"))}` : ""}${p.shopify_dirty ? " · czeka na wysyłkę" : ""}</p>${p.shopify_sync_error ? `<p class="small" style="color:var(--bad)">${CRM.esc(p.shopify_sync_error)}</p>` : ""}`
+        : `<p class="muted">Produkt nie jest jeszcze w Shopify. „Wyślij do Shopify” zakłada kartę produktu (zdjęcia, opis, cena, EAN, SKU).</p>`;
+      return `<section class="card pad" style="margin-bottom:14px">
+        <div class="sec-h"><h2>${CRM.esc(p.catalog_name || p.name)}</h2><button class="btn sm" type="button" data-nhp="close">Zamknij</button></div>
+        <p class="muted small">Nazwa katalogowa zostaje ze źródła. EAN ${CRM.esc(p.ean || "—")} · SKU ${CRM.esc(p.sku || "—")} · ${CRM.esc(p.category || "bez kategorii")} · dostawa ${money(p.delivery_cost)} · bazowa ${money(p.base_price)}</p>
+        <div class="row" style="margin:8px 0"><span class="pill" style="--c:${wfColor(workflowOf(p))}">${CRM.esc(wfLabel(workflowOf(p)))}</span>${pageCell(p)}</div>
+        <div class="stat-grid">
+          <div class="mini-stat"><span class="small muted">Zamówienia</span><b class="num">${stats.orders_count || 0}</b></div>
+          <div class="mini-stat"><span class="small muted">Sztuki</span><b class="num">${stats.units_sold || 0}</b></div>
+          <div class="mini-stat"><span class="small muted">Przychód</span><b class="num">${money(stats.revenue)}</b></div>
+          <div class="mini-stat"><span class="small muted">Wyświetlenia</span><b class="num">${stats.views || 0}</b></div>
+          <div class="mini-stat"><span class="small muted">Sesje</span><b class="num">${stats.sessions || 0}</b></div>
+        </div>
+        <p class="small muted">Zamówienia, sztuki i przychód biorą się z opłaconych zamówień Shopify (bez dostawy, bez pełnego odjęcia zwrotów). Wyświetlenia i sesje liczy nasza strona /p/…, nie analityka Shopify.</p>
+        ${shop}
+        <div class="row" style="margin-top:10px">
+          <label class="f"><span class="small muted">Nazwa w Shopify</span><input id="prod-name" value="${CRM.esc(p.name || "")}" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:220px"></label>
+          <label class="f"><span class="small muted">Cena</span><input id="prod-price" value="${p.price == null ? "" : CRM.esc(String(p.price))}" inputmode="decimal" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:120px"></label>
+          <label class="f" style="flex:1;min-width:220px"><span class="small muted">Opis produktu</span><textarea id="prod-desc" rows="3" style="width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 10px">${CRM.esc(p.description || "")}</textarea></label>
+        </div>
+        <div class="row">
+          <button class="btn" type="button" data-nhp="save-product" data-id="${p.id}">Zapisz i wyślij zmiany</button>
+          <button class="btn primary" type="button" data-nhp="shopify-one" data-id="${p.id}">Wyślij do Shopify</button>
+          <button class="btn" type="button" data-nhp="page" data-kind="product" data-id="${p.id}">${page ? "Otwórz stronę" : "Zrób stronę"}</button>
+          <button class="btn" type="button" data-nhp="generate" data-kind="product" data-id="${p.id}">Generuj</button>
+          <button class="btn" type="button" data-nhp="video" data-kind="product" data-id="${p.id}">Złóż wideo</button>
+        </div>
+        ${tierBlock()}
+        ${videoFields()}
+        <h3 style="margin:14px 0 0">Historia statusu</h3>
+        ${hist}
+        <p class="small muted">S1 to sam tekst. S1 Pro dokłada 1 zdjęcie AI. S1 Max dokłada 5 zdjęć i każe złożyć wideo tutaj. Cudze zdjęcia na stronie dostają brak prawa, dopóki go nie potwierdzisz. Gdy karta one-page istnieje, jej treść jest opisem w Shopify.</p>
+      </section>`;
+    }
+
+    function invoiceStatusLabel(status) {
+      return {
+        szkic: "Szkic",
+        oczekuje_konfiguracji: "Czeka na sekrety",
+        w_trakcie: "W trakcie",
+        przyjeta: "Przyjęta w KSeF",
+        odrzucona: "Odrzucona",
+        blad: "Błąd"
+      }[status] || status || "brak";
+    }
+    function viewInvoices() {
+      kickIntegration();
+      const orders = CRM.S.trade.orders || [];
+      const invoices = CRM.S.trade.invoices || [];
+      const byOrder = new Map(invoices.map((row) => [row.shopify_order_id, row]));
+      const body = orders.map((order) => {
+        const invoice = byOrder.get(order.shopify_order_id);
+        const when = order.created_at ? new Date(order.created_at).toLocaleString("pl-PL") : "—";
+        return `<tr>
+          <td class="strong">${CRM.esc(order.order_number || order.shopify_order_id)}</td>
+          <td class="small muted">${CRM.esc(when)}</td>
+          <td>${CRM.esc(order.buyer?.name || order.email || "—")}</td>
+          <td class="num">${money(order.total)} ${CRM.esc(order.currency || "")}</td>
+          <td>${CRM.esc(order.financial_status || "—")}${order.cancelled_at ? " · anulowane" : ""}</td>
+          <td>${invoice ? `<b>${CRM.esc(invoice.invoice_number)}</b><div class="small">${CRM.esc(invoiceStatusLabel(invoice.status))}${invoice.ksef_number ? ` · ${CRM.esc(invoice.ksef_number)}` : ""}</div>${invoice.error ? `<div class="small" style="color:var(--bad)">${CRM.esc(invoice.error)}</div>` : ""}` : '<span class="muted">brak faktury</span>'}</td>
+          <td class="row">
+            <button class="btn sm" type="button" data-nhp="ksef-issue" data-order="${CRM.esc(order.shopify_order_id)}" data-paid="${order.financial_status === "paid" ? "1" : "0"}">${invoice ? "Wyślij ponownie" : "Wystaw"}</button>
+            ${invoice ? `<button class="btn sm" type="button" data-nhp="ksef-refresh" data-id="${CRM.esc(invoice.id)}">Sprawdź</button><button class="btn sm" type="button" data-nhp="ksef-xml" data-id="${CRM.esc(invoice.id)}">XML</button>` : ""}
+          </td>
+        </tr>`;
+      }).join("");
+      const events = (CRM.S.trade.events || []).map((event) => `<li>${CRM.esc(event.topic)} · ${CRM.esc(event.shopify_id || "")} · ${event.created_at ? new Date(event.created_at).toLocaleString("pl-PL") : ""}</li>`).join("");
+      return top("Faktury KSeF", "FA(3) dla zamówień Shopify. Opłacone zamówienie dostaje fakturę samo, gdy KSeF jest skonfigurowany. Domyślnie środowisko testowe.", `<button class="btn" type="button" data-nhp="reload">Odśwież</button><button class="btn primary" type="button" data-nhp="ksef-paid">Wystaw dla opłaconych</button>`) +
+        banner() + integrationBanner() +
+        (orders.length ? `<div class="card tbl-wrap"><table><thead><tr><th>Zamówienie</th><th>Data</th><th>Nabywca</th><th>Kwota</th><th>Płatność</th><th>Faktura</th><th></th></tr></thead><tbody>${body}</tbody></table></div>` : `<div class="card"><div class="empty"><b>Brak zamówień Shopify</b>Po podłączeniu sklepu pobierz zamówienia albo poczekaj na webhook.</div></div>`) +
+        (events ? `<div class="card pad" style="margin-top:14px"><h2>Ostatnie webhooki</h2><ul class="hist">${events}</ul></div>` : "");
     }
 
     function viewAuctions() {
@@ -400,7 +619,9 @@
         if (auction.product_id) await CRM.SB.from("products").update({ price: sale.sale, base_price: knownBase.base, updated_at: new Date().toISOString() }).eq("id", auction.product_id);
         ok++;
       }
+      const productIds = ids.map((id) => CRM.S.trade.auctions.find((auction) => auction.id === id)?.product_id).filter(Boolean);
       await reload();
+      if (productIds.length) CRM.shopifyPush(productIds, { create: false });
       CRM.toast(ok ? `Ustawiono cenę na ${ok} aukcjach.` : "Nic nie zmieniono.");
       CRM.scheduleRender();
     }
@@ -432,9 +653,33 @@
       const t = e.target.closest("[data-nhp]");
       if (!t) return;
       const act = t.dataset.nhp;
-      if (act === "reload") { await reload(); CRM.scheduleRender(); return; }
+      if (act === "reload") { T().didAutoSync = false; T().statusLoaded = false; T().history = {}; await reload(); CRM.scheduleRender(); return; }
       if (act === "close") { T().detail = null; CRM.scheduleRender(); return; }
-      if (act === "open") { T().detail = { kind: t.dataset.kind, id: t.dataset.id }; CRM.scheduleRender(); return; }
+      if (act === "open") {
+        if (e.target.closest("[data-stop],button,a,select,input,textarea,label")) return;
+        T().detail = { kind: t.dataset.kind, id: t.dataset.id };
+        CRM.scheduleRender();
+        if (t.dataset.kind === "product") loadHistory(t.dataset.id);
+        return;
+      }
+      if (act === "tab") { T().tab = t.dataset.tab === "gotowe" ? "gotowe" : "pobrane"; CRM.scheduleRender(); return; }
+      if (act === "open-page") { CRM.UI.genId = t.dataset.id; location.hash = "generator"; return; }
+      if (act === "wf-bulk") return setWorkflow(pickedIds(), document.getElementById("wf-bulk")?.value);
+      if (act === "shopify-send") return CRM.shopifyPush(pickedIds(), { create: true, force: true });
+      if (act === "shopify-one") return CRM.shopifyPush([t.dataset.id], { create: true, force: true });
+      if (act === "shopify-sync") {
+        T().didAutoSync = false;
+        const ids = CRM.S.trade.products.filter((product) => product.shopify_dirty && product.shopify_product_id).map((product) => product.id);
+        if (!ids.length) { CRM.toast("Nic nie czeka na wysyłkę."); return; }
+        return CRM.shopifyPush(ids, { create: false });
+      }
+      if (act === "shopify-webhooks") return registerWebhooks();
+      if (act === "shopify-pull") return pullOrders();
+      if (act === "save-product") return saveProduct(t.dataset.id);
+      if (act === "ksef-issue") return issueInvoice(t.dataset.order, t.dataset.paid === "1");
+      if (act === "ksef-refresh") return refreshInvoice(t.dataset.id);
+      if (act === "ksef-xml") return downloadInvoiceXml(t.dataset.id);
+      if (act === "ksef-paid") return issuePaid();
       if (act === "page") return onPage(t.dataset.kind, t.dataset.id);
       if (act === "generate") return onGenerate(t.dataset.kind, t.dataset.id);
       if (act === "video") return onVideo(t.dataset.kind, t.dataset.id);
@@ -459,6 +704,14 @@
         T().selected[e.target.dataset.pick] = e.target.checked;
         return;
       }
+      if (e.target.dataset?.pickProduct) {
+        T().picked[e.target.dataset.pickProduct] = e.target.checked;
+        return;
+      }
+      if (e.target.dataset?.wf) {
+        setWorkflow([e.target.dataset.wf], e.target.value);
+        return;
+      }
       if (e.target.id === "auc-status") { T().status = e.target.value; CRM.scheduleRender(); }
       if (e.target.id === "auc-cat") { T().category = e.target.value; CRM.scheduleRender(); }
       if (e.target.id === "vid-format") T().videoFormat = e.target.value;
@@ -468,15 +721,111 @@
       if (e.target.dataset?.tradeQ !== undefined) { T().q = e.target.value; CRM.scheduleRender(); }
     });
 
+    async function loadHistory(id) {
+      T().history = T().history || {};
+      if (T().history[id] || !CRM.SB?.from) return;
+      T().history[id] = [];
+      const { data } = await CRM.SB.from("product_status_history").select("from_status,to_status,note,source,created_at").eq("product_id", id).order("created_at", { ascending: false }).limit(12);
+      T().history[id] = data || [];
+      CRM.scheduleRender();
+    }
+    async function setWorkflow(ids, status) {
+      if (!ids.length) { CRM.toast("Zaznacz produkty."); return; }
+      if (!WF.some((row) => row[0] === status)) return;
+      if (status === "opublikowany" && !confirm("Status „Opublikowany w Shopify” utworzy albo zaktualizuje produkt w sklepie i ustawi go jako aktywny. Kontynuować?")) {
+        CRM.scheduleRender();
+        return;
+      }
+      if (!CRM.SB?.rpc) { CRM.toast("Zmiana statusu wymaga bazy Supabase."); CRM.scheduleRender(); return; }
+      const { error } = await CRM.SB.rpc("set_product_workflow", { p_ids: ids, p_status: status, p_note: "" });
+      if (error) { CRM.toast(dbReason(error)); CRM.scheduleRender(); return; }
+      ids.forEach((id) => { if (T().history) delete T().history[id]; });
+      await reload();
+      CRM.toast("Status zapisany.");
+      CRM.scheduleRender();
+      if (status === "opublikowany") await CRM.shopifyPush(ids, { create: true });
+      else await CRM.shopifyPush(ids, { create: false });
+    }
+    async function saveProduct(id) {
+      const price = P.parseMoney(document.getElementById("prod-price")?.value);
+      const name = document.getElementById("prod-name")?.value.trim();
+      const description = document.getElementById("prod-desc")?.value ?? "";
+      if (document.getElementById("prod-price")?.value.trim() && price == null) { CRM.toast("Cena jest niepoprawna."); return; }
+      const patch = { name: name || undefined, description, updated_at: new Date().toISOString() };
+      if (price != null) patch.price = price;
+      const { error } = await CRM.SB.from("products").update(patch).eq("id", id);
+      if (error) { CRM.toast("Nie udało się zapisać produktu."); return; }
+      await reload();
+      CRM.toast("Zapisano.");
+      await CRM.shopifyPush([id], { create: false });
+      CRM.scheduleRender();
+    }
+    async function registerWebhooks() {
+      try {
+        const res = await call("/api/shopify/register-webhooks", "POST", {});
+        CRM.toast(res.created?.length ? `Dodano webhooki: ${res.created.join(", ")}` : "Webhooki już są zarejestrowane.");
+      } catch (err) { CRM.toast(err.message); }
+    }
+    async function pullOrders() {
+      try {
+        CRM.toast("Pobieram zamówienia…");
+        const res = await call("/api/shopify/pull", "POST", {});
+        await reload();
+        CRM.toast(`Pobrano ${res.orders || 0} zamówień.`);
+        CRM.scheduleRender();
+      } catch (err) { CRM.toast(err.message); }
+    }
+    async function issueInvoice(orderId, paid) {
+      if (!paid && !confirm("To zamówienie nie jest opłacone. Wystawić fakturę mimo to?")) return;
+      try {
+        const res = await call("/api/ksef/issue", "POST", { shopify_order_id: orderId });
+        await reload();
+        CRM.toast(res.invoice?.ksef_number ? `KSeF ${res.invoice.ksef_number}` : (res.invoice?.error || res.invoice?.status || "Zapisano fakturę."));
+        CRM.scheduleRender();
+      } catch (err) { CRM.toast(err.message); }
+    }
+    async function refreshInvoice(id) {
+      try {
+        const res = await call("/api/ksef/refresh", "POST", { invoice_id: id });
+        await reload();
+        CRM.toast(res.invoice?.ksef_number ? `KSeF ${res.invoice.ksef_number}` : (res.invoice?.error || res.invoice?.status || "Sprawdzono."));
+        CRM.scheduleRender();
+      } catch (err) { CRM.toast(err.message); }
+    }
+    async function downloadInvoiceXml(id) {
+      const { data, error } = await CRM.SB.from("ksef_invoices").select("invoice_number,xml").eq("id", id).single();
+      if (error || !data?.xml) { CRM.toast("Brak XML tej faktury."); return; }
+      const blob = new Blob([data.xml], { type: "application/xml" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${String(data.invoice_number || "faktura").replaceAll("/", "-")}.xml`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+    async function issuePaid() {
+      try {
+        CRM.toast("Wystawiam faktury…");
+        const res = await call("/api/ksef/issue-paid", "POST", {});
+        await reload();
+        CRM.toast(`Zapisano ${res.issued?.length || 0} faktur.`);
+        CRM.scheduleRender();
+      } catch (err) { CRM.toast(err.message); }
+    }
     async function onPage(kind, id) {
       if (kind === "product") {
         const p = CRM.S.trade.products.find((x) => x.id === id);
+        const existing = p ? pageFor(p.id) : null;
+        if (existing) { CRM.UI.genId = existing.id; location.hash = "generator"; CRM.toast("Ta pozycja ma już stronę."); return; }
         if (p) await makePage(sourceOfProduct(p), p.id);
       } else if (kind === "auction") {
         const a = CRM.S.trade.auctions.find((x) => x.id === id);
+        const existing = a?.product_id ? pageFor(a.product_id) : null;
+        if (existing) { CRM.UI.genId = existing.id; location.hash = "generator"; CRM.toast("Ta pozycja ma już stronę."); return; }
         if (a) await makePage(sourceOfAuction(a), a.product_id);
       } else if (kind === "import") {
         const item = CRM.S.trade.items.find((x) => x.id === id);
+        const existing = item?.product_id ? pageFor(item.product_id) : null;
+        if (existing) { CRM.UI.genId = existing.id; location.hash = "generator"; CRM.toast("Ta pozycja ma już stronę."); return; }
         if (item) await makePage(item.data || {}, item.product_id);
       }
     }

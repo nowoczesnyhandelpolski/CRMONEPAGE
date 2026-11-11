@@ -37,5 +37,5 @@ test("SQL wystawia klucze i import bez service role, menu ma jedną grupę Produ
   assert.ok(routes.include.includes("/img/*"));
   const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
   assert.equal(html.includes('["produkty","Produkty","products"]'), false);
-  assert.match(html, /baza-produktow", "aukcje", "import-wtyczki", "eksport", "generator"/);
+  assert.match(html, /baza-produktow", "faktury", "aukcje", "import-wtyczki", "eksport", "generator"/);
 });

@@ -141,6 +141,8 @@ test("strona publiczna: jasny szablon, SEO, bez noindex, bez fałszywego licznik
   });
   assert.match(html, /Kalendarz adwentowy z autkami 2026/);
   assert.match(html, /rel="canonical" href="https:\/\/panel\.example\/p\/kalendarz-adwentowy"/);
+  assert.match(html, /var slug="kalendarz-adwentowy"/);
+  assert.match(html, /sendBeacon/);
   assert.match(html, /"@type":"FAQPage"/);
   assert.match(html, /"@type":"Product"/);
   assert.match(html, /cdn\.hurtownia\.pl\/kalendarz\.jpg/);
@@ -173,6 +175,7 @@ test("podgląd jest noindex i nie jest stroną na żywo", () => {
   }), { preview: true, origin: "https://panel.example" });
   assert.match(html, /noindex/);
   assert.match(html, /data-live="0"/);
+  assert.doesNotMatch(html, /sendBeacon/);
   assert.match(html, /cdn\.x\.pl\/a\.jpg/);
   assert.doesNotMatch(html, /rel="canonical"/);
 });

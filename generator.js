@@ -408,6 +408,7 @@
       CRM.UI.genExample = false;
       CRM.UI.genDraftId = null;
       await loadPages();
+      if (row.product_id && typeof CRM.shopifyPush === "function") await CRM.shopifyPush([row.product_id], { create: false });
       CRM.toast(row.status === "published" ? `Opublikowano /p/${slug}` : "Zapisano szkic");
       CRM.scheduleRender();
     }
@@ -425,6 +426,7 @@
       if (error) { CRM.toast("Nie udało się wycofać strony."); return; }
       CRM.logAct(`Wycofał stronę /p/${existing.slug}`);
       await loadPages();
+      if (row.product_id && typeof CRM.shopifyPush === "function") await CRM.shopifyPush([row.product_id], { create: false });
       CRM.toast("Strona wróciła do szkicu");
       CRM.scheduleRender();
     }
@@ -453,6 +455,7 @@
       if (error) { CRM.toast("Nie udało się usunąć."); return; }
       CRM.UI.genId = null;
       await loadPages();
+      if (existing.product_id && typeof CRM.shopifyPush === "function") await CRM.shopifyPush([existing.product_id], { create: false });
       CRM.toast("Usunięto stronę");
       CRM.scheduleRender();
     }
