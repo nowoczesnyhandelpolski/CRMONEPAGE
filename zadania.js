@@ -1263,13 +1263,21 @@
     /* Update'y dopisywane przez ten moduł: zmiany w panelu (autor: Claude) i praca zrobiona z Claude w innych miejscach.
        Podbicie „v” odświeża tekst; wpisu poprawionego ręcznie w panelu (bez „seeded”) nie nadpisujemy. */
     const CLAUDE_UPDATES = {
+      "up-20261111-bez-banera": {
+        v: 1, who: "p1", date: "2026-11-11", stage: "live", cat: "tech", title: "Panel bez mega banera — spokojnie i przejrzyście",
+        before: "Na górze każdej strony wielki baner: łopoczące flagi, fajerwerki, gierki i pasek z żartami.\nPod nim drugi baner z animacją.",
+        after: "Banery usunięte. Od razu widać tytuł zakładki i to, co ważne.\nLogo, biało-czerwone barwy i wstęga w menu zostają.",
+        benefit: "Mniej przewijania, spokój dla oczu, szybsza praca.",
+        plus: "Przejrzyście\nNic nie miga i nie łopocze\nPanel ładuje się szybciej",
+        minus: "Gierki zniknęły (wyniki w bazie zostają)"
+      },
       "up-20261111-kampanie": {
-        v: 1, who: "p1", date: "2026-11-11", stage: "plan", cat: "reklamy", title: "Kampanie reklamowe Meta i Google Ads — plan zakładki",
-        before: "W panelu nie było miejsca na płatne reklamy.\nNie było wiadomo, ile zarabia każda reklama.",
-        after: "Jest plan zakładki Kampanie: Meta i Google Ads w jednym miejscu.\nZysk z reklamy liczony dla każdego produktu (cena zakupu i wysyłka są już w bazie).",
+        v: 2, who: "p1", date: "2026-11-11", stage: "live", cat: "reklamy", title: "Zakładka Kampanie reklamowe (Meta, Google Ads, TikTok)",
+        before: "W panelu nie było miejsca na płatne reklamy.\nNie było wiadomo, która reklama zarabia, a która przepala pieniądze.",
+        after: "Każda kampania ma swoją kartę: ile wydaliśmy, ile sprzedaliśmy i ile zostało na czysto.\nPanel sam mówi: zarabia / traci / wyłącz / zwiększ budżet o 20%.\nPrzy dodawaniu kampanii widać, ile może kosztować jedno zamówienie z reklamy.",
         benefit: "Wydajemy na reklamy tylko tam, gdzie wraca więcej, niż kosztują.",
-        plus: "Korzysta z danych, które już mamy\nMeta i Google w jednym widoku",
-        minus: "Na razie to plan — zakładka nie jest jeszcze zbudowana\nNajpierw trzeba podpiąć śledzenie zakupów (Pixel Meta, konwersje Google)"
+        plus: "Zysk liczony po koszcie towaru, wysyłce i prowizji — nie tylko ROAS\nLista „Co zrobić teraz”\nGotowy link z UTM do każdej reklamy\nLista kroków „Start reklam” (Pixel, konwersje, API)",
+        minus: "Na razie wyniki przepisujemy z Ads Managera ręcznie (minuta dziennie)\nAutomatyczne pobieranie ruszy po podpięciu kont Meta i Google (token Google trwa kilka dni)"
       },
       "up-20261111-platnosci": {
         v: 2, who: "p1", date: "2026-11-11", stage: "live", cat: "sklepy", title: "Płatności BLIK, Przelewy24 i kartą (Stripe) na stronach produktów",
