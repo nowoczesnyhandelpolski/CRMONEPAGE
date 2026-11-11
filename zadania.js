@@ -1271,6 +1271,14 @@
         plus: "Bez kopiowania tajnych kluczy\nTa sama walidacja i limity co wcześniej",
         minus: "Limit prób z jednego IP jest teraz mniej szczelny (IP podaje Cloudflare przez page-api)"
       },
+      "up-20261111-parametry": {
+        v: 1, who: "p1", date: "2026-11-11", stage: "live", cat: "sklepy", title: "Cechy produktu bez „[object Object]” (wtyczka 1.1.4)",
+        before: "Wtyczka zapisywała parametry z Allegro jako „[object Object]”.\nTe napisy trafiały do cech na kartach produktów.",
+        after: "Wtyczka 1.1.4 zapisuje prawdziwe wartości (np. „15 bar”, „stal 316L”).\nSzkic strony pomija parametry bez czytelnej wartości.\nCechy na 3 obecnych kartach są poprawione.",
+        benefit: "Karty pokazują klientom prawdziwe dane produktu.",
+        plus: "Działa też dla starych importów",
+        minus: "Trzeba pobrać i zainstalować nową wersję wtyczki"
+      },
       "up-20261111-bez-banera": {
         v: 1, who: "p1", date: "2026-11-11", stage: "live", cat: "tech", title: "Panel bez mega banera — spokojnie i przejrzyście",
         before: "Na górze każdej strony wielki baner: łopoczące flagi, fajerwerki, gierki i pasek z żartami.\nPod nim drugi baner z animacją.",
@@ -1294,6 +1302,14 @@
         benefit: "Wydajemy na reklamy tylko tam, gdzie wraca więcej, niż kosztują.",
         plus: "Zysk liczony po koszcie towaru, wysyłce i prowizji — nie tylko ROAS\nLista „Co zrobić teraz”\nGotowy link z UTM do każdej reklamy\nLista kroków „Start reklam” (Pixel, konwersje, API)",
         minus: "Na razie wyniki przepisujemy z Ads Managera ręcznie (minuta dziennie)\nAutomatyczne pobieranie ruszy po podpięciu kont Meta i Google (token Google trwa kilka dni)"
+      },
+      "up-20261111-realizacja": {
+        v: 1, who: "p1", date: "2026-11-11", stage: "pending", cat: "sklepy", title: "Realizacja: zamówienie samo idzie do dostawcy, numer przesyłki sam wraca",
+        before: "Opłacone zamówienie trzeba było ręcznie zamówić u dostawcy.\nNumer przesyłki i status wpisywaliśmy sami.",
+        after: "Opłacone zamówienie trafia do kolejki i co 5 minut idzie do dostawcy: BigBuy (API), e-mail do hurtowni albo etykieta InPost.\nNumer przesyłki i statusy „Wysłane” / „Dostarczone” wracają same.\nLimity: koszt jednego zamówienia, dzienny budżet, minimalna marża. Start w trybie próbnym.",
+        benefit: "Zamówienia realizują się bez nas, a pieniądze nie wyciekną przez błąd.",
+        plus: "Działa z każdą hurtownią (e-mail)\nPaczkomaty i kurier InPost\nTryb próbny i limity wydatków",
+        minus: "Trzeba wybrać hurtownię i wpisać klucze w zakładce Realizacja\nNa żywo włączacie sami\nBigBuy nie dowozi do paczkomatów"
       },
       "up-20261111-platnosci": {
         v: 2, who: "p1", date: "2026-11-11", stage: "live", cat: "sklepy", title: "Płatności BLIK, Przelewy24 i kartą (Stripe) na stronach produktów",
