@@ -1368,3 +1368,292 @@ grant execute on function public.apply_shopify_inbound(uuid, jsonb) to service_r
 grant execute on function public.next_ksef_invoice_number() to service_role;
 grant execute on function public.record_page_view(text) to anon, authenticated, service_role;
 
+-- =====================================================================
+-- Skrzynka e-mail sklepu i tablica zespołu.
+-- Hasła IMAP/SMTP nie są w bazie. Skrypt można puścić ponownie.
+-- =====================================================================
+
+alter table public.allowed_emails add column if not exists is_admin boolean not null default false;
+
+create or replace function public.is_board_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.allowed_emails
+    where email = lower(coalesce(auth.jwt() ->> 'email', ''))
+      and is_admin
+  );
+$$;
+revoke all on function public.is_board_admin() from public, anon;
+grant execute on function public.is_board_admin() to authenticated;
+
+create table if not exists public.team_board (
+  id uuid primary key default gen_random_uuid(),
+  body text not null,
+  author_key text not null default '',
+  author_email text not null default '',
+  author_name text not null default '',
+  pinned boolean not null default false,
+  pinned_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists team_board_feed on public.team_board (pinned desc, pinned_at desc nulls last, created_at desc);
+
+create or replace function public.team_board_stamp()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
+begin
+  if tg_op = 'INSERT' then
+    if v_email = '' then
+      raise exception 'Zaloguj się, żeby przypiąć wpis na tablicy.';
+    end if;
+    if char_length(btrim(new.body)) < 1 or char_length(new.body) > 2000 then
+      raise exception 'Wpis na tablicy ma mieć od 1 do 2000 znaków.';
+    end if;
+    new.author_email := v_email;
+    new.author_key := left(coalesce(new.author_key, ''), 8);
+    new.author_name := left(coalesce(nullif(btrim(new.author_name), ''), v_email), 80);
+    new.created_at := now();
+  else
+    if char_length(btrim(new.body)) < 1 or char_length(new.body) > 2000 then
+      raise exception 'Wpis na tablicy ma mieć od 1 do 2000 znaków.';
+    end if;
+    new.author_email := old.author_email;
+    new.author_key := old.author_key;
+    new.author_name := old.author_name;
+    new.created_at := old.created_at;
+  end if;
+  new.updated_at := now();
+  if new.pinned and (tg_op = 'INSERT' or old.pinned is distinct from true) then
+    new.pinned_at := now();
+  elsif not new.pinned then
+    new.pinned_at := null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists team_board_stamp on public.team_board;
+create trigger team_board_stamp
+  before insert or update on public.team_board
+  for each row execute function public.team_board_stamp();
+
+alter table public.team_board replica identity full;
+
+create table if not exists public.mail_threads (
+  id uuid primary key default gen_random_uuid(),
+  subject text not null default '',
+  subject_key text not null default '',
+  customer_email text not null default '',
+  customer_name text not null default '',
+  status text not null default 'nowa',
+  unread boolean not null default true,
+  assignee_key text not null default '',
+  shopify_order_id text,
+  order_label text not null default '',
+  product_id uuid,
+  product_label text not null default '',
+  last_message_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists mail_threads_recent on public.mail_threads (last_message_at desc);
+create index if not exists mail_threads_customer on public.mail_threads (customer_email, subject_key);
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'mail_threads_status_check') then
+    alter table public.mail_threads add constraint mail_threads_status_check
+      check (status in ('nowa', 'w_toku', 'odpowiedziana', 'zamknieta'));
+  end if;
+end $$;
+
+create table if not exists public.mail_messages (
+  id uuid primary key default gen_random_uuid(),
+  thread_id uuid not null references public.mail_threads(id) on delete cascade,
+  direction text not null,
+  message_id text,
+  in_reply_to text,
+  from_email text not null default '',
+  from_name text not null default '',
+  to_email text not null default '',
+  subject text not null default '',
+  body_text text not null default '',
+  imap_uid bigint,
+  sent_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+create unique index if not exists mail_messages_msgid on public.mail_messages (message_id) where message_id is not null and message_id <> '';
+create index if not exists mail_messages_thread on public.mail_messages (thread_id, sent_at);
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'mail_messages_direction_check') then
+    alter table public.mail_messages add constraint mail_messages_direction_check
+      check (direction in ('in', 'out'));
+  end if;
+end $$;
+
+create table if not exists public.mail_rules (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  name text not null,
+  keywords text not null default '',
+  template text not null default '',
+  use_ai boolean not null default true,
+  auto_send boolean not null default false,
+  enabled boolean not null default true,
+  position integer not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.mail_drafts (
+  id uuid primary key default gen_random_uuid(),
+  thread_id uuid not null references public.mail_threads(id) on delete cascade,
+  inbound_id uuid references public.mail_messages(id) on delete set null,
+  rule_slug text,
+  body text not null,
+  status text not null default 'szkic',
+  created_at timestamptz not null default now()
+);
+create index if not exists mail_drafts_thread on public.mail_drafts (thread_id, created_at desc);
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'mail_drafts_status_check') then
+    alter table public.mail_drafts add constraint mail_drafts_status_check
+      check (status in ('szkic', 'wyslana', 'odrzucona'));
+  end if;
+end $$;
+
+create table if not exists public.mail_settings (
+  id integer primary key default 1 check (id = 1),
+  auto_send boolean not null default false,
+  ack_enabled boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+insert into public.mail_settings (id) values (1) on conflict (id) do nothing;
+
+create table if not exists public.mail_sync_state (
+  id integer primary key default 1 check (id = 1),
+  uidvalidity text,
+  last_uid bigint not null default 0,
+  last_poll_at timestamptz,
+  last_error text
+);
+insert into public.mail_sync_state (id) values (1) on conflict (id) do nothing;
+
+create table if not exists public.mail_auto_log (
+  id bigint generated always as identity primary key,
+  sender text not null,
+  kind text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists mail_auto_log_sender on public.mail_auto_log (sender, kind, created_at desc);
+
+insert into public.mail_rules (slug, name, keywords, template, use_ai, auto_send, enabled, position)
+values
+  ('status-zamowienia', 'Status zamówienia', 'zamówien,zamowien,status,tracking,przesyłk,przesylk,gdzie jest',
+   E'Dzień dobry,\n\nw sprawie zamówienia {zamowienie}: płatność {platnosc}. {tracking}\nNumer faktury: {faktura}.\n\nJeśli to nie to zamówienie, proszę odesłać jego numer.\n\nPozdrawiamy,\nNowoczesny Handel Polski', true, false, true, 10),
+  ('zwrot', 'Zwrot i reklamacja', 'zwrot,reklamac,odstąp,odstap,wymian',
+   E'Dzień dobry,\n\nprzyjęliśmy zgłoszenie zwrotu albo reklamacji. Zamówienie {zamowienie}, płatność {platnosc}.\nOdezwiemy się z dalszymi krokami. Nie trzeba wysyłać tej wiadomości drugi raz.\n\nPozdrawiamy,\nNowoczesny Handel Polski', true, false, true, 20),
+  ('faktura', 'Faktura', 'faktur,ksef,paragon,vat',
+   E'Dzień dobry,\n\nfaktura do zamówienia {zamowienie}: {faktura}.\n\nPozdrawiamy,\nNowoczesny Handel Polski', true, false, true, 30),
+  ('dostawa', 'Dostawa', 'dostaw,wysyłk,wysylk,kurier,paczkomat,paczka',
+   E'Dzień dobry,\n\nwysyłka zamówienia {zamowienie}: {tracking}\n\nPozdrawiamy,\nNowoczesny Handel Polski', true, false, true, 40)
+on conflict (slug) do nothing;
+
+do $$
+declare t text;
+begin
+  foreach t in array array['team_board','mail_threads','mail_messages','mail_rules','mail_drafts','mail_settings']
+  loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists zespol_czyta on public.%I', t);
+    execute format('drop policy if exists zespol_dodaje on public.%I', t);
+    execute format('drop policy if exists zespol_zmienia on public.%I', t);
+    execute format('drop policy if exists zespol_usuwa on public.%I', t);
+    execute format('create policy zespol_czyta on public.%I for select to authenticated using (public.is_team())', t);
+    execute format('revoke all on public.%I from anon', t);
+    execute format('grant select on public.%I to authenticated', t);
+    execute format('grant all on public.%I to service_role', t);
+  end loop;
+end $$;
+
+drop policy if exists zespol_dodaje on public.mail_threads;
+drop policy if exists zespol_zmienia on public.mail_threads;
+drop policy if exists zespol_usuwa on public.mail_threads;
+create policy zespol_dodaje on public.mail_threads for insert to authenticated with check (public.is_team());
+create policy zespol_zmienia on public.mail_threads for update to authenticated using (public.is_team()) with check (public.is_team());
+create policy zespol_usuwa on public.mail_threads for delete to authenticated using (public.is_team());
+grant insert, update, delete on public.mail_threads to authenticated;
+
+drop policy if exists zespol_dodaje on public.mail_messages;
+drop policy if exists zespol_zmienia on public.mail_messages;
+create policy zespol_dodaje on public.mail_messages for insert to authenticated with check (public.is_team());
+create policy zespol_zmienia on public.mail_messages for update to authenticated using (public.is_team()) with check (public.is_team());
+grant insert, update on public.mail_messages to authenticated;
+
+drop policy if exists zespol_dodaje on public.mail_rules;
+drop policy if exists zespol_zmienia on public.mail_rules;
+drop policy if exists zespol_usuwa on public.mail_rules;
+create policy zespol_dodaje on public.mail_rules for insert to authenticated with check (public.is_team());
+create policy zespol_zmienia on public.mail_rules for update to authenticated using (public.is_team()) with check (public.is_team());
+create policy zespol_usuwa on public.mail_rules for delete to authenticated using (public.is_team());
+grant insert, update, delete on public.mail_rules to authenticated;
+
+drop policy if exists zespol_zmienia on public.mail_drafts;
+create policy zespol_zmienia on public.mail_drafts for update to authenticated using (public.is_team()) with check (public.is_team());
+grant update on public.mail_drafts to authenticated;
+
+drop policy if exists zespol_zmienia on public.mail_settings;
+create policy zespol_zmienia on public.mail_settings for update to authenticated using (public.is_team()) with check (public.is_team());
+grant update on public.mail_settings to authenticated;
+
+drop policy if exists tablica_dodaje on public.team_board;
+drop policy if exists tablica_zmienia on public.team_board;
+drop policy if exists tablica_usuwa on public.team_board;
+create policy tablica_dodaje on public.team_board for insert to authenticated with check (public.is_team());
+create policy tablica_zmienia on public.team_board for update to authenticated
+  using (public.is_team() and (lower(author_email) = lower(coalesce(auth.jwt() ->> 'email', '')) or public.is_board_admin()))
+  with check (public.is_team());
+create policy tablica_usuwa on public.team_board for delete to authenticated
+  using (public.is_team() and (lower(author_email) = lower(coalesce(auth.jwt() ->> 'email', '')) or public.is_board_admin()));
+grant insert, update, delete on public.team_board to authenticated;
+
+alter table public.mail_sync_state enable row level security;
+alter table public.mail_auto_log enable row level security;
+drop policy if exists zespol_czyta on public.mail_sync_state;
+drop policy if exists zespol_czyta on public.mail_auto_log;
+create policy zespol_czyta on public.mail_sync_state for select to authenticated using (public.is_team());
+create policy zespol_czyta on public.mail_auto_log for select to authenticated using (public.is_team());
+revoke all on public.mail_sync_state from anon;
+revoke all on public.mail_auto_log from anon;
+grant select on public.mail_sync_state to authenticated;
+grant select on public.mail_auto_log to authenticated;
+grant all on public.mail_sync_state to service_role;
+grant all on public.mail_auto_log to service_role;
+
+revoke all on function public.team_board_stamp() from public, anon;
+grant execute on function public.team_board_stamp() to authenticated, service_role;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'team_board'
+  ) then
+    alter publication supabase_realtime add table public.team_board;
+  end if;
+end $$;
+
