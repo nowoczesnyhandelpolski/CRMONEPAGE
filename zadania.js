@@ -1295,6 +1295,14 @@
         plus: "Zysk liczony po koszcie towaru, wysyłce i prowizji — nie tylko ROAS\nLista „Co zrobić teraz”\nGotowy link z UTM do każdej reklamy\nLista kroków „Start reklam” (Pixel, konwersje, API)",
         minus: "Na razie wyniki przepisujemy z Ads Managera ręcznie (minuta dziennie)\nAutomatyczne pobieranie ruszy po podpięciu kont Meta i Google (token Google trwa kilka dni)"
       },
+      "up-20261111-realizacja": {
+        v: 1, who: "p1", date: "2026-11-11", stage: "pending", cat: "sklepy", title: "Realizacja: zamówienie samo idzie do dostawcy, numer przesyłki sam wraca",
+        before: "Opłacone zamówienie trzeba było ręcznie zamówić u dostawcy.\nNumer przesyłki i status wpisywaliśmy sami.",
+        after: "Opłacone zamówienie trafia do kolejki i co 5 minut idzie do dostawcy: BigBuy (API), e-mail do hurtowni albo etykieta InPost.\nNumer przesyłki i statusy „Wysłane” / „Dostarczone” wracają same.\nLimity: koszt jednego zamówienia, dzienny budżet, minimalna marża. Start w trybie próbnym.",
+        benefit: "Zamówienia realizują się bez nas, a pieniądze nie wyciekną przez błąd.",
+        plus: "Działa z każdą hurtownią (e-mail)\nPaczkomaty i kurier InPost\nTryb próbny i limity wydatków",
+        minus: "Trzeba wybrać hurtownię i wpisać klucze w zakładce Realizacja\nNa żywo włączacie sami\nBigBuy nie dowozi do paczkomatów"
+      },
       "up-20261111-platnosci": {
         v: 2, who: "p1", date: "2026-11-11", stage: "live", cat: "sklepy", title: "Płatności BLIK, Przelewy24 i kartą (Stripe) na stronach produktów",
         before: "Strona produktu zbierała tylko zamówienie.\nNa pieniądze czekaliśmy na przelew.",
