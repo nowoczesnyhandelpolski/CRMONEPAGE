@@ -1,0 +1,66 @@
+/* Przycisk i toast na karcie Allegro. Te same tokeny co panel. */
+#nhp-capture-btn {
+  all: unset;
+  box-sizing: border-box;
+  position: fixed !important;
+  z-index: 2147483646 !important;
+  right: 16px !important;
+  bottom: 16px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 10px 16px 13px !important;
+  border-radius: 12px !important;
+  border: 1px solid #13294B !important;
+  background: #13294B !important;
+  color: #fff !important;
+  font-family: Poppins, ui-sans-serif, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.01em !important;
+  cursor: pointer !important;
+  box-shadow: inset 0 -4px 0 #C8102E, 0 8px 20px -4px rgba(19, 41, 75, 0.55) !important;
+}
+#nhp-capture-btn::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: url("icon.svg") center/contain no-repeat;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+#nhp-capture-toast {
+  position: fixed !important;
+  z-index: 2147483646 !important;
+  left: 16px !important;
+  bottom: 76px !important;
+  max-width: 320px !important;
+  margin: 0 !important;
+  padding: 12px 16px 14px 46px !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  background: #13294B !important;
+  color: #fff !important;
+  font-family: Poppins, ui-sans-serif, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  box-shadow: inset 0 -4px 0 #C8102E, 0 14px 34px rgba(7, 18, 38, 0.35) !important;
+}
+#nhp-capture-toast::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  margin-top: -12px;
+  border-radius: 6px;
+  background: url("icon.svg") center/contain no-repeat;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.3);
+}
+#nhp-capture-toast.bad {
+  background: #C8102E !important;
+  box-shadow: inset 0 -4px 0 #fff, 0 14px 34px rgba(7, 18, 38, 0.35) !important;
+}

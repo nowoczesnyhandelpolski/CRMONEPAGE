@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
   "name": "NHP — import ofert Allegro",
-  "version": "1.0.1",
+  "version": "1.1.2",
   "description": "Zapisuje kartę oferty Allegro jako szkic w Centrali CRM (Nowoczesny Handel Polski).",
-  "permissions": ["storage"],
+  "permissions": ["storage", "activeTab", "downloads"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
   "host_permissions": [
     "https://allegro.pl/*",
     "https://*.allegro.pl/*",
@@ -12,9 +13,21 @@
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "action": {
     "default_title": "NHP import",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
   },
   "background": {
     "service_worker": "background.js",
@@ -28,13 +41,14 @@
         "https://allegro.pl/produkt/*",
         "https://*.allegro.pl/produkt/*"
       ],
+      "css": ["fonts.css", "overlay.css"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["selectors.mjs", "extract.mjs"],
+      "resources": ["selectors.mjs", "extract.mjs", "icon.svg", "fonts/poppins-latin-500.woff2", "fonts/poppins-latin-ext-500.woff2", "fonts/poppins-latin-600.woff2", "fonts/poppins-latin-ext-600.woff2", "fonts/poppins-latin-700.woff2", "fonts/poppins-latin-ext-700.woff2", "fonts/poppins-latin-800.woff2", "fonts/poppins-latin-ext-800.woff2"],
       "matches": ["https://allegro.pl/*", "https://*.allegro.pl/*"]
     }
   ]

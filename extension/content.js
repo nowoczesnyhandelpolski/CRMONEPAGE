@@ -16,10 +16,10 @@
     if (!el) {
       el = document.createElement("div");
       el.id = "nhp-capture-toast";
-      el.style.cssText = "position:fixed;z-index:2147483646;left:16px;bottom:76px;max-width:320px;padding:12px 14px;border-radius:12px;background:#fff;color:#1c1917;border:1px solid #e4dfd8;box-shadow:0 10px 30px rgba(28,25,23,.12);font:600 14px/1.4 system-ui,sans-serif";
+      el.setAttribute("role", "status");
       document.body.appendChild(el);
     }
-    el.style.borderColor = bad ? "#b42318" : "#C8102E";
+    el.classList.toggle("bad", !!bad);
     el.textContent = text;
     clearTimeout(toast._t);
     toast._t = setTimeout(() => el.remove(), 4200);
@@ -31,7 +31,6 @@
     btn.id = BTN_ID;
     btn.type = "button";
     btn.textContent = "Zapisz w Centrali";
-    btn.style.cssText = "position:fixed;z-index:2147483646;right:16px;bottom:16px;padding:10px 14px;border-radius:999px;border:0;background:#C8102E;color:#fff;font:700 14px/1 system-ui,sans-serif;cursor:pointer;box-shadow:0 8px 20px rgba(200,16,46,.35)";
     btn.addEventListener("click", () => capture());
     document.body.appendChild(btn);
   }

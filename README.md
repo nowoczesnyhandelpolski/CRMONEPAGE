@@ -113,7 +113,7 @@ npm test
 
 Osobne tabele w `supabase.sql` (nie EAV `records`): produkty, katalogi, aukcje, powiązania ofert, szkice wystawienia, partie importu, kolejki robocze, prowizje, zadania generacji, media, klucze API. Tokeny Allegro są w `allegro_secrets` i nie mają polityk dla zalogowanych. Klucz wtyczki jest w bazie tylko jako SHA-256.
 
-Po wgraniu SQL w Supabase powstaje też kubełek Storage `media` (zdjęcia AI i wideo).
+Po wgraniu SQL w Supabase powstaje też kubełek Storage `media` (zdjęcia AI i wideo). Klucze API i import z wtyczki działają bez `SUPABASE_SERVICE_ROLE_KEY`, ale tylko po ponownym uruchomieniu całego `supabase.sql` (funkcje `create_api_key`, `revoke_api_key`, `import_offer_export`). Allegro OAuth i generacja AI nadal potrzebują klucza service role.
 
 ### Wtyczka Chrome
 
@@ -142,7 +142,9 @@ Na podglądzie Pages podmień host. Tę samą wartość daj w `ALLEGRO_REDIRECT_
 
 ### Generacja i wideo
 
-Na stronie i przy produkcie są trzy kafle: **S1** (tekst, 0 zł za zdjęcia), **S1 Pro** (tekst + 1 zdjęcie AI, ok. 0,60 zł), **S1 Max** (tekst + 5 zdjęć AI, ok. 3 zł, oraz wideo złożone w panelu). Tekst: OpenAI Responses, model `OPENAI_MODEL` albo `gpt-5-mini`. Zdjęcia: `POST /v1/images/edits`, model `OPENAI_IMAGE_MODEL` albo `gpt-image-1`. Wideo (9:16 albo 1:1, 15–30 s) rysuje przeglądarka (MediaRecorder, a gdy umie — WebCodecs). Muzyka jest wyłączona. Plik wraca do Storage i do karty strony (bohater i nagrania).
+Na stronie i przy produkcie są trzy kafle: **S1** (tekst, 0 zł za zdjęcia), **S1 Pro** (tekst + 1 zdjęcie AI, ok. 0,60 zł), **S1 Max** (tekst + 5 zdjęć AI, ok. 3 zł, oraz wideo złożone w panelu). Tekst: OpenAI Responses. Zdjęcia: `POST /v1/images/edits`. Model bierze się z `OPENAI_MODEL` / `OPENAI_IMAGE_MODEL`, a gdy ich nie ma — z Ustawień (domyślnie `gpt-5-mini` i `gpt-image-1`). Klucz: `OPENAI_API_KEY`, a gdy go nie ma — klucz zapisany w Ustawieniach. Wideo (9:16 albo 1:1, 15–30 s) rysuje przeglądarka (MediaRecorder, a gdy umie — WebCodecs). Muzyka jest wyłączona. Plik wraca do Storage i do karty strony (bohater i nagrania).
+
+W Ustawieniach jest **Połączenie z OpenAI**. Klucz szyfruje Pages Function (AES-GCM, sekret `NHP_ENC_KEY`) i zapisuje szyfrogram funkcją `is_team()`. Do przeglądarki wraca tylko `sk-…` i 4 ostatnie znaki. Bez `NHP_ENC_KEY` panel pokazuje, jak go dodać (`openssl rand -base64 32`).
 
 **Zrób stronę** tworzy szkic w Generatorze stron. Cudze zdjęcia nie dostają prawa do publikacji. Cena przed promocją nie jest wstawiana jako omnibus.
 
@@ -157,8 +159,9 @@ Dodatkowe zmienne (Production), obok tabeli wyżej:
 | `ALLEGRO_CLIENT_ID` | tekst | aplikacja Allegro |
 | `ALLEGRO_CLIENT_SECRET` | **Secret** | wymiana kodu OAuth |
 | `ALLEGRO_REDIRECT_URL` | tekst | zwrotka OAuth, musi być zgodna z aplikacją |
-| `OPENAI_API_KEY` | **Secret** | tekst i zdjęcia |
-| `OPENAI_MODEL` | tekst, opcjonalnie | domyślnie `gpt-5-mini` |
-| `OPENAI_IMAGE_MODEL` | tekst, opcjonalnie | domyślnie `gpt-image-1` |
+| `OPENAI_API_KEY` | **Secret**, opcjonalnie | gdy ustawiony, ma pierwszeństwo przed kluczem z Ustawień |
+| `OPENAI_MODEL` | tekst, opcjonalnie | domyślnie `gpt-5-mini` albo model z Ustawień |
+| `OPENAI_IMAGE_MODEL` | tekst, opcjonalnie | domyślnie `gpt-image-1` albo model z Ustawień |
+| `NHP_ENC_KEY` | **Secret** | 32 bajty, `openssl rand -base64 32`. Szyfruje klucz OpenAI z Ustawień |
 
 `_routes.json` obejmuje `/p/*`, `/sitemap.xml` i `/api/*`. Te wzorce nie mogą na siebie nachodzić — deploy Pages kończy się błędem 8000057.

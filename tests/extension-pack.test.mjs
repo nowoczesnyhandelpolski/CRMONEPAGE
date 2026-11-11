@@ -52,12 +52,12 @@ test("skrypt treści nie jest modułem z manifestu, selektory zostają osobnym p
 test("ogłoszenie wtyczki: wersja, kroki i zamknięcie per wersja", () => {
   const html = extensionAnnounceHtml((v) => v, { dismiss: true });
   assert.match(html, new RegExp(EXTENSION_HEADLINE));
-  assert.match(html, /1\.0\.1/);
+  assert.match(html, new RegExp(EXTENSION_VERSION.replace(/\./g, "\\.")));
   assert.match(html, /Pobierz wtyczkę \(\.zip\)/);
   assert.match(html, /Tryb dewelopera/);
   assert.match(html, /bez zgadywania|Brak ceny/);
   assert.match(html, /Publikacja zawsze ręczna/);
-  assert.equal(bannerDismissed("1.0.1"), true);
+  assert.equal(bannerDismissed(EXTENSION_VERSION), true);
   assert.equal(bannerDismissed("1.0.0"), false);
   assert.equal(bannerDismissed(""), false);
   assert.equal(BANNER_STORAGE_KEY, "nhp-ext-banner");
@@ -69,6 +69,36 @@ test("ZIP bez sesji zespołu nie schodzi", async () => {
   const body = await res.text();
   assert.equal(body.includes("PK"), false);
   assert.match(res.headers.get("x-robots-tag"), /noindex/);
+});
+
+test("okienko wtyczki ma tokeny panelu, lokalny Poppins i karty eksportu", () => {
+  const popup = fs.readFileSync(path.join(extDir, "popup.html"), "utf8");
+  const overlay = fs.readFileSync(path.join(extDir, "overlay.css"), "utf8");
+  const fonts = fs.readFileSync(path.join(extDir, "fonts.css"), "utf8");
+  const content = fs.readFileSync(path.join(extDir, "content.js"), "utf8");
+  const manifest = JSON.parse(fs.readFileSync(path.join(extDir, "manifest.json"), "utf8"));
+  const blob = popup + overlay + fonts + content;
+  assert.equal(/ff5a00/i.test(blob), false);
+  assert.equal(/fonts\.googleapis|fonts\.gstatic/.test(blob), false);
+  assert.match(popup, /#13294B/);
+  assert.match(popup, /#C8102E/);
+  assert.match(popup, /logo-white\.svg/);
+  assert.match(popup, /class="flag"/);
+  assert.match(popup, /width: 22px/);
+  assert.match(popup, /href="fonts\.css"/);
+  assert.match(fonts, /fonts\/poppins-latin-700\.woff2/);
+  assert.match(fonts, /fonts\/poppins-latin-ext-700\.woff2/);
+  for (const kind of ["csv", "xlsx", "json", "images", "full"]) {
+    assert.match(popup, new RegExp(`data-file="${kind}"`));
+  }
+  assert.match(popup, /Zdjęcia/);
+  assert.match(popup, /Wszystko/);
+  assert.match(overlay, /#13294B/);
+  assert.match(overlay, /inset 0 -4px 0 #C8102E/);
+  assert.match(fonts, /font-family: "Poppins"/);
+  assert.deepEqual(manifest.content_scripts[0].css, ["fonts.css", "overlay.css"]);
+  assert.ok(fs.existsSync(path.join(extDir, "fonts", "poppins-latin-ext-700.woff2")));
+  assert.ok(fs.existsSync(path.join(extDir, "fonts", "OFL.txt")));
 });
 
 test("trasa ZIP nie nachodzi na resztę Pages", () => {

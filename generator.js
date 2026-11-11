@@ -15,6 +15,7 @@
       .mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;padding:10px;border:1px dashed var(--line);border-radius:12px}
       .mini b{grid-column:1/-1;font-size:13px}
       @media(max-width:800px){.gen-grid{grid-template-columns:1fr}}
+      .sample-frame{width:100%;height:min(78vh,920px);border:1px solid var(--line);border-radius:16px;background:#faf8f5}
     `;
     document.head.appendChild(css);
 
@@ -97,6 +98,7 @@
 
     function vGenerator() {
       if (!M) return top("Generator stron", "Wczytuję moduł…", "") + `<div class="card pad">Chwila…</div>`;
+      if (CRM.UI.sampleDemo) return sampleDemoView();
       if (CRM.UI.genId) return editor();
       const list = CRM.S.pagesList || [];
       const cards = list.map((p) => {
@@ -110,12 +112,91 @@
         </article>`;
       }).join("");
       return top("Generator stron", "Karty produktów one-page. Po publikacji adres to /p/nazwa, a sklep sam pojawia się na liście sklepów.",
-        `<button class="btn" data-g="example" type="button">Wstaw przykład</button><button class="btn primary" data-g="new" type="button">${CRM.ic("plus", 16)} Nowa strona</button>`) +
+        `<button class="btn" data-g="sample" type="button">Przykładowa strona</button><button class="btn" data-g="example" type="button">Wstaw przykład</button><button class="btn primary" data-g="new" type="button">${CRM.ic("plus", 16)} Nowa strona</button>`) +
         (CRM.S.pagesError ? `<div class="banner">${CRM.esc(CRM.S.pagesError)}</div>` : "") +
         (list.length ? `<section class="grid cards">${cards}</section>` : `<div class="card"><div class="empty"><b>Nie masz jeszcze stron</b>Utwórz kartę produktu albo wstaw przykład kalendarza, żeby zobaczyć szablon.</div></div>`);
     }
 
     function pageById(id) { return (CRM.S.pagesList || []).find((p) => p.id === id) || null; }
+
+    function sampleDemoView() {
+      const tier = CRM.UI.sampleDemo.tier || "s1";
+      const saveLabel = CRM.S.pagesError ? "Tylko podgląd — brak tabeli stron" : "Zapisz jako szkic";
+      queueMicrotask(() => { fillSamplePreview(); });
+      return top("Przykładowa strona", "Dane przykładowe w jasnym szablonie. Nie trzeba klucza OpenAI, wtyczki ani Allegro.",
+        `<button class="btn" type="button" data-g="sample-close">Wróć do listy</button>`) +
+        `<div class="banner">To są dane przykładowe. Publikacja jest zablokowana, dopóki nie podmienisz treści i nie odznaczysz „przykład”.</div>` +
+        `<section class="card pad"><h2>Poziom podglądu</h2>${CRM.tierHtml ? CRM.tierHtml() : ""}<p class="small muted">S1 to tekst i zdjęcia z repozytorium. S1 Pro dokłada rysunek aranżacji. S1 Max składa krótkie wideo w tej przeglądarce. Żaden poziom nie woła modelu.</p>
+        <div class="row"><button class="btn primary" type="button" data-g="sample-save" ${CRM.S.pagesError ? "disabled" : ""}>${saveLabel}</button></div>
+        ${CRM.S.pagesError ? `<p class="small muted">${CRM.esc(CRM.S.pagesError)} Podgląd i tak działa.</p>` : ""}</section>` +
+        `<iframe class="sample-frame" id="sample-frame" title="Podgląd przykładowej strony"></iframe>`;
+    }
+
+    async function fillSamplePreview() {
+      const frame = document.getElementById("sample-frame");
+      if (!frame || !CRM.UI.sampleDemo || !M) return;
+      const tier = CRM.UI.sampleDemo.tier || "s1";
+      const { samplePageData } = await import("./lib/sample-page.mjs");
+      let data = samplePageData(tier);
+      if (tier === "s1_max") {
+        try {
+          const { buildStoryboard } = await import("./lib/video-storyboard.mjs");
+          const { renderProductVideo } = await import("./video-renderer.js");
+          const board = buildStoryboard({
+            title: data.headline,
+            price: data.price,
+            omnibus: data.omnibus_price,
+            benefits: (data.benefits || []).map((b) => b.title),
+            images: (data.images || []).map((i) => i.url),
+            seconds: 15,
+            format: "1:1",
+            accent: "#ff5a00",
+            music: false
+          });
+          const file = await renderProductVideo(board);
+          const url = URL.createObjectURL(file.blob);
+          data = M.cleanSiteData({
+            ...data,
+            video: { url, poster: data.images[0]?.url || "", rights: true },
+            ugc: [{ video: url, poster: data.images[0]?.url || "", author: "Przykład", text: "Wideo złożone w przeglądarce ze zdjęć przykładowych. To nie jest nagranie klienta." }]
+          });
+        } catch (err) {
+          CRM.toast("Podgląd bez wideo: " + (err.message || "nie udało się złożyć klipu."));
+        }
+      }
+      CRM.UI.sampleDemo.prepared = data;
+      const { renderLightPage } = await import("./lib/render.mjs");
+      frame.srcdoc = renderLightPage(
+        { name: "Przykład: " + (data.headline || "strona"), slug: "przyklad", status: "draft", id: "przyklad" },
+        data,
+        { preview: true, origin: location.origin }
+      );
+    }
+
+    async function saveSampleDraft() {
+      if (CRM.S.pagesError) {
+        CRM.toast("Podgląd zostaje na ekranie. Szkicu nie zapiszę: " + CRM.S.pagesError);
+        return;
+      }
+      const data = CRM.UI.sampleDemo?.prepared;
+      if (!data) { CRM.toast("Podgląd jeszcze się składa."); return; }
+      const { uniqueSlug } = M;
+      const name = "Przykład: " + (data.headline || "strona");
+      const slug = uniqueSlug(name, (CRM.S.pagesList || []).map((p) => p.slug));
+      const id = CRM.uid("pg");
+      const { error } = await CRM.SB.from("pages").insert({
+        id, slug, name, status: "draft", product_id: null, data, updated_at: new Date().toISOString()
+      });
+      if (error) {
+        CRM.toast("Nie zapisano szkicu: " + (error.message || "błąd bazy") + " Podgląd zostaje.");
+        return;
+      }
+      await loadPages();
+      CRM.UI.sampleDemo = null;
+      CRM.UI.genId = id;
+      CRM.toast("Zapisano szkic przykładowej strony.");
+      CRM.scheduleRender();
+    }
 
     function inp(id, label, value, attrs = "") {
       return `<div class="f"><label for="${id}">${label}</label><input id="${id}" value="${CRM.esc(value ?? "")}" ${attrs}></div>`;
@@ -377,11 +458,24 @@
     }
 
     document.addEventListener("click", (e) => {
+      const tierBtn = e.target.closest("[data-tier]");
+      if (tierBtn && CRM.UI.sampleDemo) {
+        CRM.UI.sampleDemo.tier = tierBtn.dataset.tier;
+        fillSamplePreview();
+      }
       const t = e.target.closest("[data-g]");
       if (!t) return;
       const g = t.dataset.g;
-      if (g === "new") { CRM.UI.genId = "new"; CRM.UI.genExample = false; CRM.UI.genDraftId = null; CRM.scheduleRender(); }
-      else if (g === "example") { CRM.UI.genId = "new"; CRM.UI.genExample = true; CRM.UI.genDraftId = null; CRM.scheduleRender(); }
+      if (g === "new") { CRM.UI.genId = "new"; CRM.UI.genExample = false; CRM.UI.genDraftId = null; CRM.UI.sampleDemo = null; CRM.scheduleRender(); }
+      else if (g === "example") { CRM.UI.genId = "new"; CRM.UI.genExample = true; CRM.UI.genDraftId = null; CRM.UI.sampleDemo = null; CRM.scheduleRender(); }
+      else if (g === "sample") {
+        CRM.UI.genId = null;
+        CRM.UI.sampleDemo = { tier: (CRM.UI.trade && CRM.UI.trade.tier) || "s1" };
+        CRM.scheduleRender();
+      }
+      else if (g === "sample-close") { CRM.UI.sampleDemo = null; CRM.scheduleRender(); }
+      else if (g === "sample-save") saveSampleDraft();
+      else if (g === "sample-tier") { /* poziom ustawia data-tier */ }
       else if (g === "edit") { CRM.UI.genId = t.dataset.id; CRM.scheduleRender(); }
       else if (g === "back") { CRM.UI.genId = null; CRM.scheduleRender(); }
       else if (g === "preview") preview();
