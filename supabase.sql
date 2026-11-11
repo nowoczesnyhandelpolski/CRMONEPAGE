@@ -1368,3 +1368,118 @@ grant execute on function public.apply_shopify_inbound(uuid, jsonb) to service_r
 grant execute on function public.next_ksef_invoice_number() to service_role;
 grant execute on function public.record_page_view(text) to anon, authenticated, service_role;
 
+
+-- ============================================================
+-- Dane sprzedawcy wpisywane raz (Ustawienia → Dane sprzedawcy).
+-- Źródło: records col='config' id='main' → data.seller.
+-- Karta produktu dziedziczy puste pola, zmiana w Ustawieniach trafia do kart,
+-- a strona www czyta je przez nhp_public_seller() (dane sprzedawcy są jawne z mocy prawa).
+-- ============================================================
+create or replace function public.nhp_config_seller()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select case when jsonb_typeof(data->'seller') = 'object' then data->'seller' end
+  from public.records where col = 'config' and id = 'main'
+$$;
+revoke all on function public.nhp_config_seller() from public, anon, authenticated;
+
+create or replace function public.nhp_public_seller()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select jsonb_build_object(
+    'name', coalesce(s->>'name', ''),
+    'address', coalesce(s->>'address', ''),
+    'nip', coalesce(s->>'nip', ''),
+    'email', coalesce(s->>'email', ''),
+    'phone', coalesce(s->>'phone', ''),
+    'vat_exempt', coalesce((s->>'vat_exempt')::boolean, false)
+  )
+  from (select coalesce(public.nhp_config_seller(), '{}'::jsonb) as s) x
+$$;
+revoke all on function public.nhp_public_seller() from public;
+grant execute on function public.nhp_public_seller() to anon, authenticated;
+
+create or replace function public.nhp_pages_fill_seller()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_def jsonb := public.nhp_config_seller();
+  v_s jsonb;
+  k text;
+begin
+  if v_def is null then
+    return new;
+  end if;
+  v_s := case when jsonb_typeof(new.data->'seller') = 'object' then new.data->'seller' else '{}'::jsonb end;
+  foreach k in array array['name', 'address', 'nip', 'email', 'phone'] loop
+    if coalesce(v_s->>k, '') = '' and coalesce(v_def->>k, '') <> '' then
+      v_s := v_s || jsonb_build_object(k, v_def->>k);
+    end if;
+  end loop;
+  if v_s->'vat_exempt' is null then
+    v_s := v_s || jsonb_build_object('vat_exempt', coalesce((v_def->>'vat_exempt')::boolean, false));
+  end if;
+  new.data := jsonb_set(coalesce(new.data, '{}'::jsonb), '{seller}', v_s);
+  return new;
+end;
+$$;
+revoke all on function public.nhp_pages_fill_seller() from public, anon;
+grant execute on function public.nhp_pages_fill_seller() to authenticated, service_role;
+
+drop trigger if exists pages_fill_seller on public.pages;
+create trigger pages_fill_seller
+before insert or update of data on public.pages
+for each row execute function public.nhp_pages_fill_seller();
+
+-- Zmiana w Ustawieniach: karty z pustym sprzedawcą albo z poprzednimi danymi z Ustawień
+-- dostają nowe dane. Karty z ręcznie wpisanym innym sprzedawcą zostają bez zmian.
+create or replace function public.nhp_config_push_seller()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_new jsonb := case when jsonb_typeof(new.data->'seller') = 'object' then new.data->'seller' end;
+  v_old jsonb := case when tg_op = 'UPDATE' and jsonb_typeof(old.data->'seller') = 'object' then old.data->'seller' end;
+begin
+  if new.col <> 'config' or new.id <> 'main' or v_new is null or v_new is not distinct from v_old then
+    return null;
+  end if;
+  perform set_config('nhp.skip_shopify_sync', '1', true);
+  update public.pages p
+     set data = jsonb_set(coalesce(p.data, '{}'::jsonb), '{seller}',
+           jsonb_build_object(
+             'name', coalesce(v_new->>'name', ''),
+             'address', coalesce(v_new->>'address', ''),
+             'nip', coalesce(v_new->>'nip', ''),
+             'email', coalesce(v_new->>'email', ''),
+             'phone', coalesce(v_new->>'phone', ''),
+             'vat_exempt', coalesce((v_new->>'vat_exempt')::boolean, false)))
+   where coalesce(p.data->'seller'->>'name', '') = ''
+      or (v_old is not null
+          and coalesce(p.data->'seller'->>'name', '') = coalesce(v_old->>'name', '')
+          and coalesce(p.data->'seller'->>'email', '') = coalesce(v_old->>'email', ''));
+  perform set_config('nhp.skip_shopify_sync', '', true);
+  return null;
+end;
+$$;
+revoke all on function public.nhp_config_push_seller() from public, anon;
+grant execute on function public.nhp_config_push_seller() to authenticated, service_role;
+
+drop trigger if exists records_push_seller on public.records;
+create trigger records_push_seller
+after insert or update of data on public.records
+for each row when (new.col = 'config' and new.id = 'main')
+execute function public.nhp_config_push_seller();

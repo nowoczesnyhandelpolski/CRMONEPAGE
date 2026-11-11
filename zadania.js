@@ -1271,6 +1271,14 @@
         plus: "Przejrzyście\nNic nie miga i nie łopocze\nPanel ładuje się szybciej",
         minus: "Gierki zniknęły (wyniki w bazie zostają)"
       },
+      "up-20261111-sprzedawca": {
+        v: 1, who: "p1", date: "2026-11-11", stage: "live", cat: "sklepy", title: "Dane sprzedawcy wpisywane raz + pełny regulamin sklepu",
+        before: "Dane sprzedawcy trzeba było wpisywać osobno na każdej karcie (wszystkie były puste).\nRegulamin karty był skrócony, a na www stały puste pola [NIP], [REGON].",
+        after: "Ustawienia → Dane sprzedawcy: wpisujesz raz, trafiają do każdej karty i na www.\nRegulamin ma pełne prawa konsumenta, płatność Stripe, wzór odstąpienia i wariant bez NIP.\nPolityka prywatności opisuje zamówienia (dostawca, kurier, Stripe).",
+        benefit: "Strony mogą legalnie sprzedawać konsumentom bez ręcznego poprawiania każdej karty.",
+        plus: "Jedno miejsce na dane\nDziała też bez NIP (działalność nierejestrowana)",
+        minus: "Regulamin to wzór — warto, żeby przejrzał go prawnik"
+      },
       "up-20261111-kampanie": {
         v: 2, who: "p1", date: "2026-11-11", stage: "live", cat: "reklamy", title: "Zakładka Kampanie reklamowe (Meta, Google Ads, TikTok)",
         before: "W panelu nie było miejsca na płatne reklamy.\nNie było wiadomo, która reklama zarabia, a która przepala pieniądze.",
