@@ -163,5 +163,20 @@ Dodatkowe zmienne (Production), obok tabeli wyżej:
 | `OPENAI_MODEL` | tekst, opcjonalnie | domyślnie `gpt-5-mini` albo model z Ustawień |
 | `OPENAI_IMAGE_MODEL` | tekst, opcjonalnie | domyślnie `gpt-image-1` albo model z Ustawień |
 | `NHP_ENC_KEY` | **Secret** | 32 bajty, `openssl rand -base64 32`. Szyfruje klucz OpenAI z Ustawień |
+| `SHOPIFY_STORE_DOMAIN` | tekst | `nazwa.myshopify.com` |
+| `SHOPIFY_ADMIN_TOKEN` | **Secret** | Admin API access token |
+| `SHOPIFY_WEBHOOK_SECRET` | **Secret** | API secret key aplikacji, do HMAC webhooków |
+| `SHOPIFY_API_VERSION` | tekst, opcjonalnie | domyślnie `2026-10` |
+| `KSEF_TOKEN` | **Secret** | token KSeF (uprawnienie do wystawiania) |
+| `KSEF_NIP` | **Secret** | NIP sprzedawcy, 10 cyfr |
+| `KSEF_ENV` | tekst | `test` (domyślnie), `demo` albo `prod` |
+| `KSEF_SELLER_NAME` | tekst | nazwa na fakturze |
+| `KSEF_SELLER_ADDRESS` | tekst | adres, pierwsza linia |
+| `KSEF_SELLER_ADDRESS_L2` | tekst, opcjonalnie | kod i miasto |
+| `KSEF_SELLER_EMAIL` | tekst, opcjonalnie | e-mail sprzedawcy |
+| `KSEF_VAT_RATE` | tekst | `23`, `8`, `5`, `0` albo `zw` |
+| `KSEF_AUTO` | tekst | `1` wystawia FA(3) po opłaceniu zamówienia, `0` tylko ręcznie |
+
+Shopify i KSeF: zakres uprawnień, adresy webhooków i to, czego moduł jeszcze nie robi, są w `docs/shopify-ksef.md`. W gicie nie ma wartości tych sekretów.
 
 `_routes.json` obejmuje `/p/*`, `/sitemap.xml` i `/api/*`. Te wzorce nie mogą na siebie nachodzić — deploy Pages kończy się błędem 8000057.
