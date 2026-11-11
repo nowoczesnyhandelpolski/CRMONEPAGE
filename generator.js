@@ -212,6 +212,10 @@
         d.images = [1, 2, 3, 4, 5].map((n) => ({ url: `/assets/demo/slide-${n}.svg`, alt: "Zdjęcie przykładowe", rights: true }));
         d.example = true;
       }
+      // Puste pola sprzedawcy bierzemy z Ustawień zespołu (wpisywane raz).
+      const defSeller = (CRM.S.settings && CRM.S.settings.seller) || {};
+      for (const k of ["name", "address", "nip", "email", "phone"]) if (!d.seller[k] && defSeller[k]) d.seller[k] = defSeller[k];
+      if (!existing && defSeller.vat_exempt) d.seller.vat_exempt = true;
       const issues = M.sitePublishIssues({ name: existing?.name || d.headline }, d);
       const products = CRM.arr("products").sort((a, b) => String(a.name).localeCompare(String(b.name), "pl"));
       const b = (i) => d.bundles[i] || {};

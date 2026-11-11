@@ -1263,6 +1263,14 @@
     /* Update'y dopisywane przez ten moduł: zmiany w panelu (autor: Claude) i praca zrobiona z Claude w innych miejscach.
        Podbicie „v” odświeża tekst; wpisu poprawionego ręcznie w panelu (bez „seeded”) nie nadpisujemy. */
     const CLAUDE_UPDATES = {
+      "up-20261111-sprzedawca": {
+        v: 1, who: "p1", date: "2026-11-11", stage: "live", cat: "sklepy", title: "Dane sprzedawcy wpisywane raz + pełny regulamin sklepu",
+        before: "Dane sprzedawcy trzeba było wpisywać osobno na każdej karcie (wszystkie były puste).\nRegulamin karty był skrócony, a na www stały puste pola [NIP], [REGON].",
+        after: "Ustawienia → Dane sprzedawcy: wpisujesz raz, trafiają do każdej karty i na www.\nRegulamin ma pełne prawa konsumenta, płatność Stripe, wzór odstąpienia i wariant bez NIP.\nPolityka prywatności opisuje zamówienia (dostawca, kurier, Stripe).",
+        benefit: "Strony mogą legalnie sprzedawać konsumentom bez ręcznego poprawiania każdej karty.",
+        plus: "Jedno miejsce na dane\nDziała też bez NIP (działalność nierejestrowana)",
+        minus: "Trzeba raz uruchomić SQL z supabase.sql (sekcja Dane sprzedawcy)\nRegulamin to wzór — warto, żeby przejrzał go prawnik"
+      },
       "up-20261111-kampanie": {
         v: 1, who: "p1", date: "2026-11-11", stage: "plan", cat: "reklamy", title: "Kampanie reklamowe Meta i Google Ads — plan zakładki",
         before: "W panelu nie było miejsca na płatne reklamy.\nNie było wiadomo, ile zarabia każda reklama.",
