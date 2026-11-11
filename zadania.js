@@ -154,9 +154,9 @@
       .tk-pc .who{display:flex;align-items:center;gap:10px}
       .tk-pc .who b{font:700 18px var(--display)}
       .tk-pc .who small{display:block;color:var(--muted);font-size:12px}
-      .tk-pc .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+      .tk-pc .nums{display:grid;grid-template-columns:1.7fr 1fr 1fr;gap:8px;margin:12px 0}
       .tk-pc .nums div{background:var(--surface-2);border-radius:10px;padding:8px}
-      .tk-pc .nums strong{display:block;font:700 20px var(--display)}
+      .tk-pc .nums strong{display:block;font:700 20px var(--display);white-space:nowrap}
       .tk-pc .nums span{font-size:11px;color:var(--muted);font-weight:600}
       .tk-share{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-bottom:10px}
       .tk-share i{display:block;height:100%;background:var(--pc)}
@@ -322,7 +322,7 @@
     const fmtTs = (ts) => new Date(ts).toLocaleString("pl-PL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
     const fmtHm = (ts) => new Date(ts).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
     const fmtMin = (m) => { m = Math.round(+m || 0); if (!m) return "0 h"; const h = Math.floor(m / 60), r = m % 60; return h ? (r ? `${h} h ${r} min` : `${h} h`) : `${r} min`; };
-    const hrs = (m) => { const v = Math.round((+m || 0) / 6) / 10; return (v ? v.toLocaleString("pl-PL") : "0") + " h"; };
+    const hrs = fmtMin; // czytelnie: „3 h 48 min” zamiast „3,8 h”
     function parseDur(s) {
       s = String(s || "").toLowerCase().replace(/,/g, ".").trim();
       if (!s) return 0;
@@ -1263,21 +1263,29 @@
     /* Update'y dopisywane przez ten moduł: zmiany w panelu (autor: Claude) i praca zrobiona z Claude w innych miejscach.
        Podbicie „v” odświeża tekst; wpisu poprawionego ręcznie w panelu (bez „seeded”) nie nadpisujemy. */
     const CLAUDE_UPDATES = {
+      "up-20261111-bez-banera": {
+        v: 1, who: "p1", date: "2026-11-11", stage: "live", cat: "tech", title: "Panel bez mega banera — spokojnie i przejrzyście",
+        before: "Na górze każdej strony wielki baner: łopoczące flagi, fajerwerki, gierki i pasek z żartami.\nPod nim drugi baner z animacją.",
+        after: "Banery usunięte. Od razu widać tytuł zakładki i to, co ważne.\nLogo, biało-czerwone barwy i wstęga w menu zostają.",
+        benefit: "Mniej przewijania, spokój dla oczu, szybsza praca.",
+        plus: "Przejrzyście\nNic nie miga i nie łopocze\nPanel ładuje się szybciej",
+        minus: "Gierki zniknęły (wyniki w bazie zostają)"
+      },
       "up-20261111-sprzedawca": {
         v: 1, who: "p1", date: "2026-11-11", stage: "live", cat: "sklepy", title: "Dane sprzedawcy wpisywane raz + pełny regulamin sklepu",
         before: "Dane sprzedawcy trzeba było wpisywać osobno na każdej karcie (wszystkie były puste).\nRegulamin karty był skrócony, a na www stały puste pola [NIP], [REGON].",
         after: "Ustawienia → Dane sprzedawcy: wpisujesz raz, trafiają do każdej karty i na www.\nRegulamin ma pełne prawa konsumenta, płatność Stripe, wzór odstąpienia i wariant bez NIP.\nPolityka prywatności opisuje zamówienia (dostawca, kurier, Stripe).",
         benefit: "Strony mogą legalnie sprzedawać konsumentom bez ręcznego poprawiania każdej karty.",
         plus: "Jedno miejsce na dane\nDziała też bez NIP (działalność nierejestrowana)",
-        minus: "Trzeba raz uruchomić SQL z supabase.sql (sekcja Dane sprzedawcy)\nRegulamin to wzór — warto, żeby przejrzał go prawnik"
+        minus: "Regulamin to wzór — warto, żeby przejrzał go prawnik"
       },
       "up-20261111-kampanie": {
-        v: 1, who: "p1", date: "2026-11-11", stage: "plan", cat: "reklamy", title: "Kampanie reklamowe Meta i Google Ads — plan zakładki",
-        before: "W panelu nie było miejsca na płatne reklamy.\nNie było wiadomo, ile zarabia każda reklama.",
-        after: "Jest plan zakładki Kampanie: Meta i Google Ads w jednym miejscu.\nZysk z reklamy liczony dla każdego produktu (cena zakupu i wysyłka są już w bazie).",
+        v: 2, who: "p1", date: "2026-11-11", stage: "live", cat: "reklamy", title: "Zakładka Kampanie reklamowe (Meta, Google Ads, TikTok)",
+        before: "W panelu nie było miejsca na płatne reklamy.\nNie było wiadomo, która reklama zarabia, a która przepala pieniądze.",
+        after: "Każda kampania ma swoją kartę: ile wydaliśmy, ile sprzedaliśmy i ile zostało na czysto.\nPanel sam mówi: zarabia / traci / wyłącz / zwiększ budżet o 20%.\nPrzy dodawaniu kampanii widać, ile może kosztować jedno zamówienie z reklamy.",
         benefit: "Wydajemy na reklamy tylko tam, gdzie wraca więcej, niż kosztują.",
-        plus: "Korzysta z danych, które już mamy\nMeta i Google w jednym widoku",
-        minus: "Na razie to plan — zakładka nie jest jeszcze zbudowana\nNajpierw trzeba podpiąć śledzenie zakupów (Pixel Meta, konwersje Google)"
+        plus: "Zysk liczony po koszcie towaru, wysyłce i prowizji — nie tylko ROAS\nLista „Co zrobić teraz”\nGotowy link z UTM do każdej reklamy\nLista kroków „Start reklam” (Pixel, konwersje, API)",
+        minus: "Na razie wyniki przepisujemy z Ads Managera ręcznie (minuta dziennie)\nAutomatyczne pobieranie ruszy po podpięciu kont Meta i Google (token Google trwa kilka dni)"
       },
       "up-20261111-realizacja": {
         v: 1, who: "p1", date: "2026-11-11", stage: "pending", cat: "sklepy", title: "Realizacja: zamówienie samo idzie do dostawcy, numer przesyłki sam wraca",
