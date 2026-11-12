@@ -1497,3 +1497,5 @@ execute function public.nhp_config_push_seller();
 -- Śledzenie: Meta Pixel + Google Ads (google_ads_id, google_ads_label) z config/main trafia do kart — migracja pages_tracking_defaults_google.
 
 -- Social: platformy youtube i x, dostawcy google i x — migracja social_youtube_x. Kod funkcji: supabase/functions/social-connect, social-autopilot.
+
+-- Dane spółki (krs, regon, court, capital) w nhp_public_seller i wyzwalaczach sprzedawcy — migracja seller_company_fields.

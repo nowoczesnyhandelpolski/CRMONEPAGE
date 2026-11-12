@@ -1,21 +1,18 @@
-# Plan budżetu reklam i przejścia na JDG — Nowoczesny Handel Polski
+# Plan budżetu reklam i formalności spółki — Nowoczesny Handel Polski sp. z o.o.
 
-Stan na 12 listopada 2026. Kwoty ZUS i limitów z portali branżowych (źródła na dole) — przed decyzją sprawdź na biznes.gov.pl albo z księgową.
+Stan na 12 listopada 2026. NHP to **zarejestrowana spółka z o.o.**, na razie zwolniona z VAT, czeka na NIP. Kwoty z portali branżowych (źródła na dole) — przed decyzją potwierdź z księgową.
 
-## 1. Działalność nierejestrowana vs JDG
+## 1. Spółka: co obowiązuje i co trzeba pilnować
 
-| | Nierejestrowana (teraz) | JDG z „ulgą na start” |
-|---|---|---|
-| Limit przychodu | **10 813,50 zł na kwartał** (225% płacy minimalnej 4806 zł) — liczy się cała cena sprzedaży, nie zysk | brak |
-| ZUS miesięcznie | 0 zł | **432,54 zł** (tylko zdrowotna) przez 6 miesięcy, potem preferencyjny **888,72 zł** przez 24 miesiące, potem pełny ok. 1 927 zł + zdrowotna |
-| NIP / hurtownie B2B | brak NIP — większość hurtowni nie założy konta | NIP — konto w hurtowni, ceny hurtowe |
-| Google Ads / Meta | na osobę prywatną | na firmę, możliwa weryfikacja firmy w Meta |
-| VAT | zwolnienie | zwolnienie podmiotowe do 240 000 zł przychodu rocznie |
-| Po przekroczeniu limitu | działalność staje się firmą od dnia przekroczenia, **7 dni na wpis do CEIDG** | — |
-
-**Kiedy przejść na JDG:** w dniu, w którym zakładasz konto w hurtowni dropshipping (zwykle wymaga NIP) albo gdy sprzedaż w kwartale zbliża się do ok. 8 000 zł. Przy koszyku 120 zł limit kwartału to ok. 90 zamówień.
-
-**Jak (ok. 30 min, online, za darmo):** biznes.gov.pl → *Załóż firmę* (CEIDG-1). PKD: **47.91.Z** (sprzedaż przez internet). Forma opodatkowania: przy marży ok. 30–40% zwykle **ryczałt 3% (handel)** albo **skala** — wybierz z księgową. Zaznacz **ulgę na start**. Po wpisie: konto firmowe w banku (to samo co do Stripe), zmiana danych w Panel → Ustawienia → Dane sprzedawcy (NIP), KSeF.
+| Temat | Co to znaczy dla NHP |
+|---|---|
+| **Zwolnienie z VAT (art. 113)** | Limit 2026: **240 000 zł netto rocznie**, ale w roku rozpoczęcia **proporcjonalnie do dni działalności**: 240 000 × dni do 31.12 / 365. Przykład — start sprzedaży 15.11.2026: 47 dni → **ok. 30 900 zł** w tym roku. Po przekroczeniu VAT od nadwyżki; powrót do zwolnienia najwcześniej od 1.01 kolejnego roku. |
+| **Plan „VAT od nowego roku”** | Rozsądny: rejestracja VAT-R przed pierwszą sprzedażą w 2027 r. albo w dniu przekroczenia limitu. Wtedy ceny brutto zostają, a marża spada o VAT (23% w cenie) — **już teraz licz ceny tak, jakby VAT był**, żeby w styczniu nie przepisywać wszystkiego. |
+| **Dane na stronach (art. 206 KSH)** | Firma, siedziba i adres, **sąd rejestrowy, numer KRS, NIP, kapitał zakładowy** — muszą być na kartach i na www. Panel → Ustawienia → Dane sprzedawcy (pola KRS, sąd, kapitał, REGON są już dodane; NIP wpisz po nadaniu). |
+| **Faktury / KSeF** | Podatnik zwolniony wystawia fakturę na żądanie nabywcy. Do 31.12.2026 można fakturować poza KSeF przy sumie do 10 000 zł brutto miesięcznie. Panel ma moduł KSeF — podłączymy go po NIP. |
+| **Kasa fiskalna** | Sprzedaż internetowa opłacona w całości przez bank / operatora płatności (Stripe) zwykle jest zwolniona z kasy, jeśli z ewidencji wynika, czego dotyczy wpłata — **potwierdź z księgową** przed pierwszą sprzedażą. |
+| **Podatek dochodowy** | CIT 9% (mały podatnik) albo estoński CIT — wybór z księgową. |
+| **Konta** | Po NIP: konto firmowe spółki → Stripe live (dane spółki), profil płatności Google Ads na spółkę, weryfikacja firmy w Meta (KRS/NIP), konto w hurtowni (NIP). |
 
 ## 2. Budżet reklam — pierwszy miesiąc testów
 
@@ -53,6 +50,5 @@ Kategorie do przeglądu w hurtowni (popularne w sezonie wg list sklepów: choink
 Po założeniu konta w hurtowni Claude: pobierze cennik (XML), policzy dla każdego produktu cenę, CPA max i porówna z Allegro, a 5–10 najlepszych wrzuci do generatora stron.
 
 ## Źródła
-- Limit działalności nierejestrowanej 2026: money.pl, poradnikprzedsiebiorcy.pl, pit.pl
-- Składki ZUS 2026: money.pl, fakturowo.pl, firmove.pl, ifirma.pl
+- Zwolnienie z VAT 2026 (240 000 zł, proporcja w roku rozpoczęcia, KSeF do końca 2026): ifirma.pl, poradnikprzedsiebiorcy.pl, fakturowo.pl, akademialtca.pl
 - Popularne kategorie ozdób: empik.com (Przygotuj dom na Święta, Ozdoby świąteczne)

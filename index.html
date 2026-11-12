@@ -1082,11 +1082,15 @@ function openSettings(){
       ${team().map((p,i) => `<div class="f"><label for="t-${p.k}">Wspólnik ${i+1}: imię</label><div class="row" style="flex-wrap:nowrap">${avatar(p.k,32)}<input id="t-${p.k}" name="${p.k}" value="${esc(p.name)}"></div></div><div class="f"><label for="e-${p.k}">E-mail do logowania</label><input id="e-${p.k}" name="e-${p.k}" type="email" value="${esc(((st.emails||{})[p.k])||"")}" placeholder="żeby CRM sam wiedział, kto pracuje"></div>`).join("")}
       <div class="f"><label for="s-goal">Cel miesięczny (zł)</label><input id="s-goal" name="goal" inputmode="decimal" value="${esc(st.goal||10000)}"></div>
       <div class="f"><label for="s-gt">Cel liczymy jako</label><select id="s-gt" name="goalType"><option value="profit" ${st.goalType!=="revenue"?"selected":""}>Zysk na czysto</option><option value="revenue" ${st.goalType==="revenue"?"selected":""}>Przychód</option></select></div>
-      <div class="f full"><label>Dane sprzedawcy</label><span class="small muted">Trafiają do regulaminu, polityki prywatności i stopki każdej karty produktu oraz na stronę www. Wpisz je raz. Puste pole NIP oznacza działalność nierejestrowaną.</span></div>
-      <div class="f"><label for="sl-name">Imię i nazwisko albo firma</label><input id="sl-name" name="sl-name" maxlength="160" value="${esc(sl.name||"")}" placeholder="Jan Kowalski"></div>
+      <div class="f full"><label>Dane sprzedawcy</label><span class="small muted">Trafiają do regulaminu, polityki prywatności i stopki każdej karty produktu oraz na stronę www. Wpisz je raz. Spółka z o.o. musi podać firmę, siedzibę, sąd rejestrowy, KRS, NIP i kapitał zakładowy (art. 206 KSH).</span></div>
+      <div class="f"><label for="sl-name">Firma (pełna nazwa z KRS)</label><input id="sl-name" name="sl-name" maxlength="160" value="${esc(sl.name||"")}" placeholder="Nowoczesny Handel Polski sp. z o.o."></div>
       <div class="f"><label for="sl-mail">E-mail dla klientów</label><input id="sl-mail" name="sl-mail" type="email" maxlength="120" value="${esc(sl.email||"")}" placeholder="kontakt@nowoczesnyhandelpolski.pl"></div>
-      <div class="f full"><label for="sl-addr">Adres</label><input id="sl-addr" name="sl-addr" maxlength="200" value="${esc(sl.address||"")}" placeholder="ul. Polna 1, 00-001 Warszawa"></div>
-      <div class="f"><label for="sl-nip">NIP (opcjonalnie)</label><input id="sl-nip" name="sl-nip" inputmode="numeric" maxlength="20" value="${esc(sl.nip||"")}"></div>
+      <div class="f full"><label for="sl-addr">Adres siedziby</label><input id="sl-addr" name="sl-addr" maxlength="200" value="${esc(sl.address||"")}" placeholder="ul. Polna 1, 00-001 Warszawa"></div>
+      <div class="f"><label for="sl-nip">NIP (gdy nadany)</label><input id="sl-nip" name="sl-nip" inputmode="numeric" maxlength="20" value="${esc(sl.nip||"")}"></div>
+      <div class="f"><label for="sl-krs">KRS</label><input id="sl-krs" name="sl-krs" inputmode="numeric" maxlength="20" value="${esc(sl.krs||"")}" placeholder="0001234567"></div>
+      <div class="f"><label for="sl-regon">REGON</label><input id="sl-regon" name="sl-regon" inputmode="numeric" maxlength="20" value="${esc(sl.regon||"")}"></div>
+      <div class="f full"><label for="sl-court">Sąd rejestrowy</label><input id="sl-court" name="sl-court" maxlength="200" value="${esc(sl.court||"")}" placeholder="Sąd Rejonowy dla Wrocławia-Fabrycznej we Wrocławiu, VI Wydział Gospodarczy KRS"></div>
+      <div class="f"><label for="sl-cap">Kapitał zakładowy</label><input id="sl-cap" name="sl-cap" maxlength="40" value="${esc(sl.capital||"")}" placeholder="5 000 zł"></div>
       <div class="f"><label for="sl-phone">Telefon (opcjonalnie)</label><input id="sl-phone" name="sl-phone" maxlength="40" value="${esc(sl.phone||"")}"></div>
       <div class="f full"><label class="row" style="font-weight:400"><input type="checkbox" name="sl-vat" style="width:auto" ${sl.vat_exempt?"checked":""}> Zwolnienie z VAT (art. 113 ust. 1 ustawy o VAT)</label></div>
       <div class="f"><label for="px-meta">Meta Pixel — ID (opcjonalnie)</label><input id="px-meta" name="px-meta" inputmode="numeric" maxlength="20" value="${esc(((st.tracking||{}).meta_pixel)||"")}" placeholder="15–16 cyfr z Menedżera zdarzeń"></div>
@@ -1106,7 +1110,7 @@ async function submitSettings(){
   const st0 = S.settings || {};
   const t = {}, em = {}; ["p1","p2","p3"].forEach(k => { t[k] = String(fd.get(k)||"").trim().slice(0,30) || DEFAULT_TEAM[k]; em[k] = String(fd.get("e-"+k)||"").trim().toLowerCase().slice(0,120); });
   const sv = (k, n) => String(fd.get(k)||"").trim().slice(0,n);
-  const seller = { name: sv("sl-name",160), address: sv("sl-addr",200), nip: sv("sl-nip",20).replace(/[\s-]/g,""), email: sv("sl-mail",120).toLowerCase(), phone: sv("sl-phone",40), vat_exempt: fd.get("sl-vat")==="on" };
+  const seller = { name: sv("sl-name",160), address: sv("sl-addr",200), nip: sv("sl-nip",20).replace(/[\s-]/g,""), krs: sv("sl-krs",20).replace(/\s/g,""), regon: sv("sl-regon",20).replace(/\s/g,""), court: sv("sl-court",200), capital: sv("sl-cap",40), email: sv("sl-mail",120).toLowerCase(), phone: sv("sl-phone",40), vat_exempt: fd.get("sl-vat")==="on" };
   if(seller.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(seller.email)){ toast("Popraw e-mail sprzedawcy."); return; }
   const pixel = String(fd.get("px-meta")||"").replace(/\s/g,"");
   if(pixel && !/^\d{10,20}$/.test(pixel)){ toast("ID Pixela to same cyfry (10–20)."); return; }

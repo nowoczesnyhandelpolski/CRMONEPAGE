@@ -1324,7 +1324,7 @@
         before: "Dane sprzedawcy trzeba było wpisywać osobno na każdej karcie (wszystkie były puste).\nRegulamin karty był skrócony, a na www stały puste pola [NIP], [REGON].",
         after: "Ustawienia → Dane sprzedawcy: wpisujesz raz, trafiają do każdej karty i na www.\nRegulamin ma pełne prawa konsumenta, płatność Stripe, wzór odstąpienia i wariant bez NIP.\nPolityka prywatności opisuje zamówienia (dostawca, kurier, Stripe).",
         benefit: "Strony mogą legalnie sprzedawać konsumentom bez ręcznego poprawiania każdej karty.",
-        plus: "Jedno miejsce na dane\nDziała też bez NIP (działalność nierejestrowana)",
+        plus: "Jedno miejsce na dane\nPełne dane spółki (KRS, sąd, kapitał) na kartach i na www",
         minus: "Trzeba raz uruchomić SQL z supabase.sql (sekcja Dane sprzedawcy)\nRegulamin to wzór — warto, żeby przejrzał go prawnik"
       },
       "up-20261111-kampanie": {
