@@ -329,6 +329,7 @@ code{font-size:13px;background:var(--surface-2);border:1px solid var(--line);pad
 <script src="prompty.js"></script>
 <script src="chat.js"></script>
 <script src="oferty.js"></script>
+<script src="base.js"></script>
 <script src="zadania.js"></script>
 <script src="social.js"></script>
 <script src="kampanie.js"></script>
@@ -657,7 +658,7 @@ const VIEWS = [
 const view = () => { const h = location.hash.slice(1); return VIEWS.some(v=>v[0]===h) ? h : "pulpit"; };
 const NAV_GROUPS = [
   { id: "zamowienia", label: "Zamówienia", icon: "orders", children: ["zamowienia", "klienci", "dostawcy", "leady"] },
-  { id: "produkty", label: "Produkty", icon: "products", children: ["baza-produktow", "faktury-ksef", "aukcje", "import-wtyczki", "eksport", "generator"] }
+  { id: "produkty", label: "Produkty", icon: "products", children: ["baza-produktow", "import-base", "faktury-ksef", "aukcje", "import-wtyczki", "eksport", "generator"] }
 ];
 function navGroupOpen(id, childActive){
   if (childActive) return true;
