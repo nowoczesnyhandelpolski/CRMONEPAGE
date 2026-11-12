@@ -1493,3 +1493,5 @@ execute function public.nhp_config_push_seller();
 
 -- Obsługa klienta: wiadomość (records col=messages) → zgłoszenie (col=tickets), wyzwalacz records_ticket_from_message,
 -- migracja support_tickets_from_messages.
+
+-- Śledzenie: Meta Pixel + Google Ads (google_ads_id, google_ads_label) z config/main trafia do kart — migracja pages_tracking_defaults_google.

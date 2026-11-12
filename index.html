@@ -1091,6 +1091,8 @@ function openSettings(){
       <div class="f full"><label class="row" style="font-weight:400"><input type="checkbox" name="sl-vat" style="width:auto" ${sl.vat_exempt?"checked":""}> Zwolnienie z VAT (art. 113 ust. 1 ustawy o VAT)</label></div>
       <div class="f"><label for="px-meta">Meta Pixel — ID (opcjonalnie)</label><input id="px-meta" name="px-meta" inputmode="numeric" maxlength="20" value="${esc(((st.tracking||{}).meta_pixel)||"")}" placeholder="15–16 cyfr z Menedżera zdarzeń"></div>
       <div class="f"><label>&nbsp;</label><span class="small muted">Trafia na każdą kartę produktu. Pixel włącza się dopiero po zgodzie klienta na cookies.</span></div>
+      <div class="f"><label for="gads-id">Google Ads — ID konwersji (opcjonalnie)</label><input id="gads-id" name="gads-id" maxlength="20" value="${esc(((st.tracking||{}).google_ads_id)||"")}" placeholder="AW-123456789"></div>
+      <div class="f"><label for="gads-label">Google Ads — etykieta „Zakup”</label><input id="gads-label" name="gads-label" maxlength="40" value="${esc(((st.tracking||{}).google_ads_label)||"")}" placeholder="AbCdEfGhIj"></div>
       <div class="f full"><label>Przykładowe dane</label><div class="row"><span class="small muted">${demoCount ? `${demoCount} wpisów oznaczonych jako „przykład”. Usuń je, gdy zaczniecie wpisywać prawdziwe dane.` : "Brak przykładowych danych. Wszystko tu jest Wasze."}</span>${demoCount?`<button type="button" class="btn danger sm" data-act="cleardemo">Usuń przykładowe dane</button>`:""}</div></div>
       <div class="f full" id="openaiBox"><p class="small muted">Ładuję połączenie z OpenAI…</p></div>
       <div class="f full"><label>Konto</label><span class="small muted">Zalogowano jako <b>${esc(sessionEmail)}</b>. Dane są we wspólnej bazie, zmiany wspólników widać na żywo.</span></div>
@@ -1108,7 +1110,9 @@ async function submitSettings(){
   if(seller.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(seller.email)){ toast("Popraw e-mail sprzedawcy."); return; }
   const pixel = String(fd.get("px-meta")||"").replace(/\s/g,"");
   if(pixel && !/^\d{10,20}$/.test(pixel)){ toast("ID Pixela to same cyfry (10–20)."); return; }
-  await putSettings({team:t, emails:em, goal: num(fd.get("goal")) || 10000, goalType: fd.get("goalType")==="revenue"?"revenue":"profit", seller, tracking:{...(st0.tracking||{}), meta_pixel: pixel}});
+  const gadsId = String(fd.get("gads-id")||"").trim().toUpperCase(), gadsLabel = String(fd.get("gads-label")||"").trim();
+  if(gadsId && !/^AW-\d{6,15}$/.test(gadsId)){ toast("ID Google Ads ma postać AW-123456789."); return; }
+  await putSettings({team:t, emails:em, goal: num(fd.get("goal")) || 10000, goalType: fd.get("goalType")==="revenue"?"revenue":"profit", seller, tracking:{...(st0.tracking||{}), meta_pixel: pixel, google_ads_id: gadsId, google_ads_label: gadsLabel}});
   autoMe();
   closeModal(); toast("Ustawienia zapisane");
 }

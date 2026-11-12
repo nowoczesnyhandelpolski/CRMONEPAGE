@@ -35,3 +35,12 @@ test("polityka cookies opisuje Meta Pixel i zgodę", () => {
   assert.match(cookies, /Meta Pixel/);
   assert.match(cookies, /art\. 6 ust\. 1 lit\. a RODO/);
 });
+
+test("Google Ads: tylko poprawne ID, baner zgody także bez Pixela Meta", () => {
+  assert.equal(cleanSiteData({ tracking: { google_ads_id: "AW-123456789", google_ads_label: "AbC-12_x" } }).tracking.google_ads_id, "AW-123456789");
+  assert.equal(cleanSiteData({ tracking: { google_ads_id: "G-XYZ" } }).tracking.google_ads_id, "");
+  const html = renderLightPage(row, { ...base, tracking: { google_ads_id: "AW-123456789", google_ads_label: "AbCdEf" } }, { origin: "https://panel.example" });
+  assert.match(html, /id="ckb"/);
+  assert.match(html, /"googleAds":\{"id":"AW-123456789","label":"AbCdEf"\}/);
+  assert.match(html, /"metaPixel":""/);
+});
