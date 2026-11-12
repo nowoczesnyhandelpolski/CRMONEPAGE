@@ -168,7 +168,7 @@
 
   const BANNERS = {
     pulpit: ["map", "Centrala", "Od dostawcy do klienta w Polsce", "Cel miesiąca, zysk i to, co dziś wymaga uwagi — wszystko w jednym miejscu."],
-    zamowienia: ["orders", "Zamówienia", "Każda paczka pod kontrolą", "Nowe → u dostawcy → w drodze → u klienta. Płatność prowadzimy osobno."],
+    zamowienia: ["orders", "Zamówienia", "Każda paczka pod kontrolą", "Nowe → w realizacji → wysłane. Płatność prowadzimy osobno."],
     produkty: ["products", "Produkty", "Półka, która zarabia", "Koszt, cena, marża i status testu każdego produktu."],
     dostawcy: ["suppliers", "Dostawcy", "Pewny łańcuch dostaw", "AliExpress, CJ, hurtownie PL i UE — oceny, czasy i kontakty."],
     klienci: ["customers", "Klienci", "Obsługa po polsku, od serca", "Historia zakupów i kontakt z każdym klientem."],
