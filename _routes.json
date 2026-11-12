@@ -1,5 +1,5 @@
 {
   "version": 1,
-  "include": ["/p/*", "/sitemap.xml", "/api/*", "/downloads/nhp-wtyczka.zip", "/img/*"],
+  "include": ["/p/*", "/sitemap.xml", "/feed.xml", "/api/*", "/downloads/nhp-wtyczka.zip", "/img/*"],
   "exclude": []
 }

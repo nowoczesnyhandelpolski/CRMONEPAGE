@@ -1263,6 +1263,14 @@
     /* Update'y dopisywane przez ten moduł: zmiany w panelu (autor: Claude) i praca zrobiona z Claude w innych miejscach.
        Podbicie „v” odświeża tekst; wpisu poprawionego ręcznie w panelu (bez „seeded”) nie nadpisujemy. */
     const CLAUDE_UPDATES = {
+      "up-20261112-konta": {
+        v: 1, who: "p1", date: "2026-11-12", stage: "pending", cat: "reklamy", title: "Gotowe pod aplikacje Meta i TikTok, Google Merchant Center i katalogi",
+        before: "Brakowało strony usuwania danych, opisu mediów społecznościowych w polityce i pliku produktów dla Google i TikToka.",
+        after: "Strona Usuwanie danych i rozdział o Facebooku, Instagramie i TikToku w polityce prywatności.\nPlik produktów /feed.xml (cena, zdjęcia z prawami, marka, EAN) dla Merchant Center, Meta i TikToka.\nInstrukcja docs/konta-reklamowe-i-aplikacje.md z gotowymi adresami i tekstami do weryfikacji.",
+        benefit: "Zakładanie kont reklamowych i aplikacji to teraz kopiuj-wklej.",
+        plus: "Jeden plik produktów dla wszystkich platform\nAplikacja Meta działa bez weryfikacji dla własnych stron",
+        minus: "TikTok publikuje publicznie dopiero po audycie aplikacji"
+      },
       "up-20261111-strony-bez-klucza": {
         v: 1, who: "p1", date: "2026-11-11", stage: "pending", cat: "sklepy", title: "Strony produktów /p/ działają bez klucza serwisowego w Cloudflare",
         before: "Każda strona /p/… i mapa strony zwracały błąd 500.\nW Cloudflare brakowało klucza serwisowego Supabase.",
