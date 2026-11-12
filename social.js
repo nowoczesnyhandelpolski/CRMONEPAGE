@@ -12,7 +12,7 @@
       .sm-shop{margin-bottom:16px}
       .sm-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;padding:18px 18px 0}
       .sm-head h2{margin:0;font-family:var(--display);font-size:20px}
-      .sm-acc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:14px 18px}
+      .sm-acc{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding:14px 18px}
       .sm-acc .a{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:6px}
       .sm-acc .a b{font-size:14px}
       .sm-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -34,7 +34,7 @@
     document.head.appendChild(css);
 
     const esc = CRM.esc;
-    const PL = { facebook: "Facebook", instagram: "Instagram", tiktok: "TikTok" };
+    const PL = { facebook: "Facebook", instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube", x: "X" };
     const ACC_ST = { do_zalozenia: ["Do założenia", "var(--warn)"], polaczone: ["Połączone", "var(--good)"], blad: ["Błąd", "var(--bad)"], wstrzymane: ["Wstrzymane", "var(--grey)"] };
     const POST_ST = {
       szkic: ["Szkic", "var(--grey)"], do_akceptacji: ["Do akceptacji", "var(--violet)"], zaplanowany: ["Zaplanowany", "var(--info)"],
@@ -161,7 +161,7 @@
 
       const cards = shopIds.map((id) => {
         const cfg = ST.shops.find((s) => s.shop_id === id) || { shop_id: id, autopilot: true, posts_per_day: 1, require_approval: false };
-        const accs = ["facebook", "instagram", "tiktok"].map((pl) => ST.accounts.find((a) => a.shop_id === id && a.platform === pl) || { platform: pl, status: "do_zalozenia" });
+        const accs = ["facebook", "instagram", "tiktok", "youtube", "x"].map((pl) => ST.accounts.find((a) => a.shop_id === id && a.platform === pl) || { platform: pl, status: "do_zalozenia" });
         let posts = ST.posts.filter((p) => p.shop_id === id).filter(filt);
         if (ST.filter === "opublikowane" || ST.filter === "wszystkie") posts = posts.slice().reverse();
         const logs = ST.log.filter((l) => l.shop_id === id).slice(0, 6);
@@ -174,6 +174,8 @@
               <select data-sm-cfg="${esc(id)}" data-k="posts_per_day">${ppd}</select>
               <button class="btn sm" data-sm-connect="meta" data-shop="${esc(id)}">Połącz Facebook + Instagram</button>
               <button class="btn sm" data-sm-connect="tiktok" data-shop="${esc(id)}">Połącz TikTok</button>
+              <button class="btn sm" data-sm-connect="google" data-shop="${esc(id)}">Połącz YouTube</button>
+              <button class="btn sm" data-sm-connect="x" data-shop="${esc(id)}">Połącz X</button>
               <button class="btn sm" data-sm-run="${esc(id)}">Odśwież strategię</button>
             </div></div>
           <div class="sm-acc">${accs.map(accountCard).join("")}</div>

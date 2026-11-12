@@ -1263,6 +1263,14 @@
     /* Update'y dopisywane przez ten moduł: zmiany w panelu (autor: Claude) i praca zrobiona z Claude w innych miejscach.
        Podbicie „v” odświeża tekst; wpisu poprawionego ręcznie w panelu (bez „seeded”) nie nadpisujemy. */
     const CLAUDE_UPDATES = {
+      "up-20261112-yt-x": {
+        v: 1, who: "p1", date: "2026-11-12", stage: "pending", cat: "social", title: "Autopilot postów: YouTube Shorts i X",
+        before: "Autopilot publikował tylko na Facebooku, Instagramie i TikToku.",
+        after: "Social media → Połącz YouTube / Połącz X dla każdego sklepu.\nPo połączeniu autopilot planuje też Shorts (z wideo produktu) i krótkie posty na X ze zdjęciem i linkiem do karty.",
+        benefit: "Jedna kolejka postów na 5 kanałów każdego sklepu.",
+        plus: "YouTube i X planowane dopiero po połączeniu konta (bez zbędnych kosztów AI)",
+        minus: "Wymaga kanału YouTube i konta X sklepu oraz kluczy aplikacji Google i X w Supabase"
+      },
       "up-20261112-konta": {
         v: 1, who: "p1", date: "2026-11-12", stage: "pending", cat: "reklamy", title: "Gotowe pod aplikacje Meta i TikTok, Google Merchant Center i katalogi",
         before: "Brakowało strony usuwania danych, opisu mediów społecznościowych w polityce i pliku produktów dla Google i TikToka.",
