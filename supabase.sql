@@ -1487,3 +1487,9 @@ execute function public.nhp_config_push_seller();
 -- Realizacja zamówień (fulfil_settings, fulfil_rules, fulfilments, fulfil_log, klucze w Vault, cron nhp-fulfil)
 -- jest wdrożona migracjami Supabase: fulfilment_queue, fulfilment_ordered_at, fulfilment_cron.
 -- Kod funkcji Edge: supabase/functions/fulfil (logika: lib/fulfil-core.mjs, testy: tests/fulfil.test.mjs).
+
+-- Meta Pixel: records config/main → data.tracking.meta_pixel trafia do kart (wyzwalacze pages_fill_tracking, records_push_tracking),
+-- wdrożone migracją pages_tracking_defaults.
+
+-- Obsługa klienta: wiadomość (records col=messages) → zgłoszenie (col=tickets), wyzwalacz records_ticket_from_message,
+-- migracja support_tickets_from_messages.

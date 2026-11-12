@@ -1271,6 +1271,22 @@
         plus: "Jeden plik produktów dla wszystkich platform\nAplikacja Meta działa bez weryfikacji dla własnych stron",
         minus: "TikTok publikuje publicznie dopiero po audycie aplikacji"
       },
+      "up-20261112-obsluga": {
+        v: 1, who: "p1", date: "2026-11-12", stage: "pending", cat: "sklepy", title: "Obsługa klienta: zwroty, reklamacje, pytania i bot FAQ",
+        before: "Wiadomości z formularza trafiały do jednej listy, bez typu i terminów.\nNikt nie pilnował ustawowych 14 dni na reklamację i zwrot pieniędzy.",
+        after: "Zakładka Obsługa klienta: każda wiadomość sama staje się zgłoszeniem (pytanie, zamówienie, zwrot, reklamacja) z terminem.\nStatusy zwrotu i reklamacji, 7 szablonów odpowiedzi z podstawionymi danymi, mail jednym kliknięciem.\nNa kartach produktów bot „Masz pytanie?” odpowiada o dostawę, zwroty, reklamacje, płatność i z FAQ.",
+        benefit: "Mniej maili do nas, a żadna reklamacja nie przepadnie przez przeoczony termin.",
+        plus: "Terminy ustawowe pilnowane same\nBot odpowiada z prawdziwych danych karty",
+        minus: "Maile wysyłamy z własnej skrzynki (przycisk otwiera gotową wiadomość)"
+      },
+      "up-20261112-pixel": {
+        v: 1, who: "p1", date: "2026-11-12", stage: "pending", cat: "reklamy", title: "Meta Pixel na stronach produktów (po zgodzie na cookies)",
+        before: "Strony produktów nie mierzyły, czy reklama doprowadziła do zakupu.",
+        after: "Ustawienia → Meta Pixel: wpisujesz ID raz, trafia na każdą kartę.\nPo zgodzie klienta Pixel wysyła: wyświetlenie, dodanie do koszyka, rozpoczęcie płatności i zakup.\nBez zgody nic się nie wysyła; polityka cookies to opisuje.",
+        benefit: "Meta uczy się, kto kupuje, i pokazuje reklamy podobnym ludziom.",
+        plus: "Jedno ID dla wszystkich stron\nZgodne z RODO (baner zgody)",
+        minus: "Część klientów odmówi cookies — ich zakupy Pixel nie zobaczy\nKolejny krok: Conversions API (zakupy z serwera)"
+      },
       "up-20261111-strony-bez-klucza": {
         v: 1, who: "p1", date: "2026-11-11", stage: "pending", cat: "sklepy", title: "Strony produktów /p/ działają bez klucza serwisowego w Cloudflare",
         before: "Każda strona /p/… i mapa strony zwracały błąd 500.\nW Cloudflare brakowało klucza serwisowego Supabase.",
