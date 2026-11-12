@@ -37,6 +37,14 @@ function requireBase(env) {
   return config;
 }
 
+async function setWorkflow(env, id, status) {
+  await supabaseRest(env, `products?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=minimal",
+    body: { workflow_status: status, updated_at: new Date().toISOString() }
+  });
+}
+
 async function markQueueDone(env, ids) {
   if (!ids.length) return;
   const list = ids.map((id) => `"${String(id).replace(/"/g, "")}"`).join(",");
@@ -91,48 +99,53 @@ export async function handleBase(request, env, path, { authorize = teamUser } = 
     });
   }
 
+  // Wysyłka produktów już zapisanych w bazie (po /import). Nie pyta Base — oszczędza limit 100 zapytań/min.
   if (request.method === "POST" && action === "push") {
     const body = await readJson(request, 4000);
-    const ids = cleanIds(body.ids, PUSH_LIMIT);
+    const ids = (Array.isArray(body.product_ids) ? body.product_ids : [])
+      .map((id) => String(id || "").trim())
+      .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
+      .slice(0, PUSH_LIMIT);
+    if (!ids.length) {
+      const err = new Error("Zaznacz produkty.");
+      err.status = 400;
+      throw err;
+    }
     if (!shopifyConfig(env)) {
       const err = new Error("Shopify nie jest podłączony. Dodaj sekrety SHOPIFY_STORE_DOMAIN i SHOPIFY_ADMIN_TOKEN (docs/shopify-ksef.md).");
       err.status = 409;
       throw err;
     }
-    const imported = await importProducts(env, requireBase(env), {
-      kind: kindOf(body.kind),
-      id: sourceId(body.id),
-      ids,
-      sourceName: String(body.name || "").slice(0, 100)
-    });
+    const list = ids.map((id) => `"${id}"`).join(",");
+    const rows = await supabaseRest(env, `products?id=in.(${list})&select=id,base_product_id,workflow_status`) || [];
     const active = body.status === "aktywny";
     const results = [];
-    for (const item of imported.products) {
+    for (const id of ids) {
+      const row = rows.find((item) => item.id === id);
+      if (!row) {
+        results.push({ ok: false, product_id: id, error: "Nie ma takiego produktu w bazie." });
+        continue;
+      }
+      const before = row.workflow_status || "pobrany";
+      const promote = active && before !== "opublikowany";
       try {
-        if (active && item.workflow_status !== "opublikowany") {
-          await supabaseRest(env, `products?id=eq.${encodeURIComponent(item.product_id)}`, {
-            method: "PATCH",
-            prefer: "return=minimal",
-            body: { workflow_status: "opublikowany", updated_at: new Date().toISOString() }
-          });
-        }
-        const pushed = await pushProductToShopify(env, item.product_id, { force: true });
-        results.push({ ok: true, base_product_id: item.base_product_id, ...pushed });
+        if (promote) await setWorkflow(env, id, "opublikowany");
+        const pushed = await pushProductToShopify(env, id, { force: true });
+        results.push({ ok: true, base_product_id: row.base_product_id || "", ...pushed });
       } catch (err) {
         const message = String(err.message || "Błąd Shopify").slice(0, 300);
-        await supabaseRest(env, `products?id=eq.${encodeURIComponent(item.product_id)}`, {
+        // Shopify nie przyjął produktu — status w Centrali wraca do poprzedniego.
+        if (promote) await setWorkflow(env, id, before).catch(() => {});
+        await supabaseRest(env, `products?id=eq.${encodeURIComponent(id)}`, {
           method: "PATCH",
           prefer: "return=minimal",
           body: { shopify_sync_error: message }
         }).catch(() => {});
-        results.push({ ok: false, base_product_id: item.base_product_id, product_id: item.product_id, error: message });
+        results.push({ ok: false, base_product_id: row.base_product_id || "", product_id: id, error: message });
       }
     }
-    // Import i zmiana statusu wrzuciły produkty do kolejki — właśnie je wysłaliśmy, więc kolejka jest zrobiona.
-    await markQueueDone(env, results.filter((item) => item.ok).map((item) => item.product_id));
-    for (const missing of imported.missing || []) {
-      results.push({ ok: false, base_product_id: missing, error: "Base nie oddał tego produktu." });
-    }
+    // Import i zmiana statusu wrzuciły produkty do kolejki — właśnie je wysłaliśmy (albo odrzuciło je Shopify).
+    await markQueueDone(env, results.filter((item) => item.product_id).map((item) => item.product_id));
     return { ok: results.some((item) => item.ok), results };
   }
 

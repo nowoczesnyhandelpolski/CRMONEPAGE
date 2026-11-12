@@ -176,13 +176,24 @@
         return;
       }
       const { kind, id } = parseSource(ui.source);
+      // 1) zapis w bazie paczkami po 100 (kilka zapytań do Base), 2) wysyłka z bazy po kilka produktów.
+      const productIds = [];
+      const names = {};
+      await runBatches(ids, IMPORT_BATCH, "Zapisuję w bazie", async (part) => {
+        const res = await call("/api/base/import", "POST", { kind, id, ids: part, name: sourceName(ui.source) });
+        for (const item of res.products || []) {
+          productIds.push(item.product_id);
+          names[item.product_id] = (ui.list?.products || []).find((p) => p.id === String(item.base_product_id))?.name || item.base_product_id;
+        }
+        for (const missing of res.missing || []) ui.log.push({ bad: true, text: `Base nie oddał produktu ${missing}.` });
+      });
+      const importLog = ui.log;
       let ok = 0;
       let bad = 0;
-      await runBatches(ids, PUSH_BATCH, "Wysyłam do Shopify", async (part) => {
-        const res = await call("/api/base/push", "POST", { kind, id, ids: part, status: ui.shopStatus, name: sourceName(ui.source) });
+      await runBatches(productIds, PUSH_BATCH, "Wysyłam do Shopify", async (part) => {
+        const res = await call("/api/base/push", "POST", { product_ids: part, status: ui.shopStatus });
         for (const item of res.results || []) {
-          const row = (ui.list?.products || []).find((p) => p.id === String(item.base_product_id));
-          const label = row?.name || item.base_product_id;
+          const label = names[item.product_id] || item.base_product_id || item.product_id;
           if (item.ok) {
             ok += 1;
             if (item.warning) ui.log.push({ text: `${label}: ${item.warning}` });
@@ -192,6 +203,7 @@
           }
         }
       });
+      ui.log = importLog.concat(ui.log);
       ui.log.unshift({ text: `Wysłano do Shopify: ${ok}${bad ? `, błędy: ${bad}` : ""}.`, bad: bad > 0 && !ok });
       CRM.toast(bad ? `Wysłano ${ok}, błędy: ${bad}.` : `Wysłano do Shopify: ${ok}.`);
       await refreshAfter();

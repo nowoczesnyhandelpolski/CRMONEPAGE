@@ -201,8 +201,10 @@ test("Shopify: id wariantów wracają do mapy po SKU albo nazwie opcji", () => {
 
 /* ---------- /api/base/* z atrapami Base, Supabase i Shopify ---------- */
 
+const PID = "11111111-2222-3333-4444-555555555555";
+
 function fakeWorld({ inventoryScope = true } = {}) {
-  const db = { products: [], catalogs: [], queue: [{ product_id: "p-1", done_at: null }] };
+  const db = { products: [], catalogs: [], queue: [{ product_id: PID, done_at: null }] };
   const log = [];
   const respond = (data, status = 200) => new Response(data == null ? null : JSON.stringify(data), { status });
   const fetchImpl = async (url, init = {}) => {
@@ -239,15 +241,16 @@ function fakeWorld({ inventoryScope = true } = {}) {
         const out = [];
         for (const row of body) {
           let found = db.products.find((p) => p.source === row.source && p.base_inventory_id === row.base_inventory_id && p.base_product_id === row.base_product_id);
-          if (!found) { found = { id: "p-1", workflow_status: "pobrany" }; db.products.push(found); }
+          if (!found) { found = { id: PID, workflow_status: "pobrany" }; db.products.push(found); }
           Object.assign(found, row);
           out.push({ id: found.id, base_product_id: found.base_product_id, shopify_product_id: found.shopify_product_id || null, workflow_status: found.workflow_status });
         }
         return respond(out);
       }
-      if (path.startsWith("products?id=eq.p-1&select=*")) return respond(db.products);
-      if (path.startsWith("products?id=eq.p-1") && method === "PATCH") { Object.assign(db.products[0], body); return respond(null, 204); }
-      if (path.startsWith("pages?product_id=eq.p-1")) return respond([]);
+      if (path.startsWith(`products?id=eq.${PID}&select=*`)) return respond(db.products);
+      if (path.startsWith("products?id=in.") && method === "GET") return respond(db.products.filter((p) => path.includes(p.id)).map((p) => ({ id: p.id, base_product_id: p.base_product_id, workflow_status: p.workflow_status })));
+      if (path.startsWith(`products?id=eq.${PID}`) && method === "PATCH") { Object.assign(db.products[0], body); return respond(null, 204); }
+      if (path.startsWith(`pages?product_id=eq.${PID}`)) return respond([]);
       if (path.startsWith("shopify_sync_queue?product_id=in.") && method === "PATCH") { db.queue.forEach((q) => { q.done_at = body.done_at; }); return respond(null, 204); }
       return respond({ message: `nieznana ścieżka ${path}` }, 404);
     }
@@ -310,30 +313,49 @@ test("/api/base: katalogi, lista i ponowny import bez dubli", async () => {
   });
 });
 
-test("/api/base/push: zapis, status aktywny, Shopify z lokalizacją, id zapisane, kolejka zamknięta", async () => {
-  const world = fakeWorld();
-  await withFetch(world.fetchImpl, async () => {
-    const res = await handleBase(post({ kind: "inventory", id: "307", ids: ["2685"], status: "aktywny" }), ENV, ["push"], { authorize: team });
-    assert.equal(res.ok, true);
-    assert.equal(res.results[0].shopify_product_id, "555");
-    const p = world.db.products[0];
-    assert.equal(p.workflow_status, "opublikowany");
-    assert.equal(p.shopify_product_id, "555");
-    assert.equal(p.shopify_variant_id, "556");
-    assert.equal(p.shopify_sync_error, null);
-    assert.equal(world.db.lastInput.status, "ACTIVE");
-    assert.deepEqual(world.db.lastInput.variants[0].inventoryQuantities, [{ locationId: "gid://shopify/Location/9", name: "available", quantity: 5 }]);
-    assert.equal(world.db.queue[0].done_at != null, true);
+async function importThenPush(world, status, extraData) {
+  return withFetch(world.fetchImpl, async () => {
+    const imported = await handleBase(post({ kind: "inventory", id: "307", ids: ["2685"] }), ENV, ["import"], { authorize: team });
+    assert.equal(imported.products[0].product_id, PID);
+    if (extraData) Object.assign(world.db.products[0], extraData);
+    const calls = world.log.length;
+    const res = await handleBase(post({ product_ids: [PID, "nie-uuid"], status }), ENV, ["push"], { authorize: team });
+    assert.ok(!world.log.slice(calls).some((line) => line.includes("baselinker")), "wysyłka nie pyta Base");
+    return res;
   });
+}
+
+test("/api/base/push: status aktywny, Shopify z lokalizacją, id zapisane, kolejka zamknięta", async () => {
+  const world = fakeWorld();
+  const res = await importThenPush(world, "aktywny");
+  assert.equal(res.ok, true);
+  assert.equal(res.results.length, 1);
+  assert.equal(res.results[0].shopify_product_id, "555");
+  const p = world.db.products[0];
+  assert.equal(p.workflow_status, "opublikowany");
+  assert.equal(p.shopify_product_id, "555");
+  assert.equal(p.shopify_variant_id, "556");
+  assert.equal(p.shopify_sync_error, null);
+  assert.equal(world.db.lastInput.status, "ACTIVE");
+  assert.deepEqual(world.db.lastInput.variants[0].inventoryQuantities, [{ locationId: "gid://shopify/Location/9", name: "available", quantity: 5 }]);
+  assert.equal(world.db.queue[0].done_at != null, true);
 });
 
 test("/api/base/push: bez zakresu write_inventory produkt idzie bez stanu z ostrzeżeniem", async () => {
   const world = fakeWorld({ inventoryScope: false });
-  await withFetch(world.fetchImpl, async () => {
-    const res = await handleBase(post({ kind: "inventory", id: "307", ids: ["2685"] }), ENV, ["push"], { authorize: team });
-    assert.equal(res.results[0].ok, true);
-    assert.match(res.results[0].warning, /bez stanu magazynowego/);
-    assert.equal(world.db.lastInput.variants[0].inventoryQuantities, undefined);
-    assert.equal(world.db.lastInput.status, "DRAFT");
-  });
+  const res = await importThenPush(world, "szkic");
+  assert.equal(res.results[0].ok, true);
+  assert.match(res.results[0].warning, /bez stanu magazynowego/);
+  assert.equal(world.db.lastInput.variants[0].inventoryQuantities, undefined);
+  assert.equal(world.db.lastInput.status, "DRAFT");
+});
+
+test("/api/base/push: produkt bez ceny nie idzie, a status wraca do poprzedniego", async () => {
+  const world = fakeWorld();
+  const res = await importThenPush(world, "aktywny", { price: null });
+  assert.equal(res.ok, false);
+  assert.match(res.results[0].error, /Brak ceny/);
+  assert.equal(world.db.products[0].workflow_status, "pobrany");
+  assert.match(world.db.products[0].shopify_sync_error, /Brak ceny/);
+  assert.equal(world.db.lastInput, undefined);
 });

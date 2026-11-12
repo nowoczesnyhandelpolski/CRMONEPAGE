@@ -62,7 +62,8 @@ Kolejne **Wyślij do Shopify** aktualizuje ten sam produkt w sklepie (`shopify_p
 ## Limity
 
 - Base: 100 zapytań na minutę na token. Podgląd to 1–2 zapytania na stronę listy (1000 produktów), zapis 3–5 zapytań na paczkę do 100 produktów.
-- Wysyłka do Shopify idzie po 4 produkty na zapytanie (limit podzapytań Cloudflare). Panel sam dzieli większe zaznaczenie i pokazuje postęp.
+- „Wyślij do Shopify” najpierw zapisuje produkty w bazie (paczki po 100, kilka zapytań do Base), a potem wysyła je z bazy po 4 na zapytanie (limit podzapytań Cloudflare), już bez pytania Base. Panel sam dzieli większe zaznaczenie i pokazuje postęp.
+- Gdy przy statusie „Aktywny” Shopify odrzuci produkt, status w Centrali wraca do poprzedniego.
 - Produkt bez ceny nie pójdzie do Shopify (w bazie dostaje znacznik „Brak ceny”).
 
 ## Endpointy (dla porządku)
@@ -75,6 +76,6 @@ Wszystkie wymagają zalogowanego zespołu (`Authorization: Bearer <sesja Supabas
 | GET | `/api/base/sources` | katalogi i hurtownie | `getInventories`, `getExternalStoragesList` |
 | POST | `/api/base/list` | `{kind, id, page, q}` → lista | `getInventoryProductsList` / `getExternalStorageProductsList` |
 | POST | `/api/base/import` | `{kind, id, ids[≤100]}` → zapis w bazie | `getInventoryProductsData` (+ kategorie, producenci) / `getExternalStorageProductsData` |
-| POST | `/api/base/push` | `{kind, id, ids[≤4], status: szkic\|aktywny}` → zapis + Shopify | jak wyżej + Shopify `productSet` |
+| POST | `/api/base/push` | `{product_ids[≤4], status: szkic\|aktywny}` → Shopify (produkty już zapisane przez `/import`) | — (tylko Shopify `productSet`) |
 
 `kind` to `inventory` (katalog Base) albo `storage` (magazyn zewnętrzny, `id` w formacie `shop_123` / `warehouse_123`).
