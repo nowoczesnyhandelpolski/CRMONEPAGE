@@ -16,14 +16,14 @@ test("sprzedawca z NIP: NIP w regulaminie, faktura na żądanie", () => {
   assert.match(docs.zwroty, /Adresat: Jan Kowalski Handel/);
 });
 
-test("sprzedawca bez NIP: działalność nierejestrowana i rachunek, bez pustego NIP", () => {
-  const d = page({ name: "Jan Kowalski", address: "ul. Polna 1, 00-001 Warszawa", email: "sklep@test.pl" });
+test("spółka z o.o.: dane z art. 206 KSH, NIP w trakcie nadawania", () => {
+  const d = page({ name: "Nowoczesny Handel Polski sp. z o.o.", address: "ul. Polna 1, 00-001 Warszawa", krs: "0001234567", court: "Sąd Rejonowy dla Wrocławia-Fabrycznej", capital: "5 000 zł", email: "sklep@test.pl" });
   const line = sellerLine(d.seller);
-  assert.match(line, /działalność nierejestrowaną \(art\. 5 ust\. 1 ustawy Prawo przedsiębiorców\)/);
-  assert.doesNotMatch(line, /NIP/);
+  for (const re of [/z siedzibą pod adresem: ul\. Polna 1/, /KRS 0001234567/, /Sąd Rejonowy dla Wrocławia-Fabrycznej/, /NIP w trakcie nadawania/, /kapitał zakładowy 5 000 zł/]) assert.match(line, re);
+  assert.doesNotMatch(line, /nierejestrowan/);
   const docs = legalDocs({ name: "Koc" }, d);
-  assert.match(docs.regulamin, /rachunek potwierdzający sprzedaż/);
-  assert.doesNotMatch(docs.regulamin, /NIP/);
+  assert.match(docs.regulamin, /paragon albo fakturę/);
+  assert.doesNotMatch(docs.regulamin, /nierejestrowan|rachunek potwierdzający/);
 });
 
 test("brakujące dane są oznaczone do uzupełnienia, a nazwa jest escapowana", () => {

@@ -1263,6 +1263,38 @@
     /* Update'y dopisywane przez ten moduł: zmiany w panelu (autor: Claude) i praca zrobiona z Claude w innych miejscach.
        Podbicie „v” odświeża tekst; wpisu poprawionego ręcznie w panelu (bez „seeded”) nie nadpisujemy. */
     const CLAUDE_UPDATES = {
+      "up-20261112-yt-x": {
+        v: 1, who: "p1", date: "2026-11-12", stage: "pending", cat: "social", title: "Autopilot postów: YouTube Shorts i X",
+        before: "Autopilot publikował tylko na Facebooku, Instagramie i TikToku.",
+        after: "Social media → Połącz YouTube / Połącz X dla każdego sklepu.\nPo połączeniu autopilot planuje też Shorts (z wideo produktu) i krótkie posty na X ze zdjęciem i linkiem do karty.",
+        benefit: "Jedna kolejka postów na 5 kanałów każdego sklepu.",
+        plus: "YouTube i X planowane dopiero po połączeniu konta (bez zbędnych kosztów AI)",
+        minus: "Wymaga kanału YouTube i konta X sklepu oraz kluczy aplikacji Google i X w Supabase"
+      },
+      "up-20261112-konta": {
+        v: 1, who: "p1", date: "2026-11-12", stage: "pending", cat: "reklamy", title: "Gotowe pod aplikacje Meta i TikTok, Google Merchant Center i katalogi",
+        before: "Brakowało strony usuwania danych, opisu mediów społecznościowych w polityce i pliku produktów dla Google i TikToka.",
+        after: "Strona Usuwanie danych i rozdział o Facebooku, Instagramie i TikToku w polityce prywatności.\nPlik produktów /feed.xml (cena, zdjęcia z prawami, marka, EAN) dla Merchant Center, Meta i TikToka.\nInstrukcja docs/konta-reklamowe-i-aplikacje.md z gotowymi adresami i tekstami do weryfikacji.",
+        benefit: "Zakładanie kont reklamowych i aplikacji to teraz kopiuj-wklej.",
+        plus: "Jeden plik produktów dla wszystkich platform\nAplikacja Meta działa bez weryfikacji dla własnych stron",
+        minus: "TikTok publikuje publicznie dopiero po audycie aplikacji"
+      },
+      "up-20261112-obsluga": {
+        v: 1, who: "p1", date: "2026-11-12", stage: "pending", cat: "sklepy", title: "Obsługa klienta: zwroty, reklamacje, pytania i bot FAQ",
+        before: "Wiadomości z formularza trafiały do jednej listy, bez typu i terminów.\nNikt nie pilnował ustawowych 14 dni na reklamację i zwrot pieniędzy.",
+        after: "Zakładka Obsługa klienta: każda wiadomość sama staje się zgłoszeniem (pytanie, zamówienie, zwrot, reklamacja) z terminem.\nStatusy zwrotu i reklamacji, 7 szablonów odpowiedzi z podstawionymi danymi, mail jednym kliknięciem.\nNa kartach produktów bot „Masz pytanie?” odpowiada o dostawę, zwroty, reklamacje, płatność i z FAQ.",
+        benefit: "Mniej maili do nas, a żadna reklamacja nie przepadnie przez przeoczony termin.",
+        plus: "Terminy ustawowe pilnowane same\nBot odpowiada z prawdziwych danych karty",
+        minus: "Maile wysyłamy z własnej skrzynki (przycisk otwiera gotową wiadomość)"
+      },
+      "up-20261112-pixel": {
+        v: 1, who: "p1", date: "2026-11-12", stage: "pending", cat: "reklamy", title: "Meta Pixel na stronach produktów (po zgodzie na cookies)",
+        before: "Strony produktów nie mierzyły, czy reklama doprowadziła do zakupu.",
+        after: "Ustawienia → Meta Pixel: wpisujesz ID raz, trafia na każdą kartę.\nPo zgodzie klienta Pixel wysyła: wyświetlenie, dodanie do koszyka, rozpoczęcie płatności i zakup.\nBez zgody nic się nie wysyła; polityka cookies to opisuje.",
+        benefit: "Meta uczy się, kto kupuje, i pokazuje reklamy podobnym ludziom.",
+        plus: "Jedno ID dla wszystkich stron\nZgodne z RODO (baner zgody)",
+        minus: "Część klientów odmówi cookies — ich zakupy Pixel nie zobaczy\nKolejny krok: Conversions API (zakupy z serwera)"
+      },
       "up-20261111-strony-bez-klucza": {
         v: 1, who: "p1", date: "2026-11-11", stage: "pending", cat: "sklepy", title: "Strony produktów /p/ działają bez klucza serwisowego w Cloudflare",
         before: "Każda strona /p/… i mapa strony zwracały błąd 500.\nW Cloudflare brakowało klucza serwisowego Supabase.",
@@ -1292,7 +1324,7 @@
         before: "Dane sprzedawcy trzeba było wpisywać osobno na każdej karcie (wszystkie były puste).\nRegulamin karty był skrócony, a na www stały puste pola [NIP], [REGON].",
         after: "Ustawienia → Dane sprzedawcy: wpisujesz raz, trafiają do każdej karty i na www.\nRegulamin ma pełne prawa konsumenta, płatność Stripe, wzór odstąpienia i wariant bez NIP.\nPolityka prywatności opisuje zamówienia (dostawca, kurier, Stripe).",
         benefit: "Strony mogą legalnie sprzedawać konsumentom bez ręcznego poprawiania każdej karty.",
-        plus: "Jedno miejsce na dane\nDziała też bez NIP (działalność nierejestrowana)",
+        plus: "Jedno miejsce na dane\nPełne dane spółki (KRS, sąd, kapitał) na kartach i na www",
         minus: "Trzeba raz uruchomić SQL z supabase.sql (sekcja Dane sprzedawcy)\nRegulamin to wzór — warto, żeby przejrzał go prawnik"
       },
       "up-20261111-kampanie": {
