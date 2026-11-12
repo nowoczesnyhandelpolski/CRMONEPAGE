@@ -1490,3 +1490,6 @@ execute function public.nhp_config_push_seller();
 
 -- Meta Pixel: records config/main → data.tracking.meta_pixel trafia do kart (wyzwalacze pages_fill_tracking, records_push_tracking),
 -- wdrożone migracją pages_tracking_defaults.
+
+-- Obsługa klienta: wiadomość (records col=messages) → zgłoszenie (col=tickets), wyzwalacz records_ticket_from_message,
+-- migracja support_tickets_from_messages.

@@ -1263,6 +1263,14 @@
     /* Update'y dopisywane przez ten moduł: zmiany w panelu (autor: Claude) i praca zrobiona z Claude w innych miejscach.
        Podbicie „v” odświeża tekst; wpisu poprawionego ręcznie w panelu (bez „seeded”) nie nadpisujemy. */
     const CLAUDE_UPDATES = {
+      "up-20261112-obsluga": {
+        v: 1, who: "p1", date: "2026-11-12", stage: "pending", cat: "sklepy", title: "Obsługa klienta: zwroty, reklamacje, pytania i bot FAQ",
+        before: "Wiadomości z formularza trafiały do jednej listy, bez typu i terminów.\nNikt nie pilnował ustawowych 14 dni na reklamację i zwrot pieniędzy.",
+        after: "Zakładka Obsługa klienta: każda wiadomość sama staje się zgłoszeniem (pytanie, zamówienie, zwrot, reklamacja) z terminem.\nStatusy zwrotu i reklamacji, 7 szablonów odpowiedzi z podstawionymi danymi, mail jednym kliknięciem.\nNa kartach produktów bot „Masz pytanie?” odpowiada o dostawę, zwroty, reklamacje, płatność i z FAQ.",
+        benefit: "Mniej maili do nas, a żadna reklamacja nie przepadnie przez przeoczony termin.",
+        plus: "Terminy ustawowe pilnowane same\nBot odpowiada z prawdziwych danych karty",
+        minus: "Maile wysyłamy z własnej skrzynki (przycisk otwiera gotową wiadomość)"
+      },
       "up-20261112-pixel": {
         v: 1, who: "p1", date: "2026-11-12", stage: "pending", cat: "reklamy", title: "Meta Pixel na stronach produktów (po zgodzie na cookies)",
         before: "Strony produktów nie mierzyły, czy reklama doprowadziła do zakupu.",
