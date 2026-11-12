@@ -36,7 +36,7 @@ Opcjonalnie `SHOPIFY_LOCATION_ID` (liczba z adresu Ustawienia → Lokalizacje w 
 
 ### 4. Baza danych
 
-Migracja `supabase/migrations/20261112120000_base_import.sql` (ten sam blok jest na końcu `supabase.sql`). Dopisuje kolumny, niczego nie kasuje.
+Migracje `supabase/migrations/20261112120000_base_import.sql` i `20261113090000_base_autosync.sql` (te same bloki są na końcu `supabase.sql`). Dopisują kolumny, tabelę stanu synchronizacji, funkcje i cron. Niczego nie kasują.
 
 ## Co się zapisuje
 
@@ -59,6 +59,35 @@ Ponowny import tego samego produktu **aktualizuje** wiersz (klucz: `source` + `b
 
 Kolejne **Wyślij do Shopify** aktualizuje ten sam produkt w sklepie (`shopify_product_id`).
 
+## Automatyczna synchronizacja cen i stanów
+
+Na ekranie **Import z Base** jest karta **Automatyczna synchronizacja cen i stanów**:
+
+- **Włączona / wyłączona** i **co ile godzin** (1, 2, 4, 6, 12 albo 24 h, domyślnie 4 h),
+- **Synchronizuj teraz**: przebieg od razu, z postępem,
+- czas ostatniej synchronizacji, liczba sprawdzonych i zmienionych produktów, lista błędów (np. „Produktu 2687 nie ma w Base — stan ustawiony na 0”).
+
+Synchronizacja obejmuje tylko produkty, które mają ID z Base **i** ID z Shopify. Pobiera z Base cenę (domyślna grupa cenowa), stan i warianty. Gdy coś się zmieniło, aktualizuje produkt w bazie, a kolejka `shopify_sync_queue` wysyła go do Shopify.
+
+### Gdy w hurtowni zabraknie towaru
+
+Wybraliśmy wariant bezpieczniejszy: **stan 0 i do tego wersja robocza**.
+
+- W Shopify stan wariantu idzie na **0**, ze śledzeniem stanu i zakazem sprzedaży na minusie (`inventoryPolicy: DENY`).
+- Produkt, który był aktywny („Opublikowany w Shopify”), przechodzi na **„Wstrzymany”**, a w Shopify na **szkic** (`DRAFT`). Znika ze sklepu, więc nie da się go kupić nawet wtedy, gdy ktoś w Shopify włączy „sprzedawaj bez stanu” albo aplikacja nie ma zakresu `write_inventory`.
+- Produkt dostaje znacznik `base_auto_paused`. Gdy towar wróci do hurtowni, następna synchronizacja **sama** przywraca go do sprzedaży. Produktu wstrzymanego ręcznie nie rusza.
+- Produkt, który zniknął z Base, traktujemy jak brak towaru (stan 0) i pokazujemy go na liście błędów.
+
+Sam stan 0 zostawia stronę produktu z napisem „Wyprzedane”, ale zależy od ustawień stanu w Shopify. Szkic działa zawsze, dlatego robimy oba.
+
+### Jak to jest uruchamiane
+
+- **Supabase pg_cron** (`nhp-base-sync`, co minutę) woła `POST https://panel.nowoczesnyhandelpolski.pl/api/base/sync` z nagłówkiem `x-nhp-cron`, ale tylko wtedy, gdy przebieg trwa, przyszła pora następnego albo w kolejce Shopify czekają produkty z Base. Inaczej nic nie wysyła.
+- Token crona powstaje sam w **Supabase Vault** (`nhp_base_sync_token`). Panel sprawdza go w bazie, więc nikt go nie wpisuje ani nie kopiuje.
+- Jeden krok sprawdza do 50 produktów: jedno `getInventoryProductsData` (albo `getExternalStorageProductsData`) na katalog z wieloma ID naraz, plus `getInventories`. To 2–3 zapytania do Base na minutę, daleko od limitu 100. Do Shopify idzie do 5 produktów na krok, resztę wysyłają kolejne kroki.
+- Stan przebiegu jest w tabeli `base_sync_state` (jeden wiersz). Blokada `lock_until` pilnuje, żeby cron i przycisk nie liczyły tego samego naraz.
+- Adres panelu dla crona jest w `base_sync_state.endpoint`. Zmień go tylko, jeśli panel będzie pod innym adresem.
+
 ## Limity
 
 - Base: 100 zapytań na minutę na token. Podgląd to 1–2 zapytania na stronę listy (1000 produktów), zapis 3–5 zapytań na paczkę do 100 produktów.
@@ -72,6 +101,8 @@ Wszystkie wymagają zalogowanego zespołu (`Authorization: Bearer <sesja Supabas
 
 | Metoda | Ścieżka | Co robi | Metody Base |
 | --- | --- | --- | --- |
+| POST | `/api/base/sync` | jeden krok synchronizacji; `{now: true}` zaczyna przebieg od razu. Cron: nagłówek `x-nhp-cron` zamiast logowania | `getInventories`, `getInventoryProductsData` / `getExternalStorageProductsData` + Shopify `productSet` |
+| GET | `/api/base/sync-status` | stan synchronizacji dla panelu | — |
 | GET | `/api/base/status` | czy są sekrety Base i Shopify | — |
 | GET | `/api/base/sources` | katalogi i hurtownie | `getInventories`, `getExternalStoragesList` |
 | POST | `/api/base/list` | `{kind, id, page, q}` → lista | `getInventoryProductsList` / `getExternalStorageProductsList` |

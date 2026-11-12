@@ -359,3 +359,221 @@ test("/api/base/push: produkt bez ceny nie idzie, a status wraca do poprzedniego
   assert.match(world.db.products[0].shopify_sync_error, /Brak ceny/);
   assert.equal(world.db.lastInput, undefined);
 });
+
+/* ---------- automatyczna synchronizacja cen i stanów ---------- */
+
+import { diffProduct, runSyncTick, SLICE } from "../lib/base-autosync.mjs";
+
+test("sync: zmiana ceny i stanu, brak towaru wstrzymuje aktywny, powrót towaru przywraca", () => {
+  const base = { id: "a", price: 49.9, stock: 5, variants: [], workflow_status: "opublikowany", base_auto_paused: false };
+  assert.equal(diffProduct(base, { price: 49.9, stock: 5, variants: [] }), null);
+  assert.deepEqual(diffProduct(base, { price: 44.9, stock: 5, variants: [] }).change, { id: "a", price: 44.9 });
+  const zero = diffProduct(base, { price: 49.9, stock: 0, variants: [] });
+  assert.deepEqual(zero.change, { id: "a", stock: 0 });
+  // stan już był 0, a ktoś opublikował produkt — synchronizacja i tak go wstrzyma
+  assert.deepEqual(diffProduct({ ...base, stock: 0 }, { price: 49.9, stock: 0, variants: [] }).change, { id: "a", stock: 0 });
+  // szkic ze stanem 0 nie jest ruszany
+  assert.equal(diffProduct({ ...base, stock: 0, workflow_status: "pobrany" }, { price: 49.9, stock: 0, variants: [] }), null);
+  // towar wrócił po automatycznym wstrzymaniu
+  assert.deepEqual(diffProduct({ ...base, stock: 3, workflow_status: "wstrzymany", base_auto_paused: true }, { price: 49.9, stock: 3, variants: [] }).change, { id: "a", stock: 3 });
+  // Base bez ceny nie zeruje ceny w sklepie
+  assert.equal(diffProduct(base, { price: null, stock: 5, variants: [] }), null);
+  // warianty: zmiana stanu jednego wariantu
+  const withVariants = { ...base, stock: 6, variants: [{ base_id: "20", price: 52, stock: 4 }, { base_id: "21", price: 55, stock: 2 }] };
+  const v = diffProduct(withVariants, { price: 52, stock: 4, variants: [{ base_id: "20", price: 52, stock: 4 }, { base_id: "21", price: 55, stock: 0 }] });
+  assert.deepEqual(v.reasons, ["cena", "stan", "warianty"]);
+});
+
+function syncWorld({ products, baseData, shopifyConfigured = true, slice = SLICE }) {
+  const db = {
+    state: { id: 1, enabled: true, interval_hours: 4, next_run_at: "2026-11-13T08:00:00.000Z", running: false, cursor: "", run_checked: 0, run_changed: 0, run_errors: [], last_errors: [], last_checked: 0, last_changed: 0, lock_until: null },
+    products: products.map((p) => ({ ...p })),
+    queue: [],
+    applied: [],
+    pushed: [],
+    baseCalls: []
+  };
+  const respond = (data, status = 200) => new Response(data == null ? null : JSON.stringify(data), { status });
+  const fetchImpl = async (url, init = {}) => {
+    const u = String(url);
+    const method = init.method || "GET";
+    if (u === BASE_API_URL) {
+      const body = new URLSearchParams(init.body);
+      const m = body.get("method");
+      const params = JSON.parse(body.get("parameters"));
+      db.baseCalls.push({ m, params });
+      if (m === "getInventories") return respond({ status: "SUCCESS", inventories: [INVENTORY] });
+      if (m === "getInventoryProductsData") {
+        const out = {};
+        for (const id of params.products) if (baseData[id]) out[id] = baseData[id];
+        return respond({ status: "SUCCESS", products: out });
+      }
+      return respond({ status: "ERROR", error_code: "ERROR_UNKNOWN_METHOD" });
+    }
+    if (u.startsWith("https://sb.test/rest/v1/")) {
+      const path = decodeURIComponent(u.slice("https://sb.test/rest/v1/".length));
+      const body = init.body ? JSON.parse(init.body) : null;
+      if (path === "rpc/base_sync_claim") {
+        if (db.state.lock_until) return respond([]);
+        db.state.lock_until = "locked";
+        return respond([{ ...db.state }]);
+      }
+      if (path === "rpc/base_sync_token_ok") return respond(body.p_token === "t".repeat(40));
+      if (path.startsWith("base_sync_state?id=eq.1") && method === "PATCH") {
+        Object.assign(db.state, body);
+        return respond([{ ...db.state }]);
+      }
+      if (path.startsWith("base_sync_state?id=eq.1")) return respond([{ ...db.state }]);
+      if (path.startsWith("products?source=in.(base,base_hurtownia)")) {
+        const cursor = path.match(/id=gt\.([0-9a-f-]+)/)[1];
+        return respond(db.products.filter((p) => p.shopify_product_id && p.id > cursor).sort((a, b) => a.id.localeCompare(b.id)).slice(0, slice));
+      }
+      if (path === "rpc/base_sync_apply") {
+        // jak funkcja SQL: zmiana pól, wstrzymanie / przywrócenie i wyzwalacz kolejki
+        for (const c of body.p_changes) {
+          const p = db.products.find((x) => x.id === c.id);
+          const stock = "stock" in c ? c.stock : null;
+          if ("price" in c) p.price = c.price;
+          if ("stock" in c) p.stock = c.stock;
+          if (Array.isArray(c.variants)) p.variants = c.variants;
+          if (stock === 0 && p.workflow_status === "opublikowany") { p.workflow_status = "wstrzymany"; p.base_auto_paused = true; }
+          else if (stock > 0 && p.base_auto_paused) { if (p.workflow_status === "wstrzymany") p.workflow_status = "opublikowany"; p.base_auto_paused = false; }
+          db.queue.push({ product_id: p.id, done_at: null });
+          db.applied.push(c);
+        }
+        return respond(body.p_changes.length);
+      }
+      if (path.startsWith("shopify_sync_queue?done_at=is.null")) {
+        const limit = Number(path.match(/limit=(\d+)/)[1]);
+        return respond(db.queue.filter((q) => !q.done_at).slice(0, limit).map((q) => ({ product_id: q.product_id })));
+      }
+      if (path.startsWith("shopify_sync_queue?product_id=eq.") && method === "PATCH") {
+        const id = path.match(/product_id=eq\.([^&]+)/)[1];
+        db.queue.filter((q) => q.product_id === id && !q.done_at).forEach((q) => { q.done_at = body.done_at; });
+        return respond(null, 204);
+      }
+      const one = path.match(/^products\?id=eq\.([^&]+)/);
+      if (one && method === "GET") return respond(db.products.filter((p) => p.id === one[1]));
+      if (one && method === "PATCH") { Object.assign(db.products.find((p) => p.id === one[1]), body); return respond(null, 204); }
+      if (path.startsWith("pages?product_id=eq.")) return respond([]);
+      return respond({ message: `nieznana ścieżka ${path}` }, 404);
+    }
+    if (u === "https://sklep.myshopify.com/admin/api/2026-10/graphql.json") {
+      const { query, variables } = JSON.parse(init.body);
+      if (/NhpLocation/.test(query)) return respond({ data: { location: { id: "gid://shopify/Location/9" } } });
+      if (/NhpProductSet/.test(query)) {
+        db.pushed.push(variables.input);
+        const id = variables.input.id || "gid://shopify/Product/1";
+        return respond({ data: { productSet: { userErrors: [], product: { id, handle: "x", status: variables.input.status, onlineStoreUrl: null, variants: { nodes: [{ id: "gid://shopify/ProductVariant/2", sku: "", selectedOptions: [] }] } } } } });
+      }
+    }
+    return respond({ error: `nieoczekiwane ${u}` }, 500);
+  };
+  const env = { ...ENV };
+  if (!shopifyConfigured) { delete env.SHOPIFY_STORE_DOMAIN; delete env.SHOPIFY_ADMIN_TOKEN; }
+  return { db, fetchImpl, env };
+}
+
+const linked = (n, extra = {}) => ({
+  id: `00000000-0000-0000-0000-${String(n).padStart(12, "0")}`,
+  name: `Produkt ${n}`,
+  source: "base",
+  base_inventory_id: "307",
+  base_product_id: String(n),
+  shopify_product_id: String(900 + n),
+  price: 10,
+  stock: 5,
+  variants: [],
+  workflow_status: "opublikowany",
+  base_auto_paused: false,
+  ...extra
+});
+const baseRow = (price, stock) => ({ ...DATA, variants: {}, prices: { 105: price }, stock: { bl_206: stock } });
+
+test("sync: przebieg w porcjach — jedno zapytanie do Base na porcję, zmiany do Shopify, stan 0 wstrzymuje", async () => {
+  const products = [linked(1), linked(2), linked(3, { stock: 0, workflow_status: "wstrzymany", base_auto_paused: true }), linked(4)];
+  const world = syncWorld({
+    products,
+    baseData: { 1: baseRow(10, 5), 2: baseRow(12.5, 5), 3: baseRow(10, 7) },
+    slice: 2
+  });
+  const now = new Date("2026-11-13T09:00:00.000Z");
+  await withFetch(world.fetchImpl, async () => {
+    const first = await runSyncTick(world.env, { now, slice: 2 });
+    assert.equal(first.checked, 2);
+    assert.equal(first.changed, 1); // tylko cena produktu 2
+    assert.equal(world.db.state.running, true);
+    assert.equal(world.db.state.lock_until, null, "blokada zwolniona");
+    assert.deepEqual(world.db.baseCalls.map((c) => c.m), ["getInventories", "getInventoryProductsData"]);
+    assert.deepEqual(world.db.baseCalls[1].params.products, [1, 2]);
+    const second = await runSyncTick(world.env, { now, slice: 2 });
+    assert.equal(second.checked, 2);
+    assert.equal(second.finished, false); // pełna porcja — koniec poznamy w następnym kroku
+    const third = await runSyncTick(world.env, { now, slice: 2 });
+    assert.equal(third.checked, 0);
+    assert.equal(third.finished, true);
+    assert.equal(world.db.state.running, false);
+    assert.equal(world.db.state.last_checked, 4);
+    assert.equal(world.db.state.last_changed, 3);
+    assert.equal(world.db.state.next_run_at, "2026-11-13T13:00:00.000Z");
+    // 3: towar wrócił → znowu opublikowany; 4: zniknął z Base → stan 0, wstrzymany, błąd na liście
+    const p3 = world.db.products.find((p) => p.base_product_id === "3");
+    const p4 = world.db.products.find((p) => p.base_product_id === "4");
+    assert.equal(p3.workflow_status, "opublikowany");
+    assert.equal(p3.base_auto_paused, false);
+    assert.equal(p4.stock, 0);
+    assert.equal(p4.workflow_status, "wstrzymany");
+    assert.match(world.db.state.last_errors.map((e) => e.text).join(" "), /Produktu 4 nie ma w Base/);
+    // do Shopify poszły zmienione produkty, wstrzymany jako szkic ze stanem 0 i zakazem sprzedaży na minusie
+    const p4input = world.db.pushed.find((input) => input.id === "gid://shopify/Product/904");
+    assert.equal(p4input.status, "DRAFT");
+    assert.deepEqual(p4input.variants[0].inventoryQuantities, [{ locationId: "gid://shopify/Location/9", name: "available", quantity: 0 }]);
+    assert.equal(p4input.variants[0].inventoryPolicy, "DENY");
+    assert.equal(world.db.queue.filter((q) => !q.done_at).length, 0);
+  });
+});
+
+test("sync: nie pora → nic nie robi; „Synchronizuj teraz” startuje od razu; blokada odsyła busy", async () => {
+  const world = syncWorld({ products: [linked(1)], baseData: { 1: baseRow(10, 5) } });
+  world.db.state.next_run_at = "2026-11-13T12:00:00.000Z";
+  const now = new Date("2026-11-13T09:00:00.000Z");
+  await withFetch(world.fetchImpl, async () => {
+    const idle = await runSyncTick(world.env, { now });
+    assert.equal(idle.checked, 0);
+    assert.equal(world.db.baseCalls.length, 0);
+    const forced = await runSyncTick(world.env, { now, force: true });
+    assert.equal(forced.checked, 1);
+    assert.equal(forced.finished, true);
+    world.db.state.lock_until = "locked";
+    const busy = await runSyncTick(world.env, { now, force: true });
+    assert.equal(busy.busy, true);
+  });
+});
+
+test("sync: brak tokenu Base kończy przebieg z błędem po polsku i ustawia następną próbę", async () => {
+  const world = syncWorld({ products: [linked(1)], baseData: {} });
+  const env = { ...world.env };
+  delete env.BASE_API_TOKEN;
+  const now = new Date("2026-11-13T09:00:00.000Z");
+  await withFetch(world.fetchImpl, async () => {
+    const tick = await runSyncTick(env, { now });
+    assert.equal(tick.finished, true);
+    assert.equal(world.db.state.running, false);
+    assert.match(world.db.state.last_errors[0].text, /BASE_API_TOKEN/);
+    assert.equal(world.db.state.next_run_at, "2026-11-13T13:00:00.000Z");
+  });
+});
+
+test("/api/base/sync: cron z tokenem z Vault, zły token 401, panel wymaga logowania", async () => {
+  const world = syncWorld({ products: [linked(1)], baseData: { 1: baseRow(10, 5) } });
+  const cron = (token) => new Request("https://panel.test/api/base/sync", { method: "POST", headers: { "x-nhp-cron": token }, body: "{}" });
+  await withFetch(world.fetchImpl, async () => {
+    const ok = await handleBase(cron("t".repeat(40)), world.env, ["sync"], { authorize: async () => null });
+    assert.equal(ok.ok, true);
+    assert.equal(ok.state.lock_until, undefined, "panel nie widzi pól technicznych");
+    await assert.rejects(handleBase(cron("z".repeat(40)), world.env, ["sync"], { authorize: async () => null }), (err) => err.status === 401);
+    await assert.rejects(handleBase(post({ now: true }), world.env, ["sync"], { authorize: async () => null }), (err) => err.status === 401);
+    const manual = await handleBase(post({ now: true }), world.env, ["sync"], { authorize: team });
+    assert.equal(manual.checked, 1);
+  });
+});

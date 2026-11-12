@@ -54,7 +54,7 @@ Nie ma wiecznego licznika promocji. Zdanie o wysyłce mówi, ile zostało do god
 - `prompty.js` + `lib/prompt-builder.mjs` — Generator promptów
 - `chat.js` — komunikator zespołu
 - `oferty.js` — baza produktów, aukcje, import z wtyczki, eksport, klucze API
-- `base.js` + `lib/base-core.mjs`, `lib/base-sync.mjs`, `functions/api/base/` — import z Base (BaseLinker) i wysyłka do Shopify
+- `base.js` + `lib/base-core.mjs`, `lib/base-sync.mjs`, `lib/base-autosync.mjs`, `functions/api/base/` — import z Base (BaseLinker), wysyłka do Shopify i automatyczna synchronizacja cen i stanów
 - `kampanie.js` — Kampanie reklamowe Meta / Google / TikTok: wyniki dzienne, zysk po reklamie, ROAS i próg opłacalności, podpowiedzi co wyłączyć lub skalować, linki z UTM
 - `zadania.js` — Zadania (Moje zadania, lista, tablica, kalendarz, rozliczenie, akceptacja) i Lista zmian i update'y (było → jest → co daje, kto ile pracował), czas pracy: „Zaczynam pracę” / „Kończę pracę”
 - `extension/` — wtyczka Chrome do zapisu oferty Allegro
@@ -173,6 +173,6 @@ Dodatkowe zmienne (Production), obok tabeli wyżej:
 
 Baza produktów ma zakładki **Pobrane produkty** (jeszcze bez karty) i **Gotowe strony** (karta już jest). Status lejka (`pobrany` → `w przygotowaniu` → `strona gotowa` → `opublikowany w Shopify` → `wstrzymany` / `archiwum`) zmienia się z wiersza i hurtowo. Historia ląduje w `product_status_events`.
 
-**Import z Base** (Produkty → Import z Base) pobiera katalogi i hurtownie podpięte w Base (BaseLinker), pokazuje listę produktów, zapisuje zaznaczone w bazie produktów i wysyła je do Shopify. Token Base jest tylko w sekrecie `BASE_API_TOKEN`. Instrukcja: [docs/base.md](docs/base.md).
+**Import z Base** (Produkty → Import z Base) pobiera katalogi i hurtownie podpięte w Base (BaseLinker), pokazuje listę produktów, zapisuje zaznaczone w bazie produktów i wysyła je do Shopify. Co 4 h (do ustawienia) panel sam aktualizuje w Shopify ceny i stany z Base. Gdy w hurtowni zabraknie towaru, stan idzie na 0, a produkt na szkic i wraca sam, gdy towar wróci. Token Base jest tylko w sekrecie `BASE_API_TOKEN`. Instrukcja: [docs/base.md](docs/base.md).
 
 Shopify i faktury FA(3) idą przez Pages Functions. Sekrety są tylko w Cloudflare. Lista nazw i kroków (aplikacja Shopify, zakresy, adresy webhooków, środowisko testowe KSeF) jest w [docs/shopify-ksef.md](docs/shopify-ksef.md).

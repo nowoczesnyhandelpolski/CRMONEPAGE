@@ -7,6 +7,7 @@
     const PUSH_BATCH = 4;
     const U = () => CRM.UI.base || (CRM.UI.base = {
       status: null, sources: null, loading: "", error: "",
+      sync: null, syncBusy: false, syncProgress: "",
       source: "", q: "", page: 1, list: null, picked: {}, shopStatus: "szkic", busy: "", progress: "", log: []
     });
 
@@ -35,6 +36,19 @@
         .bs-log li{margin:2px 0}
         .bs-bad{color:var(--bad)}
         .bs-pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px}
+        .bs-sync{padding:16px 20px;margin-bottom:14px}
+        .bs-sync h2{margin:0 0 4px;font-size:18px}
+        .bs-sync p{margin:0}
+        .bs-sync-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:12px 0 8px}
+        .bs-sync-row .sp{flex:1}
+        .bs-sync-row select{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 8px;font:inherit}
+        .bs-check{display:inline-flex;gap:8px;align-items:center;font-weight:600}
+        .bs-check input{width:18px;height:18px}
+        .bs-sync-stat{font-size:14px}
+        .bs-errs{margin-top:8px;font-size:13px}
+        .bs-errs summary{cursor:pointer;font-weight:600;color:var(--bad)}
+        .bs-errs ul{margin:6px 0 0 18px;padding:0;max-height:220px;overflow:auto}
+        .bs-errs li{margin:3px 0}
         @media (max-width:700px){.bs-hide-sm{display:none}}
       `;
       document.head.appendChild(css);
@@ -80,7 +94,10 @@
       rerender();
       try {
         ui.status = await call("/api/base/status", "GET");
-        if (ui.status.configured) await loadSources();
+        if (ui.status.configured) {
+          await loadSyncState();
+          await loadSources();
+        }
       } catch (err) {
         ui.status = { configured: false };
         ui.error = err.message;
@@ -220,6 +237,123 @@
       rerender();
     }
 
+    /* ---------- automatyczna synchronizacja ---------- */
+
+    const INTERVALS = [1, 2, 4, 6, 12, 24];
+    const fmtDate = (iso) => {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString("pl-PL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    };
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    async function loadSyncState() {
+      const ui = U();
+      try {
+        const res = await call("/api/base/sync-status", "GET");
+        ui.sync = res.state;
+      } catch (err) {
+        ui.sync = null;
+        ui.syncError = /base_sync_state|PGRST|42P01|Supabase 4/i.test(err.message || "") ? "Brakuje tabeli synchronizacji — trzeba zastosować migrację base_autosync." : err.message;
+      }
+    }
+
+    async function saveSyncSettings(change) {
+      const ui = U();
+      if (!ui.sync) return;
+      const patch = { updated_at: new Date().toISOString() };
+      if ("enabled" in change) patch.enabled = Boolean(change.enabled);
+      if ("interval_hours" in change && INTERVALS.includes(change.interval_hours)) {
+        patch.interval_hours = change.interval_hours;
+        // Następna synchronizacja liczona od ostatniej, żeby skrócenie odstępu działało od razu.
+        const from = Date.parse(ui.sync.last_finished_at || "") || Date.now();
+        patch.next_run_at = new Date(Math.max(from + change.interval_hours * 3600_000, Date.now())).toISOString();
+      }
+      const { data, error } = await CRM.SB.from("base_sync_state").update(patch).eq("id", 1).select();
+      if (error) { CRM.toast("Nie udało się zapisać ustawień synchronizacji."); return; }
+      ui.sync = { ...ui.sync, ...(Array.isArray(data) && data[0] ? data[0] : patch) };
+      CRM.toast(patch.enabled === false ? "Automatyczna synchronizacja wyłączona." : "Ustawienia synchronizacji zapisane.");
+      rerender();
+    }
+
+    async function syncNow() {
+      const ui = U();
+      if (ui.syncBusy) return;
+      ui.syncBusy = true;
+      ui.syncProgress = "Zaczynam synchronizację…";
+      rerender();
+      let first = true;
+      let busyWaits = 0;
+      try {
+        for (let step = 0; step < 400; step++) {
+          const res = await call("/api/base/sync", "POST", first ? { now: true } : {});
+          if (res.busy) {
+            // Krok trwa w innym miejscu (cron) — chwila przerwy.
+            if (++busyWaits > 40) break;
+            ui.syncProgress = "Synchronizacja trwa w tle, czekam…";
+            rerender();
+            await sleep(3000);
+            if (first) continue;
+          } else {
+            first = false;
+            busyWaits = 0;
+          }
+          ui.sync = res.state || ui.sync;
+          const st = ui.sync || {};
+          if (!st.running) break;
+          ui.syncProgress = `Sprawdzono ${st.run_checked || 0} produktów, zmienionych ${st.run_changed || 0}…`;
+          rerender();
+        }
+        const st = ui.sync || {};
+        const errs = (st.last_errors || []).length;
+        CRM.toast(`Synchronizacja zakończona: sprawdzono ${st.last_checked || 0}, zmieniono ${st.last_changed || 0}${errs ? `, błędy: ${errs}` : ""}.`);
+      } catch (err) {
+        CRM.toast(err.message);
+      }
+      ui.syncBusy = false;
+      ui.syncProgress = "";
+      try { await CRM.reload(); } catch { /* odświeży się przy wejściu */ }
+      rerender();
+    }
+
+    function syncCard() {
+      const ui = U();
+      if (ui.syncError && !ui.sync) return `<div class="banner">${esc(ui.syncError)}</div>`;
+      const st = ui.sync;
+      if (!st) return "";
+      const errors = (st.running ? st.run_errors : st.last_errors) || [];
+      const status = ui.syncBusy
+        ? esc(ui.syncProgress)
+        : st.running
+          ? `Trwa: sprawdzono ${st.run_checked || 0}, zmieniono ${st.run_changed || 0}.`
+          : st.last_finished_at
+            ? `Ostatnio: <b>${fmtDate(st.last_finished_at)}</b> · sprawdzono <b>${st.last_checked || 0}</b> · zmieniono <b>${st.last_changed || 0}</b>`
+            : "Jeszcze nie było synchronizacji.";
+      const next = st.enabled ? `Następna: ${fmtDate(st.next_run_at)}` : "Wyłączona — ceny i stany nie aktualizują się same.";
+      const errList = errors.length
+        ? `<details class="bs-errs"><summary>Błędy z ostatniej synchronizacji (${errors.length})</summary><ul>${errors.slice().reverse().map((e) =>
+            `<li><span class="muted">${fmtDate(e.at)}</span> ${e.name ? `<b>${esc(e.name)}</b>: ` : ""}${esc(e.text)}</li>`).join("")}</ul></details>`
+        : "";
+      return `<div class="card bs-sync">
+        <div class="bs-sync-head">
+          <div><h2>Automatyczna synchronizacja cen i stanów</h2>
+            <p class="small muted">Panel sam pobiera z Base aktualne ceny i stany produktów, które są już w Shopify, i aktualizuje sklep. Gdy w hurtowni zabraknie towaru: stan 0 w Shopify, a aktywny produkt przechodzi w szkic. Gdy towar wróci, produkt wraca do sprzedaży sam.</p></div>
+        </div>
+        <div class="bs-sync-row">
+          <label class="bs-check"><input type="checkbox" data-base-sync-enabled ${st.enabled ? "checked" : ""} ${ui.syncBusy ? "disabled" : ""}> Włączona</label>
+          <label class="small">Co
+            <select data-base-sync-interval ${ui.syncBusy ? "disabled" : ""} aria-label="Co ile godzin">
+              ${INTERVALS.map((h) => `<option value="${h}" ${Number(st.interval_hours) === h ? "selected" : ""}>${h} h</option>`).join("")}
+            </select>
+          </label>
+          <span class="sp"></span>
+          <button class="btn primary" type="button" data-base="sync-now" ${ui.syncBusy || st.running ? "disabled" : ""}>Synchronizuj teraz</button>
+        </div>
+        <p class="bs-sync-stat">${status}<span class="bs-sub">${esc(next)}</span></p>
+        ${errList}
+      </div>`;
+    }
+
     /* ---------- widok ---------- */
 
     function setupCard(local) {
@@ -324,7 +458,7 @@
       const log = ui.log.length
         ? `<ul class="bs-log card" style="padding:12px 16px 12px 32px">${ui.log.slice(0, 30).map((item) => `<li class="${item.bad ? "bs-bad" : ""}">${esc(item.text)}</li>`).join("")}</ul>`
         : "";
-      return head + err + shop + bar + actions + log + listHtml() +
+      return head + err + shop + syncCard() + bar + actions + log + listHtml() +
         `<p class="small muted">Ponowny import tego samego produktu aktualizuje go w bazie (nazwę, cenę, stan, zdjęcia, opis, parametry, warianty) — nie tworzy kopii. Status lejka, nazwa katalogowa i karta strony zostają. Produkt, który jest już w Shopify, po imporcie sam wyśle tam zmiany. Cena to cena brutto z domyślnej grupy cenowej katalogu w Base.</p>`;
     }
 
@@ -339,11 +473,14 @@
       if (act === "page") return loadList(Number(t.dataset.page) || 1);
       if (act === "import") return importPicked();
       if (act === "push") return pushPicked();
+      if (act === "sync-now") return syncNow();
     });
     document.addEventListener("change", (e) => {
       const ui = U();
       const t = e.target;
       if (t.matches?.("[data-base-source]")) { ui.source = t.value; ui.list = null; ui.picked = {}; ui.log = []; rerender(); return; }
+      if (t.matches?.("[data-base-sync-enabled]")) { saveSyncSettings({ enabled: t.checked }); return; }
+      if (t.matches?.("[data-base-sync-interval]")) { saveSyncSettings({ interval_hours: Number(t.value) }); return; }
       if (t.matches?.("[data-base-shopstatus]")) { ui.shopStatus = t.value === "aktywny" ? "aktywny" : "szkic"; return; }
       if (t.matches?.("[data-base-pick]")) { ui.picked[t.dataset.basePick] = t.checked; rerender(); return; }
       if (t.matches?.("[data-base-all]")) {

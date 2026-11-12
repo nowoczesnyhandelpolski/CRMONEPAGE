@@ -6,6 +6,7 @@ import { baseConfig, cleanIds, notConfigured } from "../../../lib/base-core.mjs"
 import { importProducts, listProducts, loadSources } from "../../../lib/base-sync.mjs";
 import { shopifyConfig } from "../../../lib/shopify-core.mjs";
 import { pushProductToShopify } from "../../../lib/shopify-sync.mjs";
+import { cronTokenOk, loadSyncState, publicState, runSyncTick } from "../../../lib/base-autosync.mjs";
 
 /** Ile produktów naraz: import (1 zapytanie do Base na paczkę) i wysyłka (kilka zapytań na produkt). */
 export const IMPORT_LIMIT = 100;
@@ -56,6 +57,18 @@ async function markQueueDone(env, ids) {
 }
 
 export async function handleBase(request, env, path, { authorize = teamUser } = {}) {
+  // Cron z Supabase: nagłówek x-nhp-cron = token z Vault (sprawdzany w bazie kluczem service role).
+  const cronToken = request.headers.get("x-nhp-cron") || "";
+  if (cronToken && request.method === "POST" && path[0] === "sync") {
+    if (!(await cronTokenOk(env, cronToken))) {
+      const err = new Error("Zły token crona.");
+      err.status = 401;
+      throw err;
+    }
+    const tick = await runSyncTick(env, { force: false });
+    return { ok: true, checked: tick.checked, changed: tick.changed, pushed: tick.pushed, busy: Boolean(tick.busy), state: publicState(tick.state) };
+  }
+
   const user = await authorize(request, env);
   if (!user) {
     const err = new Error("Zaloguj się na konto zespołu.");
@@ -147,6 +160,17 @@ export async function handleBase(request, env, path, { authorize = teamUser } = 
     // Import i zmiana statusu wrzuciły produkty do kolejki — właśnie je wysłaliśmy (albo odrzuciło je Shopify).
     await markQueueDone(env, results.filter((item) => item.product_id).map((item) => item.product_id));
     return { ok: results.some((item) => item.ok), results };
+  }
+
+  // Panel: „Synchronizuj teraz” ({ now: true }) albo kolejny krok trwającego przebiegu ({}).
+  if (request.method === "POST" && action === "sync") {
+    const body = await readJson(request, 2000);
+    const tick = await runSyncTick(env, { force: body.now === true });
+    return { ok: true, checked: tick.checked, changed: tick.changed, pushed: tick.pushed, busy: Boolean(tick.busy), state: publicState(tick.state) };
+  }
+
+  if (request.method === "GET" && action === "sync-status") {
+    return { ok: true, configured: Boolean(baseConfig(env)), state: publicState(await loadSyncState(env)) };
   }
 
   const err = new Error("Nie ma takiej ścieżki.");
