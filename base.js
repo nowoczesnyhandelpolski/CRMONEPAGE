@@ -337,7 +337,7 @@
       return `<div class="card bs-sync">
         <div class="bs-sync-head">
           <div><h2>Automatyczna synchronizacja cen i stanów</h2>
-            <p class="small muted">Panel sam pobiera z Base aktualne ceny i stany produktów, które są już w Shopify, i aktualizuje sklep. Gdy w hurtowni zabraknie towaru: stan 0 w Shopify, a aktywny produkt przechodzi w szkic. Gdy towar wróci, produkt wraca do sprzedaży sam.</p></div>
+            <p class="small muted">Panel sam pobiera z Base aktualne ceny i stany produktów, które są już w Shopify, i aktualizuje sklep. Gdy w hurtowni zabraknie towaru: stan 0 w Shopify, a aktywny produkt przechodzi w szkic. Gdy towar wróci, produkt wraca do sprzedaży sam. Cena przychodzi z Base i nadpisuje ręczne zmiany — narzut ustawiaj w grupie cenowej w Base.</p></div>
         </div>
         <div class="bs-sync-row">
           <label class="bs-check"><input type="checkbox" data-base-sync-enabled ${st.enabled ? "checked" : ""} ${ui.syncBusy ? "disabled" : ""}> Włączona</label>

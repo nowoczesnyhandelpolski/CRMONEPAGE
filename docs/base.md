@@ -69,6 +69,11 @@ Na ekranie **Import z Base** jest karta **Automatyczna synchronizacja cen i stan
 
 Synchronizacja obejmuje tylko produkty, które mają ID z Base **i** ID z Shopify. Pobiera z Base cenę (domyślna grupa cenowa), stan i warianty. Gdy coś się zmieniło, aktualizuje produkt w bazie, a kolejka `shopify_sync_queue` wysyła go do Shopify.
 
+### Skąd bierze się cena
+
+- Cena w Centrali i w Shopify to cena brutto z **domyślnej grupy cenowej katalogu w Base**. Synchronizacja i ponowny import ją nadpisują. **Cenę sprzedaży z narzutem ustawiaj w Base** (np. osobna grupa cenowa jako domyślna dla katalogu), nie ręcznie w Centrali ani w Shopify, bo przy następnej synchronizacji wróci cena z Base.
+- Wyjątek: produkt z kartą strony, która ma zestawy z ceną. Wtedy do Shopify idzie cena pierwszego zestawu z karty, tak jak było dotąd.
+
 ### Gdy w hurtowni zabraknie towaru
 
 Wybraliśmy wariant bezpieczniejszy: **stan 0 i do tego wersja robocza**.
