@@ -11,6 +11,7 @@ Po zmianach w bazie wklej cały `supabase.sql` w Supabase → SQL Editor i uruch
 | `SHOPIFY_STORE_DOMAIN` | tekst | Domena sklepu, np. `twoj-sklep.myshopify.com` (bez `https://`) |
 | `SHOPIFY_ADMIN_TOKEN` | **Secret** | Token Admin API aplikacji niestandardowej |
 | `SHOPIFY_WEBHOOK_SECRET` | **Secret** | Klucz API (client secret) tej samej aplikacji. Służy do podpisu `X-Shopify-Hmac-Sha256` |
+| `SHOPIFY_LOCATION_ID` | tekst, opcjonalnie | Id lokalizacji (liczba z adresu Ustawienia → Lokalizacje). Bez niego panel bierze główną lokalizację sklepu |
 | `NHP_SYNC_SECRET` | **Secret**, opcjonalnie | Nagłówek `X-NHP-Sync` dla webhooka bazy, który opróżnia kolejkę synchronizacji |
 | `KSEF_TOKEN` | **Secret** | Token KSeF z uprawnieniem do wystawiania faktur |
 | `KSEF_NIP` | tekst | NIP sprzedawcy, 10 cyfr |
@@ -30,6 +31,7 @@ Po zmianach w bazie wklej cały `supabase.sql` w Supabase → SQL Editor i uruch
    - `read_products`
    - `write_products`
    - `read_orders`
+   - `read_locations` i `write_inventory` — potrzebne, żeby stan magazynowy z Base szedł do Shopify (bez nich produkt idzie bez stanu)
 4. Zainstaluj aplikację w sklepie. Token Admin API widać raz — wklej go jako `SHOPIFY_ADMIN_TOKEN`.
 5. Klucz API (API secret key / client secret) tej aplikacji wklej jako `SHOPIFY_WEBHOOK_SECRET`. To nie jest token Admin API.
 6. Domena `*.myshopify.com` to `SHOPIFY_STORE_DOMAIN`.
