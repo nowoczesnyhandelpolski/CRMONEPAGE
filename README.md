@@ -152,6 +152,8 @@ W Ustawieniach jest **Połączenie z OpenAI**. Klucz szyfruje Pages Function (AE
 
 Nowa karta startuje z szablonem „auto”: pierwsza generacja S1 Max zapisuje **Konwersję**, S1 i S1 Pro zostają przy **klasycznym**. Szablon da się wybrać ręcznie. Stare karty bez pola `template` dalej renderują klasyczny układ.
 
+W Bazie produktów i w Generatorze jest **Importuj CSV**. Przyjmuje eksport wtyczki (średnik, kolumny `tytul`, `cena`, `ean`, `opis1`–`opis10`, `zdj*`, `zdj_opis*`, `param: …`). Cena sprzedaży jest tylko z `cena`. `cena_zrodlowa` nie uzupełnia braków i nie staje się ceną przekreśloną. Karta Konwersja (opcja przy imporcie) ma jeden zestaw „1 szt.”. Opinie i nagrania z pliku nie powstają. Przy włączonym automatycznym Shopify szkic idzie po zapisie karty, o ile cena jest w pliku.
+
 ## Sekrety
 
 Repozytorium jest publiczne. W gicie może być tylko klucz publishable. `service_role`, hasła, klucze Przelewy24, `ALLEGRO_CLIENT_SECRET` i `OPENAI_API_KEY` zostają w sekretach Cloudflare albo w Supabase. Pliki `.env` i `.dev.vars` są w `.gitignore`.

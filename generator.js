@@ -115,7 +115,8 @@
         </article>`;
       }).join("");
       return top("Generator stron", "Karty produktów one-page. Po publikacji adres to /p/nazwa, a sklep sam pojawia się na liście sklepów.",
-        `<button class="btn" data-g="sample" type="button">Przykładowa strona</button><button class="btn" data-g="example" type="button">Wstaw przykład</button><button class="btn primary" data-g="new" type="button">${CRM.ic("plus", 16)} Nowa strona</button>`) +
+        `<button class="btn" data-g="import-csv" type="button">Importuj CSV</button><button class="btn" data-g="sample" type="button">Przykładowa strona</button><button class="btn" data-g="example" type="button">Wstaw przykład</button><button class="btn primary" data-g="new" type="button">${CRM.ic("plus", 16)} Nowa strona</button>`) +
+        (CRM.sharklyImportBar ? CRM.sharklyImportBar() : "") +
         (CRM.S.pagesError ? `<div class="banner">${CRM.esc(CRM.S.pagesError)}</div>` : "") +
         (list.length ? `<section class="grid cards">${cards}</section>` : `<div class="card"><div class="empty"><b>Nie masz jeszcze stron</b>Utwórz kartę produktu albo wstaw przykład kalendarza, żeby zobaczyć szablon.</div></div>`);
     }
@@ -318,7 +319,8 @@
           <details class="card gen-sec"><summary>Punkty pod nagłówkiem i cechy 01–04</summary><div class="body">
             <div class="gen-grid">${[0, 1, 2].map((i) => `<div class="mini"><b>Korzyść ${i + 1}</b>${inp(`ben-${i}`, "Tytuł przy cenie", ben(i).title || "")}${inp(`ben-t-${i}`, "Dopisek", ben(i).text || "")}<div class="f"><label for="ben-i-${i}">Ikona</label><select id="ben-i-${i}">${(M.BENEFIT_ICONS || ["check"]).map((ic) => `<option value="${ic}" ${(ben(i).icon || "check") === ic ? "selected" : ""}>${ic}</option>`).join("")}</select></div></div>`).join("")}</div>
             ${inp("p-bentitle", "Tytuł sekcji cech", d.benefits_title)}
-            ${[0, 1, 2, 3].map((i) => `<div class="mini"><b>Cecha ${String(i + 1).padStart(2, "0")}</b>${inp(`ft-${i}`, "Tytuł", feat(i).title || "")}${inp(`fx-${i}`, "Opis", feat(i).text || "")}</div>`).join("")}
+            ${[0, 1, 2, 3, 4, 5, 6, 7].map((i) => `<div class="mini"><b>Cecha ${String(i + 1).padStart(2, "0")}</b>${inp(`ft-${i}`, "Tytuł", feat(i).title || "")}${inp(`fx-${i}`, "Opis", feat(i).text || "")}</div>`).join("")}
+            ${area("p-specs", "Parametry, jedna linia: nazwa | wartość", (d.specs || []).map((spec) => `${spec.name} | ${spec.value}`).join("\n"))}
           </div></details>
           <details class="card gen-sec"><summary>Obawa</summary><div class="body gen-grid">
             ${inp("p-pt", "Pytanie / obawa", d.problem.title)}
@@ -398,7 +400,8 @@
         variant_label: gv("p-varlabel"), variants: lines("p-vars"),
         benefits: [0, 1, 2].map((i) => ({ title: gv(`ben-${i}`), text: gv(`ben-t-${i}`), icon: gv(`ben-i-${i}`) })),
         benefits_title: gv("p-bentitle"),
-        features: [0, 1, 2, 3].map((i) => ({ title: gv(`ft-${i}`), text: gv(`fx-${i}`) })),
+        features: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ title: gv(`ft-${i}`), text: gv(`fx-${i}`) })),
+        specs: lines("p-specs").map((line) => { const [name, ...rest] = line.split("|"); return { name, value: rest.join("|") }; }),
         problem: { title: gv("p-pt"), text: gv("p-px"), image: gv("p-pi") },
         compare_ours: gv("p-ours"), compare_others: gv("p-others"),
         compare_image_ours: gv("p-cimg-o"), compare_image_others: gv("p-cimg-t"),
@@ -538,6 +541,7 @@
       if (!t) return;
       const g = t.dataset.g;
       if (g === "new") { CRM.UI.genId = "new"; CRM.UI.genExample = false; CRM.UI.genDraftId = null; CRM.UI.sampleDemo = null; CRM.scheduleRender(); }
+      else if (g === "import-csv") { if (CRM.openSharklyImport) CRM.openSharklyImport(); else CRM.toast("Import CSV jest w bazie produktów."); }
       else if (g === "example") { CRM.UI.genId = "new"; CRM.UI.genExample = true; CRM.UI.genDraftId = null; CRM.UI.sampleDemo = null; CRM.scheduleRender(); }
       else if (g === "sample") {
         CRM.UI.genId = null;

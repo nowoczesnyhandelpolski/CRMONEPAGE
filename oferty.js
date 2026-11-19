@@ -357,8 +357,8 @@
         : tab === "gotowe"
           ? `<div class="card"><div class="empty"><b>Brak gotowych stron</b>Produkty bez karty są w zakładce Pobrane produkty. Przycisk „Zrób stronę” nie tworzy drugiej, gdy karta już jest.</div></div>`
           : `<div class="card"><div class="empty"><b>Wszystkie produkty mają już stronę</b>Nowe importy z wtyczki wpadną tutaj, dopóki nie zrobisz im karty.</div></div>`;
-      return top("Baza produktów", "Pobrane produkty nie mają jeszcze karty. Gotowe strony już ją mają — stąd widać Shopify, sprzedaż i wyświetlenia.", `<button class="btn" type="button" data-nhp="shopify-webhooks">Zarejestruj webhooki</button><button class="btn" type="button" data-nhp="shopify-pull">Pobierz zamówienia</button><button class="btn" type="button" data-nhp="reload">Odśwież</button>`) +
-        banner() + shop + detailCard() +
+      return top("Baza produktów", "Pobrane produkty nie mają jeszcze karty. Gotowe strony już ją mają — stąd widać Shopify, sprzedaż i wyświetlenia.", `<button class="btn" type="button" data-nhp="import-csv">Importuj CSV</button><button class="btn" type="button" data-nhp="shopify-webhooks">Zarejestruj webhooki</button><button class="btn" type="button" data-nhp="shopify-pull">Pobierz zamówienia</button><button class="btn" type="button" data-nhp="reload">Odśwież</button>`) +
+        banner() + shop + sharklyBar() + detailCard() +
         `<div class="chips" style="margin-bottom:14px">
           <button class="chip" type="button" data-nhp="tab" data-tab="pobrane" aria-pressed="${tab === "pobrane"}">Pobrane produkty <span class="num">${split.pobrane.length}</span></button>
           <button class="chip" type="button" data-nhp="tab" data-tab="gotowe" aria-pressed="${tab === "gotowe"}">Gotowe strony <span class="num">${split.gotowe.length}</span></button>
@@ -582,6 +582,103 @@
       CRM.scheduleRender();
     }
 
+    function sharklyBar() {
+      const pages = T().csvPages !== false;
+      const rights = T().csvRights !== false;
+      return `<div class="card pad" style="margin-bottom:14px"><div class="row" style="flex-wrap:wrap;align-items:center">
+        <button class="btn" type="button" data-nhp="import-csv">Importuj CSV</button>
+        <label class="row"><input type="checkbox" data-csv-pages ${pages ? "checked" : ""}> Utwórz karty Konwersja</label>
+        <label class="row"><input type="checkbox" data-csv-rights ${rights ? "checked" : ""}> Mam prawo do zdjęć z pliku</label>
+      </div>
+      <p class="small muted">Eksport wtyczki (średnik): tytul, cena, ean, opis1–10, zdj i zdj_opis, param. Cena sprzedaży jest tylko w kolumnie „cena”. Pusta nie jest uzupełniana z cena_zrodlowa. Na karcie jest jeden zestaw „1 szt.”. Zaznaczone karty idą jako szkic do Shopify, gdy automatyczne wysyłanie jest włączone.</p></div>`;
+    }
+    CRM.sharklyImportBar = sharklyBar;
+    CRM.openSharklyImport = () => openSharklyFile();
+
+    function openSharklyFile() {
+      let input = document.getElementById("sharkly-file");
+      if (!input) {
+        input = document.createElement("input");
+        input.type = "file";
+        input.id = "sharkly-file";
+        input.accept = ".csv,text/csv";
+        input.hidden = true;
+        input.addEventListener("change", () => {
+          const file = input.files && input.files[0];
+          input.value = "";
+          if (file) readSharklyFile(file);
+        });
+        document.body.appendChild(input);
+      }
+      input.click();
+    }
+
+    function readSharklyFile(file) {
+      const reader = new FileReader();
+      reader.onload = () => { importSharklyCsv(String(reader.result || "")); };
+      reader.onerror = () => CRM.toast("Nie udało się odczytać pliku.");
+      reader.readAsText(file, "utf-8");
+    }
+
+    async function importSharklyCsv(text) {
+      const parsed = await import("./lib/sharkly-csv.mjs");
+      const result = parsed.rowsFromSharklyCsv(text);
+      if (!result.ok) { CRM.toast(result.error); return; }
+      if (!result.rows.length) { CRM.toast("W pliku nie ma produktów."); return; }
+      const makePages = T().csvPages !== false;
+      const rights = T().csvRights !== false;
+      const { uniqueSlug } = await import("./lib/site-model.mjs");
+      if (CRM.loadPages) await CRM.loadPages();
+      const slugs = (CRM.S.pagesList || []).map((page) => page.slug);
+      let products = 0;
+      let pages = 0;
+      let skippedPrice = 0;
+      for (const row of result.rows) {
+        const product = parsed.productFromSharkly(row);
+        const known = (CRM.S.trade.products || []).find((item) => (row.ean && item.ean === row.ean) || (row.sku && item.sku === row.sku));
+        let productId = known?.id || null;
+        const body = { ...product, updated_at: new Date().toISOString() };
+        if (productId) {
+          const { error } = await CRM.SB.from("products").update(body).eq("id", productId);
+          if (error) { CRM.toast("Nie udało się zapisać produktu."); return; }
+        } else {
+          const { data, error } = await CRM.SB.from("products").insert(body).select("id").single();
+          if (error || !data?.id) { CRM.toast("Nie udało się dodać produktu."); return; }
+          productId = data.id;
+          CRM.S.trade.products.push({ ...body, id: productId });
+        }
+        products += 1;
+        if (row.price == null) skippedPrice += 1;
+        if (!makePages || !row.title) continue;
+        const data = parsed.pageFromSharkly(row, { rights });
+        const existingPage = (CRM.S.pagesList || []).find((page) => String(page.product_id || "") === String(productId));
+        if (existingPage && existingPage.status === "published") continue;
+        const slug = existingPage?.slug || uniqueSlug(row.title, slugs);
+        if (!existingPage) slugs.push(slug);
+        const pageRow = {
+          id: existingPage?.id || CRM.uid("pg"),
+          slug,
+          name: row.title.slice(0, 200),
+          status: "draft",
+          product_id: productId,
+          data,
+          updated_at: new Date().toISOString()
+        };
+        const { error } = await CRM.SB.from("pages").upsert(pageRow);
+        if (error) { CRM.toast("Produkt jest w bazie, karty nie udało się zapisać."); return; }
+        pages += 1;
+        if (!existingPage) CRM.S.pagesList = (CRM.S.pagesList || []).concat(pageRow);
+        if (row.price != null && CRM.afterPageSaved) {
+          try { await CRM.afterPageSaved(productId, "draft"); } catch { /* szkic Shopify jest dodatkowy */ }
+        }
+      }
+      if (CRM.loadPages) await CRM.loadPages();
+      await reload();
+      const priceNote = skippedPrice ? ` ${skippedPrice} bez ceny — nie wysłane do Shopify.` : "";
+      CRM.toast(`Zapisano ${products} produktów${makePages ? `, kart Konwersja: ${pages}.` : "."}${priceNote}`);
+      CRM.scheduleRender();
+    }
+
     async function downloadExport() {
       const format = document.getElementById("exp-format")?.value || "staging";
       const exp = await import("./lib/export-formats.mjs");
@@ -632,6 +729,7 @@
       if (act === "add-comm") return addCommission();
       if (act === "del-comm") { await CRM.SB.from("category_commissions").delete().eq("id", t.dataset.id); await reload(); CRM.scheduleRender(); return; }
       if (act === "export") return downloadExport();
+      if (act === "import-csv") return openSharklyFile();
       if (act === "new-key") return newKey();
       if (act === "revoke") return revokeKey(t.dataset.id);
       if (act === "allegro-connect") return connectAllegro();
@@ -659,6 +757,8 @@
       if (e.target.id === "auc-cat") { T().category = e.target.value; CRM.scheduleRender(); }
       if (e.target.id === "vid-format") T().videoFormat = e.target.value;
       if (e.target.id === "vid-seconds") T().seconds = e.target.value;
+      if (e.target.dataset?.csvPages !== undefined) { T().csvPages = e.target.checked; return; }
+      if (e.target.dataset?.csvRights !== undefined) { T().csvRights = e.target.checked; return; }
     });
     document.addEventListener("input", (e) => {
       if (e.target.dataset?.tradeQ !== undefined) { T().q = e.target.value; CRM.scheduleRender(); }
