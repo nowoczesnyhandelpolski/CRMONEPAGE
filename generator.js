@@ -101,6 +101,7 @@
     function vGenerator() {
       if (!M) return top("Generator stron", "Wczytuję moduł…", "") + `<div class="card pad">Chwila…</div>`;
       if (CRM.UI.sampleDemo) return sampleDemoView();
+      if (CRM.UI.pageEditor && CRM.pageEditorHtml) return CRM.pageEditorHtml();
       if (CRM.UI.genId) return editor();
       const list = CRM.S.pagesList || [];
       const cards = list.map((p) => {
@@ -112,6 +113,7 @@
           <div><h3>${CRM.esc(p.name || d.headline || "Bez nazwy")}</h3><div class="small muted">/p/${CRM.esc(p.slug)} · ${d.template === "konwersja" || (d.template === "auto" && d.generated?.tier === "s1_max") ? "Konwersja" : d.template === "auto" ? "Szablon auto" : "Klasyczny"}</div></div>
           <div class="small muted">${shopifyLine(shopifyOf(p))}</div>
           <div class="small ${issues.length ? "" : "muted"}">${p.status === "published" ? "Widoczna publicznie" : issues.length ? `${issues.length} braków do publikacji` : "Gotowa do publikacji"}</div>
+          <button class="btn sm" type="button" data-g="simple" data-id="${CRM.esc(p.id)}">Edytor strony</button>
         </article>`;
       }).join("");
       return top("Generator stron", "Karty produktów one-page. Po publikacji adres to /p/nazwa, a sklep sam pojawia się na liście sklepów.",
@@ -261,7 +263,7 @@
       const ugc = (i) => d.ugc[i] || {};
       const ad = d.addons[0] || {};
       return top(existing ? "Edycja strony" : "Nowa strona", "Pola oznaczone w makiecie. Puste wiersze są pomijane.",
-        `<button class="btn" type="button" data-g="back">Wróć do listy</button>`) +
+        `<button class="btn" type="button" data-g="back">Wróć do listy</button><button class="btn" type="button" data-g="simple" data-id="${CRM.esc(existing?.id || "")}">Edytor strony</button>`) +
         (issues.length ? `<ol class="issues">${issues.map((x) => `<li>${CRM.esc(x)}</li>`).join("")}</ol>` : `<div class="banner" style="border-color:color-mix(in srgb,var(--good) 40%,var(--line));background:color-mix(in srgb,var(--good) 10%,var(--surface))">Dane wystarczą do publikacji.</div>`) +
         `<section class="card pad"><h2>Generacja</h2>${CRM.tierHtml ? CRM.tierHtml() : ""}<div class="row"><button class="btn primary" type="button" data-g="ai">Generuj treść</button><button class="btn" type="button" data-g="video">Złóż wideo w panelu</button></div><p class="small muted">S1 — tekst, szablon klasyczny. S1 Pro — tekst i 1 zdjęcie AI. S1 Max — tekst, 5 zdjęć AI, wideo w tej przeglądarce i domyślnie szablon Konwersja. Najpierw zapisz szkic. Model nie dopisuje opinii ani nagrań.</p></section>` +
         `<form id="pageForm">
@@ -541,7 +543,8 @@
       const t = e.target.closest("[data-g]");
       if (!t) return;
       const g = t.dataset.g;
-      if (g === "new") { CRM.UI.genId = "new"; CRM.UI.genExample = false; CRM.UI.genDraftId = null; CRM.UI.sampleDemo = null; CRM.scheduleRender(); }
+      if (g === "new") { CRM.UI.genId = "new"; CRM.UI.genExample = false; CRM.UI.genDraftId = null; CRM.UI.sampleDemo = null; CRM.UI.pageEditor = null; CRM.scheduleRender(); }
+      else if (g === "simple") { if (CRM.openPageEditor) CRM.openPageEditor(t.dataset.id); }
       else if (g === "import-csv") { if (CRM.openSharklyImport) CRM.openSharklyImport(); else CRM.toast("Import CSV jest w bazie produktów."); }
       else if (g === "example") { CRM.UI.genId = "new"; CRM.UI.genExample = true; CRM.UI.genDraftId = null; CRM.UI.sampleDemo = null; CRM.scheduleRender(); }
       else if (g === "sample") {
