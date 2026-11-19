@@ -130,6 +130,9 @@
         images: p.images || [],
         description_sections: p.description_sections || [],
         source_link: p.source_link,
+        bundle_2: p.raw?.cena_2,
+        bundle_3: p.raw?.cena_3,
+        raw: p.raw || {},
         video_url: p.generated?.video || "",
         video_rights: false,
         origin: "import"
@@ -387,6 +390,12 @@
           ${p.shopify_sync_error ? `<p class="small" style="color:var(--bad)">${CRM.esc(p.shopify_sync_error)}</p>` : ""}
           <div class="kv"><div><span>Zamówienia Shopify</span><strong class="num">${sales.orders_count || 0}</strong></div><div><span>Sztuki</span><strong class="num">${sales.units_sold || 0}</strong></div><div><span>Przychód</span><strong class="num">${money(sales.revenue)}</strong></div><div><span>Wyświetlenia strony</span><strong class="num">${viewsOf(p.id)}</strong></div></div>
           <div class="row" style="margin:10px 0"><span class="small muted">Status</span>${workflowSelect(p)}</div>
+          <div class="row" style="flex-wrap:wrap;align-items:end">
+            <label class="small">2 szt. (zł)<input id="pack-2" inputmode="decimal" value="${p.raw?.cena_2 ?? ""}" style="display:block;border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:120px"></label>
+            <label class="small">3 szt. (zł)<input id="pack-3" inputmode="decimal" value="${p.raw?.cena_3 ?? ""}" style="display:block;border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:120px"></label>
+            <button class="btn sm" type="button" data-nhp="save-packs" data-id="${p.id}">Zapisz zestawy</button>
+          </div>
+          <p class="small muted">Cena 1 szt. to cena produktu (${money(p.price)}). Puste 2 albo 3 szt. nie tworzy zestawu. Oszczędność liczy się od ceny jednej sztuki i idzie do wariantów Shopify.</p>
           ${tierBlock()}
           <div class="row">
             <button class="btn primary" type="button" data-nhp="page" data-kind="product" data-id="${p.id}">${page ? "Otwórz stronę" : "Zrób stronę"}</button>
@@ -590,7 +599,7 @@
         <label class="row"><input type="checkbox" data-csv-pages ${pages ? "checked" : ""}> Utwórz karty Konwersja</label>
         <label class="row"><input type="checkbox" data-csv-rights ${rights ? "checked" : ""}> Mam prawo do zdjęć z pliku</label>
       </div>
-      <p class="small muted">Eksport wtyczki (średnik): tytul, cena, ean, opis1–10, zdj i zdj_opis, param. Cena sprzedaży jest tylko w kolumnie „cena”. Pusta nie jest uzupełniana z cena_zrodlowa. Na karcie jest jeden zestaw „1 szt.”. Zaznaczone karty idą jako szkic do Shopify, gdy automatyczne wysyłanie jest włączone.</p></div>`;
+      <p class="small muted">Eksport wtyczki (średnik): tytul, cena, ean, opis1–10, zdj i zdj_opis, param. Opcjonalnie cena_2 i cena_3. Cena sprzedaży jest tylko w kolumnie „cena”. Pusta nie jest uzupełniana z cena_zrodlowa. Zestaw 2 i 3 powstaje tylko z własnej ceny. Zaznaczone karty idą jako szkic do Shopify, gdy automatyczne wysyłanie jest włączone.</p></div>`;
     }
     CRM.sharklyImportBar = sharklyBar;
     CRM.openSharklyImport = () => openSharklyFile();
@@ -679,6 +688,35 @@
       CRM.scheduleRender();
     }
 
+    async function savePacks(productId) {
+      const product = CRM.S.trade.products.find((item) => item.id === productId);
+      if (!product) return;
+      const { packBundles, cleanSiteData } = await import("./lib/site-model.mjs");
+      const two = document.getElementById("pack-2")?.value ?? "";
+      const three = document.getElementById("pack-3")?.value ?? "";
+      const { parseMoney } = await import("./lib/pricing.mjs");
+      const raw = { ...(product.raw || {}), cena_2: parseMoney(two), cena_3: parseMoney(three) };
+      const { error } = await CRM.SB.from("products").update({ raw, updated_at: new Date().toISOString() }).eq("id", productId);
+      if (error) { CRM.toast("Nie udało się zapisać zestawów."); return; }
+      product.raw = raw;
+      const bundles = packBundles(product.price, raw.cena_2, raw.cena_3);
+      const page = (CRM.S.pagesList || []).find((item) => String(item.product_id || "") === String(productId))
+        || (CRM.S.trade.pages || []).find((item) => String(item.product_id || "") === String(productId));
+      if (page?.id && CRM.SB) {
+        if (CRM.loadPages) await CRM.loadPages();
+        const full = (CRM.S.pagesList || []).find((item) => item.id === page.id) || page;
+        const data = cleanSiteData({ ...(full.data || {}), price: product.price, bundles, default_bundle: bundles.length >= 2 ? 1 : 0 });
+        const { error: pageError } = await CRM.SB.from("pages").update({ data, updated_at: new Date().toISOString() }).eq("id", page.id);
+        if (pageError) { CRM.toast("Ceny zestawów są przy produkcie, karty nie udało się zaktualizować."); return; }
+        if (product.price != null && CRM.afterPageSaved) {
+          try { await CRM.afterPageSaved(productId, full.status || "draft"); } catch { /* szkic Shopify jest dodatkowy */ }
+        }
+      }
+      await reload();
+      CRM.toast(bundles.length > 1 ? `Zestawy: ${bundles.map((item) => item.label).join(", ")}.` : "Została cena 1 szt.");
+      CRM.scheduleRender();
+    }
+
     async function downloadExport() {
       const format = document.getElementById("exp-format")?.value || "staging";
       const exp = await import("./lib/export-formats.mjs");
@@ -730,6 +768,7 @@
       if (act === "del-comm") { await CRM.SB.from("category_commissions").delete().eq("id", t.dataset.id); await reload(); CRM.scheduleRender(); return; }
       if (act === "export") return downloadExport();
       if (act === "import-csv") return openSharklyFile();
+      if (act === "save-packs") return savePacks(t.dataset.id);
       if (act === "new-key") return newKey();
       if (act === "revoke") return revokeKey(t.dataset.id);
       if (act === "allegro-connect") return connectAllegro();

@@ -388,14 +388,15 @@
     function collect(existing) {
       const prev = existing ? M.cleanSiteData(existing.data || {}) : {};
       const bundles = [0, 1, 2].map((i) => ({
-        label: gv(`b-label-${i}`), qty: gv(`b-qty-${i}`) || 1, price: gv(`b-price-${i}`),
+        label: gv(`b-label-${i}`) || `${i + 1} szt.`, qty: gv(`b-qty-${i}`) || (i + 1), price: gv(`b-price-${i}`),
         compare_at: gv(`b-was-${i}`), omnibus: gv(`b-om-${i}`), badge: gv(`b-badge-${i}`), note: gv(`b-note-${i}`)
       }));
+      const priced = M.fillBundleSavings ? M.fillBundleSavings(bundles) : bundles;
       const images = [0, 1, 2, 3, 4, 5].map((i) => ({ url: gv(`img-url-${i}`), alt: gv(`img-alt-${i}`), rights: gc(`img-rights-${i}`) })).filter((i) => i.url);
       const raw = {
         brand: gv("p-brand"), kicker: gv("p-kicker"), headline: gv("p-headline"), subheadline: gv("p-lead"),
         announcement: gv("p-ann"), price: gv("p-price"), compare_at: gv("p-compare"), omnibus_price: gv("p-omni"),
-        cost: gv("p-cost"), stock: gv("p-stock"), bundles, images,
+        cost: gv("p-cost"), stock: gv("p-stock"), bundles: priced, images,
         callouts: [0, 1, 2].map((i) => ({ label: gv(`call-${i}`) })),
         variant_label: gv("p-varlabel"), variants: lines("p-vars"),
         benefits: [0, 1, 2].map((i) => ({ title: gv(`ben-${i}`), text: gv(`ben-t-${i}`), icon: gv(`ben-i-${i}`) })),

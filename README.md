@@ -152,7 +152,7 @@ W Ustawieniach jest **Połączenie z OpenAI**. Klucz szyfruje Pages Function (AE
 
 Nowa karta startuje z szablonem „auto”: pierwsza generacja S1 Max zapisuje **Konwersję**, S1 i S1 Pro zostają przy **klasycznym**. Szablon da się wybrać ręcznie. Stare karty bez pola `template` dalej renderują klasyczny układ.
 
-W Bazie produktów i w Generatorze jest **Importuj CSV**. Przyjmuje eksport wtyczki (średnik, kolumny `tytul`, `cena`, `ean`, `opis1`–`opis10`, `zdj*`, `zdj_opis*`, `param: …`). Cena sprzedaży jest tylko z `cena`. `cena_zrodlowa` nie uzupełnia braków i nie staje się ceną przekreśloną. Karta Konwersja (opcja przy imporcie) ma jeden zestaw „1 szt.”. Opinie i nagrania z pliku nie powstają. Przy włączonym automatycznym Shopify szkic idzie po zapisie karty, o ile cena jest w pliku.
+W Bazie produktów i w Generatorze jest **Importuj CSV**. Przyjmuje eksport wtyczki (średnik, kolumny `tytul`, `cena`, `ean`, `opis1`–`opis10`, `zdj*`, `zdj_opis*`, `param: …`). Cena sprzedaży jest tylko z `cena`. `cena_zrodlowa` nie uzupełnia braków i nie staje się ceną przekreśloną. Opcjonalne `cena_2` i `cena_3` dokładają zestawy 2 i 3 szt.; oszczędność liczy się od ceny jednej sztuki. Bez tych kolumn karta ma sam zestaw „1 szt.”. Opinie i nagrania z pliku nie powstają. Przy włączonym automatycznym Shopify szkic idzie po zapisie karty, o ile cena jest w pliku.
 
 ## Sekrety
 

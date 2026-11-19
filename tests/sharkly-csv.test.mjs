@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { pageFromSharkly, productFromSharkly, rowsFromSharklyCsv } from "../lib/sharkly-csv.mjs";
 import { renderPage } from "../lib/render.mjs";
+import { buildProductSetInput } from "../lib/shopify-core.mjs";
 
 const csv = fs.readFileSync(new URL("../fixtures/produkt-skrobaczka.csv", import.meta.url), "utf8");
 
@@ -28,10 +29,16 @@ test("eksport Sharkly: cena 109,90, bez zestawów i bez zgadywania z ceny źród
 
   const page = pageFromSharkly(row, { rights: true });
   assert.equal(page.template, "konwersja");
-  assert.equal(page.bundles.length, 1);
-  assert.equal(page.bundles[0].label, "1 szt.");
+  assert.equal(row.price_2, 189);
+  assert.equal(row.price_3, 249);
+  assert.equal(page.bundles.length, 3);
   assert.equal(page.bundles[0].price, 109.9);
-  assert.equal(page.bundles[0].compare_at, null);
+  assert.equal(page.bundles[1].price, 189);
+  assert.equal(page.bundles[1].compare_at, 219.8);
+  assert.equal(page.bundles[1].badge, "Oszczędzasz 14%");
+  assert.equal(page.bundles[2].price, 249);
+  assert.equal(page.bundles[2].compare_at, 329.7);
+  assert.equal(page.bundles[2].badge, "Oszczędzasz 24%");
   assert.equal(page.reviews.length, 0);
   assert.equal(page.ugc.length, 0);
   assert.equal(page.sale.enabled, false);
@@ -48,11 +55,33 @@ test("eksport Sharkly: cena 109,90, bez zestawów i bez zgadywania z ceny źród
   assert.match(html, /tpl-konwersja/);
   assert.match(html, /109,90/);
   assert.match(html, /1 szt\./);
+  assert.match(html, /189/);
+  assert.match(html, /249/);
+  assert.match(html, /Oszczędzasz 14%/);
+  assert.match(html, /Oszczędzasz 24%/);
+  const shopify = buildProductSetInput({ name: page.headline, sku: "SH-003473", ean: "5901431540170", price: 109.9, workflow_status: "strona_gotowa" }, { data: page });
+  assert.equal(shopify.variants.length, 3);
+  assert.equal(shopify.variants[0].price, "109.90");
+  assert.equal(shopify.variants[1].price, "189.00");
+  assert.equal(shopify.variants[1].compareAtPrice, "219.80");
+  assert.equal(shopify.variants[2].price, "249.00");
+  assert.equal(shopify.variants[2].compareAtPrice, "329.70");
+  assert.equal(shopify.productOptions[0].name, "Zestaw");
   assert.doesNotMatch(html, /id="opinie"/);
   assert.doesNotMatch(html, /id="nagrania"/);
   assert.doesNotMatch(html, /59,90/);
   assert.doesNotMatch(html, /data-ends=/);
   assert.equal((html.match(/allegroimg\.com/g) || []).length >= 10, true);
+});
+
+test("bez ceny_2 i ceny_3 zostaje sam zestaw 1 szt.", () => {
+  const text = "nr_sharkly;tytul;cena;cena_zrodlowa\nSH-9;Kubek;40;10";
+  const row = rowsFromSharklyCsv(text).rows[0];
+  assert.equal(row.price_2, null);
+  assert.equal(row.price_3, null);
+  const page = pageFromSharkly(row);
+  assert.equal(page.bundles.length, 1);
+  assert.equal(page.bundles[0].price, 40);
 });
 
 test("pusta cena nie jest brana z ceny źródłowej i nie tworzy zestawu", () => {
