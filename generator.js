@@ -54,8 +54,10 @@
     }));
 
     let M = null;
+    let WF = null;
     CRM.readyFns.push(async () => {
       M = await import("./lib/site-model.mjs");
+      WF = await import("./lib/workflow.mjs");
       await loadPages();
       if (!CRM.S.pagesChannel && CRM.SB.channel) {
         CRM.S.pagesChannel = CRM.SB.channel("pages-live")
@@ -107,7 +109,8 @@
         const img = (d.images.find((i) => i.rights) || {}).url;
         return `<article class="card pcard" data-g="edit" data-id="${CRM.esc(p.id)}" tabindex="0">
           <div class="row" style="justify-content:space-between"><span class="pill" style="--c:${p.status === "published" ? "var(--good)" : "var(--warn)"}">${p.status === "published" ? "Opublikowana" : "Szkic"}</span>${img ? `<img src="${CRM.esc(img)}" alt="" style="width:42px;height:42px;object-fit:cover;border-radius:8px">` : ""}</div>
-          <div><h3>${CRM.esc(p.name || d.headline || "Bez nazwy")}</h3><div class="small muted">/p/${CRM.esc(p.slug)}</div></div>
+          <div><h3>${CRM.esc(p.name || d.headline || "Bez nazwy")}</h3><div class="small muted">/p/${CRM.esc(p.slug)} · ${d.template === "konwersja" || (d.template === "auto" && d.generated?.tier === "s1_max") ? "Konwersja" : d.template === "auto" ? "Szablon auto" : "Klasyczny"}</div></div>
+          <div class="small muted">${shopifyLine(shopifyOf(p))}</div>
           <div class="small ${issues.length ? "" : "muted"}">${p.status === "published" ? "Widoczna publicznie" : issues.length ? `${issues.length} braków do publikacji` : "Gotowa do publikacji"}</div>
         </article>`;
       }).join("");
@@ -118,6 +121,19 @@
     }
 
     function pageById(id) { return (CRM.S.pagesList || []).find((p) => p.id === id) || null; }
+    function shopifyOf(page) {
+      const id = page?.product_id;
+      if (!id || !CRM.S.trade) return null;
+      return (CRM.S.trade.products || []).find((p) => p.id === id) || null;
+    }
+    function shopifyLine(product) {
+      if (!product) return "Bez powiązanego produktu — Shopify czeka na wybór z bazy.";
+      const st = String(product.shopify_status || "");
+      const label = st === "active" ? "Aktywny w Shopify" : st === "draft" ? "Szkic w Shopify" : st === "archived" ? "Archiwum w Shopify" : product.shopify_product_id ? "Wysłany do Shopify" : "Jeszcze nie wysłany";
+      const link = product.shopify_url ? ` · <a href="${CRM.esc(product.shopify_url)}" target="_blank" rel="noopener">Otwórz produkt</a>` : "";
+      const err = product.shopify_sync_error ? ` · ${CRM.esc(product.shopify_sync_error)}` : "";
+      return label + link + err;
+    }
 
     function sampleDemoView() {
       const tier = CRM.UI.sampleDemo.tier || "s1";
@@ -165,8 +181,8 @@
         }
       }
       CRM.UI.sampleDemo.prepared = data;
-      const { renderLightPage } = await import("./lib/render.mjs");
-      frame.srcdoc = renderLightPage(
+      const { renderPage } = await import("./lib/render.mjs");
+      frame.srcdoc = renderPage(
         { name: "Przykład: " + (data.headline || "strona"), slug: "przyklad", status: "draft", id: "przyklad" },
         data,
         { preview: true, origin: location.origin }
@@ -246,7 +262,7 @@
       return top(existing ? "Edycja strony" : "Nowa strona", "Pola oznaczone w makiecie. Puste wiersze są pomijane.",
         `<button class="btn" type="button" data-g="back">Wróć do listy</button>`) +
         (issues.length ? `<ol class="issues">${issues.map((x) => `<li>${CRM.esc(x)}</li>`).join("")}</ol>` : `<div class="banner" style="border-color:color-mix(in srgb,var(--good) 40%,var(--line));background:color-mix(in srgb,var(--good) 10%,var(--surface))">Dane wystarczą do publikacji.</div>`) +
-        `<section class="card pad"><h2>Generacja</h2>${CRM.tierHtml ? CRM.tierHtml() : ""}<div class="row"><button class="btn primary" type="button" data-g="ai">Generuj treść</button><button class="btn" type="button" data-g="video">Złóż wideo w panelu</button></div><p class="small muted">S1 — tekst. S1 Pro — tekst i 1 zdjęcie AI. S1 Max — tekst, 5 zdjęć AI i wideo złożone tutaj. Najpierw zapisz szkic. Wideo nie idzie do zewnętrznej usługi.</p></section>` +
+        `<section class="card pad"><h2>Generacja</h2>${CRM.tierHtml ? CRM.tierHtml() : ""}<div class="row"><button class="btn primary" type="button" data-g="ai">Generuj treść</button><button class="btn" type="button" data-g="video">Złóż wideo w panelu</button></div><p class="small muted">S1 — tekst, szablon klasyczny. S1 Pro — tekst i 1 zdjęcie AI. S1 Max — tekst, 5 zdjęć AI, wideo w tej przeglądarce i domyślnie szablon Konwersja. Najpierw zapisz szkic. Model nie dopisuje opinii ani nagrań.</p></section>` +
         `<form id="pageForm">
           <details class="card gen-sec" open><summary>Adres i powiązanie</summary><div class="body gen-grid">
             ${inp("p-name", "Nazwa wewnętrzna", existing?.name || d.headline || "")}
@@ -254,6 +270,30 @@
             <div class="f"><label for="p-product">Produkt w CRM (opcjonalnie)</label><select id="p-product"><option value="">— brak —</option>${products.map((p) => `<option value="${CRM.esc(p.id)}" ${existing && existing.product_id === p.id ? "selected" : ""}>${CRM.esc(p.name || p.id)}</option>`).join("")}</select></div>
             ${inp("p-accent", "Kolor akcentu", d.theme.accent || "#ff5a00", 'type="color"')}
             <label class="row" style="grid-column:1/-1"><input type="checkbox" id="p-example" ${d.example ? "checked" : ""}> To tylko przykład (blokuje publikację, dopóki nie odznaczysz)</label>
+            <div class="f" style="grid-column:1/-1"><label for="p-template">Szablon</label><select id="p-template">
+              <option value="auto" ${d.template === "auto" ? "selected" : ""}>Automatycznie — S1 Max dostaje Konwersję</option>
+              <option value="klasyczny" ${d.template === "klasyczny" ? "selected" : ""}>Klasyczny</option>
+              <option value="konwersja" ${d.template === "konwersja" ? "selected" : ""}>Konwersja</option>
+            </select><p class="small muted">Konwersja: pionowy wybór zestawu, baner, pasek zaufania, opinie ze zdjęciem, porównanie, pytania na końcu, przyklejony koszyk na telefonie. Istniejące karty bez tego pola zostają klasyczne.</p></div>
+          </div></details>
+          <details class="card gen-sec" open><summary>Sekcje szablonu Konwersja</summary><div class="body">
+            <p class="small muted">Każdą sekcję da się wyłączyć. Pusta opinia, puste nagranie i pusta nazwa zaufania nie wchodzą na opublikowaną stronę. W podglądzie widać przerywane miejsce z opisem.</p>
+            <div class="gen-grid">${(M.PAGE_SECTIONS || []).map(([key, label]) => `<label class="row"><input type="checkbox" id="sec-${key}" ${d.sections?.[key] !== false ? "checked" : ""}> ${CRM.esc(label)}</label>`).join("")}</div>
+            <div class="gen-grid">
+              <label class="row"><input type="checkbox" id="sale-on" ${d.sale?.enabled ? "checked" : ""}> Włącz baner (sam wpisujesz tekst, bez zmyślonej wyprzedaży)</label>
+              ${inp("sale-label", "Napis banera, np. wyprzedaż sezonowa", d.sale?.label || "")}
+              ${inp("sale-text", "Dopisek banera", d.sale?.text || "")}
+              ${inp("sale-end", "Koniec banera (data i godzina, puste = bez licznika)", d.sale?.ends_at ? d.sale.ends_at.slice(0, 16) : "", 'type="datetime-local"')}
+              <label class="row"><input type="checkbox" id="urg-stock" ${d.urgency?.show_stock !== false ? "checked" : ""}> Pokaż stan, tylko gdy jest wpisany</label>
+              <label class="row"><input type="checkbox" id="urg-timer" ${d.urgency?.show_timer ? "checked" : ""}> Pokaż licznik do podanej daty</label>
+              ${inp("urg-end", "Koniec licznika", d.urgency?.ends_at ? d.urgency.ends_at.slice(0, 16) : "", 'type="datetime-local"')}
+              ${inp("urg-label", "Podpis przy liczniku", d.urgency?.label || "")}
+              ${inp("trust-title", "Tytuł paska zaufania", d.trust_title || "")}
+              ${area("trust-names", "Nazwy w pasku zaufania, po jednej w wierszu", (d.trust_names || []).join("\n"))}
+            </div>
+            <div class="banner">${shopifyLine(shopifyOf(existing))}</div>
+            <label class="row"><input type="checkbox" id="p-shopify-auto" ${(WF && WF.shopifyAutoDraftEnabled(CRM.S.settings)) ? "checked" : ""}> Automatycznie wysyłaj do Shopify po wygenerowaniu</label>
+            <p class="small muted">Domyślnie włączone. Zapis i generacja tworzą szkic produktu. Aktywny produkt powstaje dopiero po „Opublikuj”. Wycofanie strony wraca w sklepie do szkicu.</p>
           </div></details>
           <details class="card gen-sec" open><summary>Nagłówek</summary><div class="body gen-grid">
             ${inp("p-brand", "Marka w nagłówku", d.brand)}
@@ -276,7 +316,7 @@
             ${area("p-vars", "Warianty, po jednym w wierszu", (d.variants || []).join("\n"))}
           </div></details>
           <details class="card gen-sec"><summary>Punkty pod nagłówkiem i cechy 01–04</summary><div class="body">
-            <div class="gen-grid">${[0, 1, 2].map((i) => inp(`ben-${i}`, `Punkt ${i + 1}`, ben(i).title || "")).join("")}</div>
+            <div class="gen-grid">${[0, 1, 2].map((i) => `<div class="mini"><b>Korzyść ${i + 1}</b>${inp(`ben-${i}`, "Tytuł przy cenie", ben(i).title || "")}${inp(`ben-t-${i}`, "Dopisek", ben(i).text || "")}<div class="f"><label for="ben-i-${i}">Ikona</label><select id="ben-i-${i}">${(M.BENEFIT_ICONS || ["check"]).map((ic) => `<option value="${ic}" ${(ben(i).icon || "check") === ic ? "selected" : ""}>${ic}</option>`).join("")}</select></div></div>`).join("")}</div>
             ${inp("p-bentitle", "Tytuł sekcji cech", d.benefits_title)}
             ${[0, 1, 2, 3].map((i) => `<div class="mini"><b>Cecha ${String(i + 1).padStart(2, "0")}</b>${inp(`ft-${i}`, "Tytuł", feat(i).title || "")}${inp(`fx-${i}`, "Opis", feat(i).text || "")}</div>`).join("")}
           </div></details>
@@ -286,12 +326,18 @@
             ${inp("p-pi", "Zdjęcie (adres z listy zdjęć albo własny https)", d.problem.image)}
           </div></details>
           <details class="card gen-sec"><summary>Porównanie</summary><div class="body">
-            <div class="gen-grid">${inp("p-ours", "Nagłówek kolumny „my”", d.compare_ours)}${inp("p-others", "Nagłówek kolumny „oni”", d.compare_others)}</div>
+            <div class="gen-grid">${inp("p-ours", "Nagłówek kolumny „my”", d.compare_ours)}${inp("p-others", "Nagłówek kolumny „oni”", d.compare_others)}
+              ${inp("p-cimg-o", "Zdjęcie „u nas” (https)", d.compare_image_ours || "")}
+              ${inp("p-cimg-t", "Zdjęcie „zwykły” (https)", d.compare_image_others || "")}
+              ${inp("p-ccap-o", "Podpis zdjęcia „u nas”", d.compare_caption_ours || "")}
+              ${inp("p-ccap-t", "Podpis zdjęcia „zwykły”", d.compare_caption_others || "")}
+            </div>
+            ${d.compare_image_ours || d.compare_image_others ? "" : `<p class="small muted">Bez zdjęć porównanie jest tabelą. Przerywane miejsce widać tylko w podglądzie.</p>`}
             ${[0, 1, 2, 3, 4].map((i) => `<div class="mini"><b>Wiersz ${i + 1}</b>${inp(`c-f-${i}`, "Cecha", cmp(i).feature || "")}${inp(`c-o-${i}`, "U nas", cmp(i).ours || "")}${inp(`c-t-${i}`, "U innych", cmp(i).others || "")}</div>`).join("")}
           </div></details>
-          <details class="card gen-sec"><summary>Opinie (tylko z linkiem do źródła)</summary><div class="body">${[0, 1, 2, 3, 4].map((i) => `<div class="mini"><b>Opinia ${i + 1}</b>${inp(`r-a-${i}`, "Autor", rev(i).author || "")}${inp(`r-s-${i}`, "Ocena 1–5", rev(i).rating || "")}${inp(`r-u-${i}`, "Link do źródła", rev(i).source_url || "")}${inp(`r-t-${i}`, "Treść", rev(i).text || "")}</div>`).join("")}</div></details>
-          <details class="card gen-sec"><summary>Pytania i odpowiedzi</summary><div class="body">${[0, 1, 2, 3, 4, 5].map((i) => `<div class="mini"><b>Pytanie ${i + 1}</b>${inp(`q-${i}`, "Pytanie", fq(i).q || "")}${inp(`a-${i}`, "Odpowiedź", fq(i).a || "")}</div>`).join("")}</div></details>
-          <details class="card gen-sec"><summary>Nagrania od klientów</summary><div class="body">${[0, 1, 2].map((i) => `<div class="mini"><b>Nagranie ${i + 1}</b>${inp(`u-v-${i}`, "Adres wideo (https)", ugc(i).video || "")}${inp(`u-p-${i}`, "Klatka (poster)", ugc(i).poster || "")}${inp(`u-a-${i}`, "Autor", ugc(i).author || "")}${inp(`u-t-${i}`, "Podpis", ugc(i).text || "")}</div>`).join("")}</div></details>
+          <details class="card gen-sec"><summary>Opinie (tylko z linkiem do źródła)</summary><div class="body"><div class="ph-slot" style="border:1px dashed var(--line);border-radius:12px;padding:12px"><b>Bez źródła opinia nie wchodzi na stronę.</b> Generator ich nie wymyśla. Puste pole zostaje puste.</div>${[0, 1, 2, 3, 4].map((i) => `<div class="mini"><b>Opinia ${i + 1}</b>${inp(`r-a-${i}`, "Autor", rev(i).author || "")}${inp(`r-s-${i}`, "Ocena 1–5", rev(i).rating || "")}${inp(`r-u-${i}`, "Link do źródła", rev(i).source_url || "")}${inp(`r-p-${i}`, "Zdjęcie opinii (https, opcjonalnie)", rev(i).photo || "")}${inp(`r-t-${i}`, "Treść", rev(i).text || "")}</div>`).join("")}</div></details>
+          <details class="card gen-sec"><summary>Pytania i obiekcje</summary><div class="body">${[0, 1, 2, 3, 4, 5].map((i) => `<div class="mini"><b>Pytanie ${i + 1}</b>${inp(`q-${i}`, "Pytanie", fq(i).q || "", 'placeholder="Czym to się różni od zwykłego zestawu?"')}${inp(`a-${i}`, "Odpowiedź", fq(i).a || "")}</div>`).join("")}</div></details>
+          <details class="card gen-sec"><summary>Nagrania od klientów</summary><div class="body"><div class="ph-slot" style="border:1px dashed var(--line);border-radius:12px;padding:12px"><b>Brak nagrania = sekcja ukryta na żywo.</b> Wklej tylko film, do którego masz prawa.</div>${[0, 1, 2].map((i) => `<div class="mini"><b>Nagranie ${i + 1}</b>${inp(`u-v-${i}`, "Adres wideo (https)", ugc(i).video || "")}${inp(`u-p-${i}`, "Klatka (poster)", ugc(i).poster || "")}${inp(`u-a-${i}`, "Autor", ugc(i).author || "")}${inp(`u-t-${i}`, "Podpis", ugc(i).text || "")}</div>`).join("")}</div></details>
           <details class="card gen-sec"><summary>Dodatek, pasuje do, dostawa</summary><div class="body">
             <div class="mini"><b>Dodatek do koszyka (upsell)</b>${inp("ad-name", "Nazwa", ad.name || "")}${inp("ad-price", "Cena", ad.price ?? "")}${inp("ad-text", "Dopisek", ad.text || "")}</div>
             ${[0, 1, 2, 3].map((i) => `<div class="mini"><b>Pasuje do ${i + 1}</b>${inp(`rel-n-${i}`, "Nazwa", rel(i).name || "")}${inp(`rel-p-${i}`, "Cena", rel(i).price ?? "")}${inp(`rel-u-${i}`, "Link", rel(i).url || "")}</div>`).join("")}
@@ -350,13 +396,15 @@
         cost: gv("p-cost"), stock: gv("p-stock"), bundles, images,
         callouts: [0, 1, 2].map((i) => ({ label: gv(`call-${i}`) })),
         variant_label: gv("p-varlabel"), variants: lines("p-vars"),
-        benefits: [0, 1, 2].map((i) => ({ title: gv(`ben-${i}`) })),
+        benefits: [0, 1, 2].map((i) => ({ title: gv(`ben-${i}`), text: gv(`ben-t-${i}`), icon: gv(`ben-i-${i}`) })),
         benefits_title: gv("p-bentitle"),
         features: [0, 1, 2, 3].map((i) => ({ title: gv(`ft-${i}`), text: gv(`fx-${i}`) })),
         problem: { title: gv("p-pt"), text: gv("p-px"), image: gv("p-pi") },
         compare_ours: gv("p-ours"), compare_others: gv("p-others"),
+        compare_image_ours: gv("p-cimg-o"), compare_image_others: gv("p-cimg-t"),
+        compare_caption_ours: gv("p-ccap-o"), compare_caption_others: gv("p-ccap-t"),
         compare: [0, 1, 2, 3, 4].map((i) => ({ feature: gv(`c-f-${i}`), ours: gv(`c-o-${i}`), others: gv(`c-t-${i}`) })),
-        reviews: [0, 1, 2, 3, 4].map((i) => ({ author: gv(`r-a-${i}`), rating: gv(`r-s-${i}`), source_url: gv(`r-u-${i}`), text: gv(`r-t-${i}`) })),
+        reviews: [0, 1, 2, 3, 4].map((i) => ({ author: gv(`r-a-${i}`), rating: gv(`r-s-${i}`), source_url: gv(`r-u-${i}`), photo: gv(`r-p-${i}`), text: gv(`r-t-${i}`) })),
         faq: [0, 1, 2, 3, 4, 5].map((i) => ({ q: gv(`q-${i}`), a: gv(`a-${i}`) })),
         ugc: [0, 1, 2].map((i) => ({ video: gv(`u-v-${i}`), poster: gv(`u-p-${i}`), author: gv(`u-a-${i}`), text: gv(`u-t-${i}`) })),
         addons: [{ name: gv("ad-name"), price: gv("ad-price"), text: gv("ad-text") }],
@@ -368,6 +416,12 @@
         gpsr: { producer: gv("g-name"), address: gv("g-addr"), contact: gv("g-mail"), responsible: gv("g-resp"), warnings: gv("g-warn") },
         pay_url: gv("p-pay"), checkout_url: gv("p-check"),
         theme: { accent: gv("p-accent") || "#ff5a00" },
+        template: gv("p-template") || "auto",
+        sections: Object.fromEntries((M.PAGE_SECTIONS || []).map(([key]) => [key, gc(`sec-${key}`)])),
+        sale: { enabled: gc("sale-on"), label: gv("sale-label"), text: gv("sale-text"), ends_at: gv("sale-end") },
+        urgency: { show_stock: gc("urg-stock"), show_timer: gc("urg-timer"), ends_at: gv("urg-end"), label: gv("urg-label") },
+        trust_title: gv("trust-title"),
+        trust_names: lines("trust-names"),
         seo: { title: gv("seo-t"), description: gv("seo-d") },
         example: gc("p-example"),
         contact: { enabled: true },
@@ -376,7 +430,7 @@
       return M.mergeSiteData(prev, raw);
     }
 
-    async function persist(status) {
+    async function persist(status, intent) {
       if (!document.getElementById("pageForm")) return;
       const existing = CRM.UI.genId && CRM.UI.genId !== "new" ? pageById(CRM.UI.genId) : null;
       const data = collect(existing);
@@ -412,8 +466,15 @@
       CRM.UI.genExample = false;
       CRM.UI.genDraftId = null;
       await loadPages();
+      if (document.getElementById("p-shopify-auto") && WF && CRM.putSettings) {
+        const want = gc("p-shopify-auto");
+        if (want !== WF.shopifyAutoDraftEnabled(CRM.S.settings)) {
+          try { await CRM.putSettings({ shopify_auto_draft: want }); } catch { /* ustawienie jest dodatkowe */ }
+        }
+      }
+      const shopifyIntent = intent || (row.status === "published" && existing?.status !== "published" ? "active" : undefined);
       if (row.product_id && CRM.afterPageSaved) {
-        try { await CRM.afterPageSaved(row.product_id, row.status); } catch { /* sync Shopify jest dodatkowy */ }
+        try { await CRM.afterPageSaved(row.product_id, row.status, shopifyIntent); } catch { /* sync Shopify jest dodatkowy */ }
       }
       CRM.toast(row.status === "published" ? `Opublikowano /p/${slug}` : "Zapisano szkic");
       CRM.scheduleRender();
@@ -433,7 +494,7 @@
       CRM.logAct(`Wycofał stronę /p/${existing.slug}`);
       await loadPages();
       if (row.product_id && CRM.afterPageSaved) {
-        try { await CRM.afterPageSaved(row.product_id, "draft"); } catch { /* sync Shopify jest dodatkowy */ }
+        try { await CRM.afterPageSaved(row.product_id, "draft", "hold"); } catch { /* sync Shopify jest dodatkowy */ }
       }
       CRM.toast("Strona wróciła do szkicu");
       CRM.scheduleRender();
@@ -442,8 +503,8 @@
     async function preview() {
       const existing = CRM.UI.genId && CRM.UI.genId !== "new" ? pageById(CRM.UI.genId) : { id: "podglad", slug: "podglad", name: gv("p-name") || "Podgląd", status: "draft" };
       const data = collect(existing && existing.data ? existing : null);
-      const { renderLightPage } = await import("./lib/render.mjs");
-      const html = renderLightPage({ ...existing, name: gv("p-name") || data.headline || existing.name, status: existing.status || "draft" }, data, { preview: true, origin: location.origin });
+      const { renderPage } = await import("./lib/render.mjs");
+      const html = renderPage({ ...existing, name: gv("p-name") || data.headline || existing.name, status: existing.status || "draft" }, data, { preview: true, origin: location.origin });
       const w = window.open("", "podglad");
       if (!w) { CRM.toast("Przeglądarka zablokowała okno podglądu."); return; }
       w.document.open();
@@ -489,7 +550,7 @@
       else if (g === "edit") { CRM.UI.genId = t.dataset.id; CRM.scheduleRender(); }
       else if (g === "back") { CRM.UI.genId = null; CRM.scheduleRender(); }
       else if (g === "preview") preview();
-      else if (g === "publish") persist("published");
+      else if (g === "publish") persist("published", "active");
       else if (g === "unpublish") unpublish();
       else if (g === "delete") removePage();
       else if (g === "ai") generateHere();

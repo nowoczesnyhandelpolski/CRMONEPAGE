@@ -13,7 +13,7 @@ Panel (`index.html`, logowanie e-mail + hasło):
 - **Pulpit** — cel miesięczny, przychód, zysk, marża, wykres 14 dni, lejek, „Wymaga uwagi”
 - **Zamówienia** — statusy logistyczne: nowe → zamówione u dostawcy → wysłane → dostarczone, oraz problem / zwrot. Płatność (oczekuje / opłacone / anulowane / zwrot) jest osobnym polem
 - **Produkty**, **Dostawcy**, **Klienci**, **Zadania** (kanban), **Sklepy i boty**
-- **Generator stron** — karty one-page, podgląd, publikacja pod `/p/<slug>`
+- **Generator stron** — karty one-page, podgląd, publikacja pod `/p/<slug>`. Szablon klasyczny zostaje. S1 Max domyślnie dostaje szablon Konwersja (zestawy, opinie ze źródłem, baner, przyklejony koszyk). Opinie i nagrania biorą się tylko z pól karty
 - **Leady** i **Wiadomości** — zapisy z publicznych stron
 - **Komunikator zespołu** (Wiadomości → Czat zespołu) — czat wspólników na żywo: zdjęcia (wybór lub Ctrl+V, kompresja w przeglądarce), emoji i reakcje, @oznaczanie, linki #numer do zamówień, kto jest online i kto pisze, licznik nieprzeczytanych w menu i w tytule karty, dźwięk i powiadomienie przy nowej wiadomości. Wiadomości to rekordy `col = chat` w `public.records`, więc nie trzeba nic zmieniać w bazie
 - **Generator promptów** — formularz (firma, produkty z CRM, 6 schematów stron: landing, sklep, centrum obsługi klienta, B2B, kampania sezonowa, wizytówka, dodatki typu e-maile i bot FAQ) składa gotowy prompt dla AI. Kopiowanie jednym kliknięciem, pobieranie .txt, zapisane szablony i szkic trzymane w przeglądarce
@@ -149,6 +149,8 @@ Na stronie i przy produkcie są trzy kafle: **S1** (tekst, 0 zł za zdjęcia), *
 W Ustawieniach jest **Połączenie z OpenAI**. Klucz szyfruje Pages Function (AES-GCM, sekret `NHP_ENC_KEY`) i zapisuje szyfrogram funkcją `is_team()`. Do przeglądarki wraca tylko `sk-…` i 4 ostatnie znaki. Bez `NHP_ENC_KEY` panel pokazuje, jak go dodać (`openssl rand -base64 32`).
 
 **Zrób stronę** tworzy szkic w Generatorze stron. Cudze zdjęcia nie dostają prawa do publikacji. Cena przed promocją nie jest wstawiana jako omnibus.
+
+Nowa karta startuje z szablonem „auto”: pierwsza generacja S1 Max zapisuje **Konwersję**, S1 i S1 Pro zostają przy **klasycznym**. Szablon da się wybrać ręcznie. Stare karty bez pola `template` dalej renderują klasyczny układ.
 
 ## Sekrety
 

@@ -156,11 +156,15 @@
       CRM.toast("Szkic strony zapisany. Publikacja zostaje ręczna.");
     }
 
-    async function advanceWorkflow(productId, pageStatus) {
+    async function advanceWorkflow(productId, pageStatus, intent) {
       if (!productId || !WF) return;
       const product = CRM.S.trade.products.find((item) => item.id === productId);
-      const next = WF.workflowAfterPage(product?.workflow_status, pageStatus);
-      if (!next || next === (product?.workflow_status || "pobrany")) return;
+      const current = product?.workflow_status;
+      let next;
+      if (intent === "active" || intent === "hold" || intent === "draft") next = WF.workflowForShopifyPush(current, intent);
+      else if (WF.shopifyAutoDraftEnabled(CRM.S.settings) && pageStatus !== "published") next = WF.workflowForShopifyPush(current, "draft");
+      else next = WF.workflowAfterPage(current, pageStatus);
+      if (!next || next === (current || "pobrany")) return;
       await CRM.SB.from("products").update({ workflow_status: next, updated_at: new Date().toISOString() }).eq("id", productId);
     }
 
@@ -170,8 +174,8 @@
       else location.hash = "generator";
     }
 
-    CRM.afterPageSaved = async (productId, pageStatus) => {
-      await advanceWorkflow(productId, pageStatus);
+    CRM.afterPageSaved = async (productId, pageStatus, intent) => {
+      await advanceWorkflow(productId, pageStatus, intent);
       try { await call("/api/shopify/flush", "POST", { product_ids: [productId] }); } catch { /* brak sekretów */ }
       await reload();
     };
@@ -361,7 +365,7 @@
         </div>
         <div class="toolbar"><label class="search">${CRM.ic("search", 16)}<input id="q-trade" data-trade-q placeholder="Nazwa, EAN, producent, SKU" value="${CRM.esc(ui.q || "")}"></label>${bulk}</div>` +
         (rows.length ? `<div class="card tbl-wrap"><table><thead><tr><th></th><th>Nazwa katalogowa</th><th>EAN</th><th>Cena</th><th>Strona</th><th>Status</th><th>Shopify</th><th></th>${headStats}</tr></thead><tbody>${body}</tbody></table></div>` : empty) +
-        `<p class="small muted">Zmiana statusu, ceny, opisu albo treści strony idzie do Shopify sama, gdy produkt jest już w sklepie albo ma status od „Strona gotowa” w górę. Pobrany i „w przygotowaniu” nie zakładają karty w sklepie, dopóki nie naciśniesz „Wyślij do Shopify”. Wyświetlenia liczy nasza strona /p/ (jedno na sesję przeglądarki). Sesje z panelu analitycznego Shopify nie są w Admin API.</p>`;
+        `<p class="small muted">Zmiana statusu, ceny, opisu albo treści strony idzie do Shopify sama, gdy produkt jest już w sklepie albo ma status od „Strona gotowa” w górę. Ustawienie „Automatycznie wysyłaj do Shopify po wygenerowaniu” (domyślnie włączone) zakłada szkic już przy zapisie strony. Aktywny produkt powstaje po „Opublikuj” w generatorze. Pobrany bez tego ustawienia nie zakłada karty, dopóki nie naciśniesz „Wyślij do Shopify”. Wyświetlenia liczy nasza strona /p/ (jedno na sesję przeglądarki). Sesje z panelu analitycznego Shopify nie są w Admin API.</p>`;
     }
 
     function detailCard() {

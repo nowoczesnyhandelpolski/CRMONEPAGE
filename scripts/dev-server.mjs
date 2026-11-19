@@ -6,7 +6,7 @@ import path from "node:path";
 import { createMemoryStore } from "../lib/memory-store.mjs";
 import { placeLead, placeMessage, placeOrder } from "../lib/intake.mjs";
 import { cleanSiteData } from "../lib/site-model.mjs";
-import { notFoundHtml, renderLightPage, sitemapXml } from "../lib/render.mjs";
+import { notFoundHtml, renderPage, sitemapXml } from "../lib/render.mjs";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const store = createMemoryStore();
@@ -101,7 +101,7 @@ const server = http.createServer(async (req, res) => {
     if (pub && (req.method === "GET" || req.method === "HEAD") && !pub[2]) {
       const page = await store.getPage(pub[1], { publishedOnly: true });
       if (!page) return send(res, 404, notFoundHtml(), { "content-type": "text/html; charset=utf-8", "x-robots-tag": "noindex" });
-      const html = renderLightPage(page, cleanSiteData(page.data || {}), { origin: `http://127.0.0.1:${port}` });
+      const html = renderPage(page, cleanSiteData(page.data || {}), { origin: `http://127.0.0.1:${port}` });
       return send(res, 200, req.method === "HEAD" ? "" : html, {
         "content-type": "text/html; charset=utf-8",
         "x-robots-tag": "index, follow"

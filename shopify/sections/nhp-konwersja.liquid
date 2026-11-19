@@ -1,0 +1,88 @@
+{% comment %}
+  Sekcja produktu Centrali NHP.
+  Wklej jako sections/nhp-konwersja.liquid i dodaj do szablonu produktu.
+  Galeria, cena i koszyk biorą się z produktu Shopify (warianty zestawów).
+  Dół karty to product.description — HTML ze stylami, bez skryptów.
+  Nie wstawiaj tu cudzych logo. Nazwy zaufania są tekstem z metadanych.
+{% endcomment %}
+<section class="nhp" style="--nhp-accent: {{ section.settings.accent }};">
+  {% if section.settings.show_buy_box %}
+    <div class="nhp-hero">
+      <div class="nhp-gallery">
+        {% if product.featured_image %}
+          <img src="{{ product.featured_image | image_url: width: 1200 }}" alt="{{ product.featured_image.alt | escape }}" width="1200" height="1500">
+        {% endif %}
+        {% if product.images.size > 1 %}
+          <div class="nhp-thumbs">
+            {% for image in product.images limit: 6 %}
+              <img src="{{ image | image_url: width: 160 }}" alt="" width="72" height="72" loading="lazy">
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+      <div class="nhp-buy">
+        <h1>{{ product.title | escape }}</h1>
+        <p class="nhp-price">{{ product.selected_or_first_available_variant.price | money }}
+          {% if product.selected_or_first_available_variant.compare_at_price > product.selected_or_first_available_variant.price %}
+            <s>{{ product.selected_or_first_available_variant.compare_at_price | money }}</s>
+          {% endif %}
+        </p>
+        {% form 'product', product %}
+          {% if product.has_only_default_variant == false %}
+            <label for="nhp-variant">Zestaw</label>
+            <select id="nhp-variant" name="id">
+              {% for variant in product.variants %}
+                <option value="{{ variant.id }}" {% if variant == product.selected_or_first_available_variant %}selected{% endif %} {% unless variant.available %}disabled{% endunless %}>
+                  {{ variant.title | escape }} — {{ variant.price | money }}
+                </option>
+              {% endfor %}
+            </select>
+          {% else %}
+            <input type="hidden" name="id" value="{{ product.selected_or_first_available_variant.id }}">
+          {% endif %}
+          <button type="submit" class="nhp-atc" {% unless product.available %}disabled{% endunless %}>Dodaj do koszyka</button>
+        {% endform %}
+        {% assign blocks = product.metafields.nhp.blocks.value %}
+        {% if blocks.benefits %}
+          <ul class="nhp-perks">
+            {% for item in blocks.benefits %}
+              <li><strong>{{ item.title | escape }}</strong>{% if item.text %}<span>{{ item.text | escape }}</span>{% endif %}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+  <div class="nhp-story">
+    {{ product.description }}
+  </div>
+</section>
+
+{% stylesheet %}
+.nhp{font-family:Poppins,ui-sans-serif,system-ui,sans-serif;color:#141414}
+.nhp-hero{display:grid;gap:24px;width:min(1180px,calc(100% - 32px));margin:24px auto}
+.nhp-gallery img{width:100%;border-radius:16px;background:#f5f5f5}
+.nhp-thumbs{display:flex;gap:8px;margin-top:8px}
+.nhp-thumbs img{width:72px;height:72px;object-fit:cover;border-radius:10px}
+.nhp-buy h1{font-size:clamp(28px,4vw,40px);letter-spacing:-.03em;line-height:1.15;margin:0 0 8px}
+.nhp-price{font-size:28px;font-weight:650;margin:0 0 12px}
+.nhp-price s{color:#666;font-size:16px;margin-left:8px}
+.nhp-atc{width:100%;border:0;border-radius:10px;background:var(--nhp-accent,#111);color:#fff;font-weight:650;padding:16px;margin-top:12px}
+.nhp-perks{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:8px}
+.nhp-perks li{border:1px solid #e7e7e7;border-radius:12px;padding:10px 12px}
+.nhp-perks span{display:block;color:#555;font-size:14px}
+.nhp-story{width:min(860px,calc(100% - 32px));margin:12px auto 48px}
+.nhp-story img{max-width:100%;height:auto;border-radius:12px}
+@media(min-width:900px){.nhp-hero{grid-template-columns:1.1fr .9fr;align-items:start}}
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "NHP Konwersja",
+  "settings": [
+    { "type": "checkbox", "id": "show_buy_box", "label": "Karta zakupu (galeria, cena, koszyk)", "default": true },
+    { "type": "color", "id": "accent", "label": "Kolor przycisku", "default": "#111111" }
+  ],
+  "presets": [{ "name": "NHP Konwersja" }]
+}
+{% endschema %}

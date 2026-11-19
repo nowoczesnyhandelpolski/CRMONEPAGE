@@ -4,6 +4,7 @@ import { resolveOpenAIConfig, scrubSecrets } from "../../../lib/openai-secret.mj
 import { cleanSiteData } from "../../../lib/site-model.mjs";
 import { supabaseProject, supabaseRest, teamUser } from "../../../lib/supabase-rest.mjs";
 import { tierById } from "../../../lib/tiers.mjs";
+import { ensureShopifyDraft, readShopifyAutoDraft } from "../../../lib/shopify-sync.mjs";
 
 function parts(context) {
   const p = context.params?.path;
@@ -165,7 +166,7 @@ async function attachCopy(env, job, copy, model) {
     const rows = await supabaseRest(env, `pages?id=eq.${encodeURIComponent(job.page_id)}&select=data&limit=1`);
     const prev = rows?.[0]?.data || {};
     const overwrite = job.payload?.overwrite === true;
-    const merged = cleanSiteData(applyCopyToPage(prev, copy, { overwrite }));
+    const merged = cleanSiteData(applyCopyToPage(prev, copy, { overwrite, tier: job.tier }));
     merged.generated = { ...(merged.generated || {}), tier: job.tier, model };
     await supabaseRest(env, `pages?id=eq.${encodeURIComponent(job.page_id)}`, {
       method: "PATCH",
@@ -274,6 +275,12 @@ export async function onRequest(context) {
       });
       const job = rows?.[0];
       await attachCopy(env, job, copy, model);
+      if (job?.product_id && await readShopifyAutoDraft(env)) {
+        try { await ensureShopifyDraft(env, job.product_id); }
+        catch (err) {
+          console.log(JSON.stringify({ msg: "shopify_draft", error: String(err?.message || err).slice(0, 240) }));
+        }
+      }
       return json({ ok: true, job: publicJob(job) });
     }
 

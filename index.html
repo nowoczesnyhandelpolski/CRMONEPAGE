@@ -1093,6 +1093,7 @@ function openSettings(){
       <div class="f"><label for="sl-cap">Kapitał zakładowy</label><input id="sl-cap" name="sl-cap" maxlength="40" value="${esc(sl.capital||"")}" placeholder="5 000 zł"></div>
       <div class="f"><label for="sl-phone">Telefon (opcjonalnie)</label><input id="sl-phone" name="sl-phone" maxlength="40" value="${esc(sl.phone||"")}"></div>
       <div class="f full"><label class="row" style="font-weight:400"><input type="checkbox" name="sl-vat" style="width:auto" ${sl.vat_exempt?"checked":""}> Zwolnienie z VAT (art. 113 ust. 1 ustawy o VAT)</label></div>
+      <div class="f full"><label class="row" style="font-weight:400"><input type="checkbox" name="shopify-auto" style="width:auto" ${st.shopify_auto_draft===false?"":"checked"}> Automatycznie wysyłaj do Shopify po wygenerowaniu</label><span class="small muted">Domyślnie włączone. Po generacji i zapisie strony powstaje szkic produktu. Status aktywny tylko po „Opublikuj” w generatorze.</span></div>
       <div class="f"><label for="px-meta">Meta Pixel — ID (opcjonalnie)</label><input id="px-meta" name="px-meta" inputmode="numeric" maxlength="20" value="${esc(((st.tracking||{}).meta_pixel)||"")}" placeholder="15–16 cyfr z Menedżera zdarzeń"></div>
       <div class="f"><label>&nbsp;</label><span class="small muted">Trafia na każdą kartę produktu. Pixel włącza się dopiero po zgodzie klienta na cookies.</span></div>
       <div class="f"><label for="gads-id">Google Ads — ID konwersji (opcjonalnie)</label><input id="gads-id" name="gads-id" maxlength="20" value="${esc(((st.tracking||{}).google_ads_id)||"")}" placeholder="AW-123456789"></div>
@@ -1116,7 +1117,7 @@ async function submitSettings(){
   if(pixel && !/^\d{10,20}$/.test(pixel)){ toast("ID Pixela to same cyfry (10–20)."); return; }
   const gadsId = String(fd.get("gads-id")||"").trim().toUpperCase(), gadsLabel = String(fd.get("gads-label")||"").trim();
   if(gadsId && !/^AW-\d{6,15}$/.test(gadsId)){ toast("ID Google Ads ma postać AW-123456789."); return; }
-  await putSettings({team:t, emails:em, goal: num(fd.get("goal")) || 10000, goalType: fd.get("goalType")==="revenue"?"revenue":"profit", seller, tracking:{...(st0.tracking||{}), meta_pixel: pixel, google_ads_id: gadsId, google_ads_label: gadsLabel}});
+  await putSettings({team:t, emails:em, goal: num(fd.get("goal")) || 10000, goalType: fd.get("goalType")==="revenue"?"revenue":"profit", seller, shopify_auto_draft: fd.get("shopify-auto")==="on", tracking:{...(st0.tracking||{}), meta_pixel: pixel, google_ads_id: gadsId, google_ads_label: gadsLabel}});
   autoMe();
   closeModal(); toast("Ustawienia zapisane");
 }
@@ -1271,6 +1272,7 @@ const VIEW_FNS = { pulpit:vDash, zamowienia:vOrders, produkty:vProducts, dostawc
 const CRM = {
   $, esc, num, fmtZl, uid, toast, openModal, closeModal, put, del, arr, byId, nameOf,
   logAct, scheduleRender, team, avatar, pill, ic, TODAY, SCHEMA, COLS, VIEWS, VIEW_FNS, DEFAULTS, S, UI,
+  putSettings,
   opt, ORDER_ST, PAY_ST, badgeFns, readyFns,
   get SB(){ return SB; },
   get me(){ return me; },
