@@ -2,17 +2,18 @@
 (function () {
   let last = 0;
   function chain(table) {
+    const base = table === "pages" || table === "records" ? "/__sandbox/" + table : "/__sandbox/table/" + table;
     const state = { filters: [], del: false };
     const exec = async () => {
       if (state.del) {
-        const res = await fetch("/__sandbox/" + table, {
+        const res = await fetch(base, {
           method: "DELETE",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ filters: state.filters })
         });
         return { data: null, error: res.ok ? null : { message: "Nie udało się usunąć." } };
       }
-      const res = await fetch("/__sandbox/" + table);
+      const res = await fetch(base);
       let data = await res.json();
       for (const [k, v] of state.filters) data = data.filter((row) => row[k] === v);
       return { data, error: res.ok ? null : { message: "Nie udało się odczytać." } };
@@ -24,8 +25,10 @@
       eq(k, v) { state.filters.push([k, v]); return api; },
       in() { return api; },
       delete() { state.del = true; return api; },
+      limit() { return api; },
+      maybeSingle() { return exec().then((res) => ({ data: (res.data || [])[0] || null, error: res.error })); },
       upsert(row) {
-        return fetch("/__sandbox/" + table, {
+        return fetch(base, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(row)
@@ -34,7 +37,29 @@
           return { data, error: res.ok ? null : { message: (data && data.message) || "Nie udało się zapisać." } };
         });
       },
-      insert(row) { return api.upsert(row); },
+      insert(row) {
+        const saved = api.upsert(row);
+        return {
+          select() {
+            return { single: () => saved.then((res) => ({ data: res.data, error: res.error })) };
+          },
+          then(resolve, reject) { return saved.then(resolve, reject); }
+        };
+      },
+      update(row) {
+        return {
+          eq(k, v) {
+            return fetch(base, {
+              method: "PATCH",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ match: [k, v], row })
+            }).then(async (res) => {
+              const data = await res.json().catch(() => null);
+              return { data, error: res.ok ? null : { message: (data && data.message) || "Nie udało się zapisać." } };
+            });
+          }
+        };
+      },
       then(resolve, reject) { return exec().then(resolve, reject); }
     };
     return api;

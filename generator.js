@@ -236,7 +236,8 @@
       for (const k of ["name", "address", "nip", "email", "phone"]) if (!d.seller[k] && defSeller[k]) d.seller[k] = defSeller[k];
       if (!existing && defSeller.vat_exempt) d.seller.vat_exempt = true;
       const issues = M.sitePublishIssues({ name: existing?.name || d.headline }, d);
-      const products = CRM.arr("products").sort((a, b) => String(a.name).localeCompare(String(b.name), "pl"));
+      const catalog = CRM.S.trade && CRM.S.trade.products && CRM.S.trade.products.length ? CRM.S.trade.products : CRM.arr("products");
+      const products = catalog.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pl"));
       const b = (i) => d.bundles[i] || {};
       const img = (i) => d.images[i] || {};
       const bundleBox = (i) => `<div class="mini"><b>Zestaw ${i + 1}</b>
