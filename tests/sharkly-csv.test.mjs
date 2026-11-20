@@ -41,11 +41,18 @@ test("eksport Sharkly: cena 109,90, bez zestawów i bez zgadywania z ceny źród
   assert.equal(page.bundles[2].badge, "Oszczędzasz 24%");
   assert.equal(page.reviews.length, 0);
   assert.equal(page.ugc.length, 0);
-  assert.equal(page.sale.enabled, false);
-  assert.equal(page.images.length, 10);
+  assert.equal(page.sale.enabled, true);
+  assert.equal(page.sale.label, "Sezon zimowy");
+  assert.equal(page.sale.ends_at, "");
+  assert.equal(page.images.length, 2);
   assert.equal(page.images.every((image) => image.rights), true);
-  assert.match(page.subheadline, /68,5 cm|68\.5 cm/);
+  assert.equal(page.features.length, row.sections.length);
+  assert.ok(page.features.filter((feature) => feature.image).length >= 6);
   assert.ok(page.benefits.length <= 3);
+  assert.ok(page.benefits.every((benefit) => benefit.text.length <= 80 && benefit.title.length <= 48));
+  assert.ok(page.compare.length >= 3);
+  assert.ok(page.faq.length >= 3);
+  assert.match(page.subheadline, /68,5 cm|68\.5 cm/);
   assert.ok(page.specs.some((spec) => spec.name === "Długość" && spec.value === "68.5 cm"));
 
   const html = renderPage({ id: "sk", slug: "skrobaczka", name: page.headline, status: "draft" }, page, {
@@ -59,6 +66,14 @@ test("eksport Sharkly: cena 109,90, bez zestawów i bez zgadywania z ceny źród
   assert.match(html, /249/);
   assert.match(html, /Oszczędzasz 14%/);
   assert.match(html, /Oszczędzasz 24%/);
+  assert.match(html, /class="step/);
+  assert.match(html, /step-pic/);
+  assert.match(html, /Sezon zimowy/);
+  assert.match(html, /14 dni na zwrot/);
+  assert.match(html, /Pytania przed zakupem/);
+  assert.match(html, /object-fit:contain/);
+  assert.match(html, /max-width:100%/);
+  assert.doesNotMatch(html, /max-width:none/);
   const shopify = buildProductSetInput({ name: page.headline, sku: "SH-003473", ean: "5901431540170", price: 109.9, workflow_status: "strona_gotowa" }, { data: page });
   assert.equal(shopify.variants.length, 3);
   assert.equal(shopify.variants[0].price, "109.90");

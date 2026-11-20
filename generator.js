@@ -404,7 +404,7 @@
         variant_label: gv("p-varlabel"), variants: lines("p-vars"),
         benefits: [0, 1, 2].map((i) => ({ title: gv(`ben-${i}`), text: gv(`ben-t-${i}`), icon: gv(`ben-i-${i}`) })),
         benefits_title: gv("p-bentitle"),
-        features: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ title: gv(`ft-${i}`), text: gv(`fx-${i}`) })),
+        features: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ title: gv(`ft-${i}`), text: gv(`fx-${i}`), image: (prev.features || [])[i]?.image || "" })).concat((prev.features || []).slice(8)),
         specs: lines("p-specs").map((line) => { const [name, ...rest] = line.split("|"); return { name, value: rest.join("|") }; }),
         problem: { title: gv("p-pt"), text: gv("p-px"), image: gv("p-pi") },
         compare_ours: gv("p-ours"), compare_others: gv("p-others"),
