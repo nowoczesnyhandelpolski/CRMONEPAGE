@@ -13,7 +13,7 @@ Panel (`index.html`, logowanie e-mail + hasło):
 - **Pulpit** — cel miesięczny, przychód, zysk, marża, wykres 14 dni, lejek, „Wymaga uwagi”
 - **Zamówienia** — statusy logistyczne: nowe → zamówione u dostawcy → wysłane → dostarczone, oraz problem / zwrot. Płatność (oczekuje / opłacone / anulowane / zwrot) jest osobnym polem
 - **Produkty**, **Dostawcy**, **Klienci**, **Zadania** (kanban), **Sklepy i boty**
-- **Generator stron** — karty one-page, podgląd, publikacja pod `/p/<slug>`
+- **Generator stron** — karty one-page, podgląd, publikacja pod `/p/<slug>`. Szablon klasyczny zostaje. S1 Max domyślnie dostaje szablon Konwersja (zestawy, opinie ze źródłem, baner, przyklejony koszyk). Opinie i nagrania biorą się tylko z pól karty
 - **Leady** i **Wiadomości** — zapisy z publicznych stron
 - **Komunikator zespołu** (Wiadomości → Czat zespołu) — czat wspólników na żywo: zdjęcia (wybór lub Ctrl+V, kompresja w przeglądarce), emoji i reakcje, @oznaczanie, linki #numer do zamówień, kto jest online i kto pisze, licznik nieprzeczytanych w menu i w tytule karty, dźwięk i powiadomienie przy nowej wiadomości. Wiadomości to rekordy `col = chat` w `public.records`, więc nie trzeba nic zmieniać w bazie
 - **Generator promptów** — formularz (firma, produkty z CRM, 6 schematów stron: landing, sklep, centrum obsługi klienta, B2B, kampania sezonowa, wizytówka, dodatki typu e-maile i bot FAQ) składa gotowy prompt dla AI. Kopiowanie jednym kliknięciem, pobieranie .txt, zapisane szablony i szkic trzymane w przeglądarce
@@ -149,6 +149,12 @@ Na stronie i przy produkcie są trzy kafle: **S1** (tekst, 0 zł za zdjęcia), *
 W Ustawieniach jest **Połączenie z OpenAI**. Klucz szyfruje Pages Function (AES-GCM, sekret `NHP_ENC_KEY`) i zapisuje szyfrogram funkcją `is_team()`. Do przeglądarki wraca tylko `sk-…` i 4 ostatnie znaki. Bez `NHP_ENC_KEY` panel pokazuje, jak go dodać (`openssl rand -base64 32`).
 
 **Zrób stronę** tworzy szkic w Generatorze stron. Cudze zdjęcia nie dostają prawa do publikacji. Cena przed promocją nie jest wstawiana jako omnibus.
+
+Nowa karta startuje z szablonem „auto”: pierwsza generacja S1 Max zapisuje **Konwersję**, S1 i S1 Pro zostają przy **klasycznym**. Szablon da się wybrać ręcznie. Stare karty bez pola `template` dalej renderują klasyczny układ.
+
+Na liście stron jest **Edytor strony**: sekcje po ludzku (włącz, ukryj, przesuń), podgląd komputera i telefonu, pole „Opisz, co zmienić” (OpenAI, najpierw lista zmian, opinii nie dopisuje) i 10 ostatnich zapisów. Zapis powiązanej karty idzie do Shopify tak jak dotychczas. Kolumna `pages.history` powstaje po ponownym uruchomieniu `supabase.sql`.
+
+W Bazie produktów i w Generatorze jest **Importuj CSV**. Przyjmuje eksport wtyczki (średnik, kolumny `tytul`, `cena`, `ean`, `opis1`–`opis10`, `zdj*`, `zdj_opis*`, `param: …`). Cena sprzedaży jest tylko z `cena`. `cena_zrodlowa` nie uzupełnia braków i nie staje się ceną przekreśloną. Opcjonalne `cena_2` i `cena_3` dokładają zestawy 2 i 3 szt.; oszczędność liczy się od ceny jednej sztuki. Bez tych kolumn karta ma sam zestaw „1 szt.”. Opinie i nagrania z pliku nie powstają. Przy włączonym automatycznym Shopify szkic idzie po zapisie karty, o ile cena jest w pliku.
 
 ## Sekrety
 

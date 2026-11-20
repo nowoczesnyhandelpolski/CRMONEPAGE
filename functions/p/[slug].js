@@ -1,6 +1,6 @@
 import { createSupabaseStore } from "../../lib/supabase-store.mjs";
 import { cleanSiteData } from "../../lib/site-model.mjs";
-import { notFoundHtml, renderLightPage, sitemapXml } from "../../lib/render.mjs";
+import { notFoundHtml, renderPage, sitemapXml } from "../../lib/render.mjs";
 import { html, originOf, PAGE_HEADERS } from "../_util.js";
 
 async function sitemap(context) {
@@ -37,7 +37,7 @@ export async function onRequest(context) {
     if (!page) {
       return html(notFoundHtml(), 404, { ...PAGE_HEADERS, "x-robots-tag": "noindex", "cache-control": "no-store" });
     }
-    const body = renderLightPage(page, cleanSiteData(page.data || {}), { origin: originOf(context.request, context.env) });
+    const body = renderPage(page, cleanSiteData(page.data || {}), { origin: originOf(context.request, context.env) });
     return html(context.request.method === "HEAD" ? null : body, 200, PAGE_HEADERS);
   } catch (err) {
     console.log(JSON.stringify({ msg: "page_error", slug, error: String(err && err.message || err).slice(0, 300) }));
