@@ -1,4 +1,10 @@
+import {
+  addGroup, addItem, assignGroup, clearSession, finishSession, itemFromOffer,
+  itemFromShopProduct, itemToOffer, normalizeSession, pauseSession, removeItem, resumeSession,
+  sessionToSharklyCsv, setCurrentGroup, startSession
+} from "./csv-session.mjs";
 import { assertHttpEndpoint } from "./dest.mjs";
+import { extractProduct } from "./shop-extract.mjs";
 import { crawlShop } from "./shop-scan.mjs";
 import { exportRow, fullExportZip, imageFileName, productsToCsv, productsToJson, productsToXlsx, toOfferItems } from "./shop-export.mjs";
 
@@ -42,6 +48,111 @@ function progress() {
   chrome.runtime.sendMessage({ type: "shop-progress", ...snapshot() }).catch(() => {});
 }
 
+const SESSION_KEY = "nhpCsvSession";
+let sessionChain = Promise.resolve();
+
+async function loadSession() {
+  const stored = await chrome.storage.local.get(SESSION_KEY);
+  return normalizeSession(stored[SESSION_KEY]);
+}
+
+async function paintBadge(session) {
+  const n = session.items.length;
+  const text = n ? String(Math.min(n, 999)) : "";
+  const title = session.status === "active"
+    ? `NHP: sesja CSV, ${n} produktów`
+    : session.status === "paused"
+      ? `NHP: sesja wstrzymana, ${n} produktów`
+      : (n ? `NHP: sesja CSV zakończona, ${n} produktów` : "NHP import");
+  try {
+    await chrome.action.setBadgeText({ text });
+    await chrome.action.setBadgeBackgroundColor({ color: session.status === "paused" ? "#5B6782" : "#C8102E" });
+    await chrome.action.setTitle({ title });
+  } catch { /* okno bez chrome.action */ }
+}
+
+async function commitSession(session) {
+  const next = normalizeSession(session);
+  await chrome.storage.local.set({ [SESSION_KEY]: next });
+  await paintBadge(next);
+  chrome.runtime.sendMessage({ type: "csv-session", session: next }).catch(() => {});
+  return next;
+}
+
+function withSession(mutator) {
+  const run = sessionChain.then(async () => {
+    const current = await loadSession();
+    const result = await mutator(current);
+    if (result?.session) await commitSession(result.session);
+    return result || { session: current };
+  });
+  sessionChain = run.then(() => {}, () => {});
+  return run;
+}
+
+function payloadFromPage(payload, html, pageUrl) {
+  const base = { ...(payload || {}) };
+  if (!base.source_link && pageUrl) base.source_link = pageUrl;
+  if (!html) return base;
+  let shop = null;
+  try { shop = extractProduct(String(html), pageUrl || base.source_link || "https://sklep.local/"); }
+  catch { shop = null; }
+  if (!shop) return base;
+  const shopImages = Array.isArray(shop.images) ? shop.images : [];
+  const haveImages = Array.isArray(base.images) && base.images.length > 0;
+  return {
+    ...base,
+    catalog_name: base.catalog_name || shop.name || "",
+    sku: base.sku || shop.sku || "",
+    ean: base.ean || shop.ean || "",
+    producer: base.producer || shop.brand || "",
+    price: base.price || shop.price || "",
+    price_before_promo: base.price_before_promo || shop.old_price || "",
+    category: base.category || shop.category || "",
+    parameters: base.parameters?.length ? base.parameters : (shop.parameters || []),
+    images: haveImages ? base.images : shopImages,
+    description: base.description || shop.description_text || "",
+    source_link: base.source_link || shop.url || pageUrl || ""
+  };
+}
+
+function sessionLine(result) {
+  if (!result) return "";
+  if (result.reason === "paused") return " Sesja CSV jest wstrzymana — produkt nie doszedł do listy.";
+  if (result.reason === "limit") return " Sesja CSV jest pełna (2000 produktów).";
+  if (result.reason === "empty") return " Na tej stronie nie widać produktu, więc sesja go nie dostała.";
+  if (!result.added) return "";
+  const group = result.group ? ` Grupa: ${result.group}.` : "";
+  const verb = result.updated ? "zaktualizowano w sesji" : "dodano do sesji";
+  return ` CSV: ${verb} (${result.count}).${group}`;
+}
+
+async function rememberInSession(payload) {
+  return withSession(async (session) => {
+    if (session.status !== "active") return { session, added: false, reason: session.status, count: session.items.length, group: "" };
+    const step = addItem(session, itemFromOffer(payload, session.currentGroup));
+    return {
+      session: step.session,
+      added: step.added,
+      updated: step.updated,
+      reason: step.reason,
+      count: step.session.items.length,
+      group: session.currentGroup || ""
+    };
+  });
+}
+
+async function absorbShop(session) {
+  let next = session;
+  let added = 0;
+  for (const product of shop.products) {
+    const step = addItem(next, itemFromShopProduct(product, session.currentGroup));
+    if (step.added && !step.updated) added += 1;
+    next = step.session;
+  }
+  return { session: next, added, count: next.items.length };
+}
+
 async function settings() {
   const stored = await chrome.storage.local.get(["apiBase", "apiKey"]);
   return {
@@ -59,7 +170,7 @@ async function ownConfig() {
   }
 }
 
-async function postItems(items) {
+async function postItems(items, batchName) {
   const { apiBase, apiKey } = await settings();
   if (!apiKey) return { ok: false, error: "Wpisz klucz API w oknie wtyczki." };
   let res;
@@ -72,7 +183,7 @@ async function postItems(items) {
         "x-nhp-version": chrome.runtime.getManifest().version
       },
       body: JSON.stringify({
-        name: shop.domain ? `Sklep ${shop.domain}` : "Eksport sklepu",
+        name: batchName || (shop.domain ? `Sklep ${shop.domain}` : "Eksport sklepu"),
         account_login: shop.domain || "",
         items
       })
@@ -161,12 +272,12 @@ async function uploadImages() {
   return { ok: result.ok, ...snapshot() };
 }
 
-async function sendItems(items) {
+async function sendItems(items, batchName) {
   let saved = 0;
   let flagged = 0;
   const errors = [];
   for (let i = 0; i < items.length; i += 20) {
-    const part = await postItems(items.slice(i, i + 20));
+    const part = await postItems(items.slice(i, i + 20), batchName);
     if (!part.ok && part.error) errors.push(part.error);
     saved += Number(part.saved || 0);
     flagged += Number(part.flagged || 0);
@@ -319,6 +430,12 @@ async function runScan({ startUrl, maxPages, maxProducts }) {
     shop.done = true;
   } finally {
     shop.running = false;
+    if (!shop.error && shop.products.length) {
+      await withSession(async (session) => {
+        if (session.status !== "active") return { session };
+        return absorbShop(session);
+      });
+    }
     progress();
   }
   return { ok: !shop.error, ...snapshot() };
@@ -326,35 +443,68 @@ async function runScan({ startUrl, maxPages, maxProducts }) {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!message?.type) return;
-  if (message.type === "capture") {
+  if (message.type === "capture" || message.type === "session-add-page") {
     (async () => {
-      const payload = { ...(message.payload || {}) };
-      const product = asProduct(payload);
+      const payload = payloadFromPage(message.payload, message.html, message.pageUrl);
+      if (!payload.catalog_name && !payload.price && !payload.ean && !payload.sku) {
+        sendResponse({ ok: false, error: "Nie widzę produktu na tej stronie. Otwórz kartę oferty albo produktu." });
+        return;
+      }
+      const sessionOnly = message.type === "session-add-page";
+      const kept = sessionOnly ? { added: false } : await rememberInSession(payload);
+      if (sessionOnly) {
+        const only = await rememberInSession(payload);
+        if (!only.added && only.reason === "idle") {
+          sendResponse({ ok: false, error: "Najpierw zacznij sesję CSV." });
+          return;
+        }
+        if (!only.added && only.reason === "paused") {
+          sendResponse({ ok: false, error: "Sesja jest wstrzymana. Wznów ją, żeby dodać produkt." });
+          return;
+        }
+        if (!only.added) {
+          sendResponse({ ok: false, error: only.reason === "limit" ? "Sesja ma już 2000 produktów." : "Nie udało się dodać produktu do sesji." });
+          return;
+        }
+        const group = only.group ? ` Grupa: ${only.group}.` : "";
+        sendResponse({ ok: true, message: `W sesji jest ${only.count} produktów.${group}`, count: only.count });
+        return;
+      }
       const toNhp = message.toNhp !== false;
       const toOwn = message.toOwn === true;
-      if (!toNhp && !toOwn) {
-        sendResponse({ ok: false, error: "Zaznacz „Zapisz w NHP” albo „Wyślij na własny serwer”." });
+      if (!toNhp && !toOwn && !kept.added) {
+        const reason = kept.reason === "paused"
+          ? "Sesja CSV jest wstrzymana. Wznów ją albo zaznacz „Zapisz w NHP”."
+          : "Zaznacz „Zapisz w NHP” albo „Wyślij na własny serwer”, albo zacznij sesję CSV.";
+        sendResponse({ ok: false, error: reason });
         return;
       }
       const lines = [];
       let ok = true;
       if (toNhp) {
+        const product = asProduct(payload);
         const up = await uploadList([product]);
-        if (up.error) { sendResponse({ ok: false, error: up.error, message: up.error }); return; }
+        if (up.error) {
+          const note = sessionLine(kept);
+          sendResponse({ ok: false, error: `${up.error}${note}`, message: up.error });
+          return;
+        }
         const hosted = (product.hosted || []).map((h) => h.url).filter(Boolean);
         if (hosted.length) payload.images = hosted;
-        const part = await postItems([payload]);
+        const part = await postItems([{ ...payload, product_group: kept.group || "" }]);
         if (!part.ok) ok = false;
         lines.push(part.ok
           ? `NHP: zapisano ofertę, wgrane zdjęcia: ${up.images}${up.failed ? `, błędy zdjęć: ${up.failed}` : ""}.`
           : (part.error || "NHP nie zapisało oferty."));
       }
       if (toOwn) {
-        const own = await postOwn([product], { files: message.ownFiles === true });
+        const own = await postOwn([asProduct(payload)], { files: message.ownFiles === true });
         if (!own.ok) ok = false;
         lines.push(own.message || own.error);
       }
-      sendResponse({ ok, message: lines.join(" "), error: ok ? "" : lines.join(" "), flagged: 0 });
+      if (!toNhp && !toOwn && kept.added) lines.push("Zapis do NHP jest wyłączony.");
+      const note = sessionLine(kept);
+      sendResponse({ ok, message: `${lines.join(" ")}${note}`.trim(), error: ok ? "" : lines.join(" "), flagged: 0, count: kept.count || 0 });
     })();
     return true;
   }
@@ -427,5 +577,91 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       images: products.flatMap((p) => (p.images || []).map((url, n) => ({ url, name: imageFileName(p, n, url) }))),
       zip: Array.from(fullExportZip(products, domain))
     });
+    return;
+  }
+  if (message.type === "csv-session-get") {
+    withSession(async (session) => ({ session })).then((result) => sendResponse({ ok: true, session: result.session }));
+    return true;
+  }
+  if (message.type === "csv-session-start") {
+    withSession(async (session) => ({ session: startSession(session) })).then((result) => sendResponse({ ok: true, session: result.session }));
+    return true;
+  }
+  if (message.type === "csv-session-pause") {
+    withSession(async (session) => ({ session: pauseSession(session) })).then((result) => sendResponse({ ok: true, session: result.session }));
+    return true;
+  }
+  if (message.type === "csv-session-resume") {
+    withSession(async (session) => ({ session: resumeSession(session) })).then((result) => sendResponse({ ok: true, session: result.session }));
+    return true;
+  }
+  if (message.type === "csv-session-finish") {
+    withSession(async (session) => {
+      const next = finishSession(session);
+      return { session: next, csv: sessionToSharklyCsv(next.items), count: next.items.length };
+    }).then((result) => sendResponse({ ok: true, session: result.session, csv: result.csv, count: result.count }));
+    return true;
+  }
+  if (message.type === "csv-session-clear") {
+    withSession(async (session) => ({ session: clearSession(session) })).then((result) => sendResponse({ ok: true, session: result.session }));
+    return true;
+  }
+  if (message.type === "csv-session-group") {
+    withSession(async (session) => {
+      if (message.mode === "add") {
+        const step = addGroup(session, message.name);
+        return { session: step.session, error: step.error };
+      }
+      if (message.mode === "current") return { session: setCurrentGroup(session, message.name) };
+      if (message.mode === "remove") return { session: removeItem(session, message.id) };
+      if (message.mode === "assign") return { session: assignGroup(session, message.ids || (message.id ? [message.id] : []), message.name) };
+      return { session };
+    }).then((result) => sendResponse({ ok: !result.error, error: result.error || "", session: result.session }));
+    return true;
+  }
+  if (message.type === "csv-session-add-shop") {
+    withSession(async (session) => {
+      if (session.status !== "active") {
+        const error = session.status === "paused"
+          ? "Sesja jest wstrzymana. Wznów ją, żeby dodać produkty."
+          : "Najpierw zacznij sesję CSV.";
+        return { session, ok: false, error };
+      }
+      if (!shop.products.length) return { session, ok: false, error: "Najpierw zeskanuj sklep." };
+      const step = await absorbShop(session);
+      return { session: step.session, ok: true, message: `W sesji jest ${step.count} produktów. Nowych: ${step.added}.` };
+    }).then((result) => sendResponse({ ok: result.ok !== false, error: result.error || "", message: result.message || "", session: result.session }));
+    return true;
+  }
+  if (message.type === "csv-session-send") {
+    (async () => {
+      const session = await loadSession();
+      if (!session.items.length) {
+        sendResponse({ ok: false, error: "W sesji nie ma produktów." });
+        return;
+      }
+      const products = session.items.map((item) => asProduct(itemToOffer(item)));
+      const up = await uploadList(products);
+      if (up.error) { sendResponse({ ok: false, error: up.error }); return; }
+      const items = session.items.map((item, index) => {
+        const hosted = (products[index].hosted || []).map((entry) => entry.url).filter(Boolean);
+        const offer = itemToOffer(item);
+        if (hosted.length) offer.images = hosted;
+        return offer;
+      });
+      const sent = await sendItems(items, "Sesja CSV");
+      sendResponse({
+        ok: sent.ok,
+        error: sent.error || "",
+        message: sent.ok
+          ? `NHP: zapisano ${sent.saved} z ${sent.total}.${sent.flagged ? ` Bez ceny: ${sent.flagged}.` : ""} Zdjęcia: ${up.images}.`
+          : (sent.error || "Nie udało się wysłać sesji.")
+      });
+    })();
+    return true;
   }
 });
+
+loadSession().then(paintBadge).catch(() => {});
+chrome.runtime.onInstalled.addListener(() => { loadSession().then(paintBadge).catch(() => {}); });
+chrome.runtime.onStartup.addListener(() => { loadSession().then(paintBadge).catch(() => {}); });

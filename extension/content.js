@@ -44,15 +44,14 @@
   frame.addEventListener("load", () => offerOrigins());
 
   async function capture(opts = {}) {
-    if (!extractOffer) {
-      tell("Ta strona nie jest kartą oferty Allegro.", true);
-      return;
+    const href = location.href;
+    let payload = { source_link: href, images: [] };
+    if (extractOffer) {
+      try { payload = extractOffer(document, href); }
+      catch (err) { console.error("NHP: odczyt oferty nie powiódł się.", err); }
     }
-    const payload = extractOffer(document, location.href);
-    if (!payload.catalog_name && !payload.price && !payload.ean) {
-      tell("Nie widzę karty produktu. Odśwież stronę albo zaktualizuj selektory.", true);
-      return;
-    }
+    const allegroHost = /(^|\.)allegro\.pl$/i.test(location.hostname);
+    const html = allegroHost ? "" : String(document.documentElement?.outerHTML || "").slice(0, 1500000);
     const stored = await chrome.storage.local.get(["saveToNhp", "sendToOwn", "ownFiles"]);
     const toNhp = "toNhp" in opts ? opts.toNhp !== false : stored.saveToNhp !== "0";
     const toOwn = "toOwn" in opts ? !!opts.toOwn : stored.sendToOwn === "1";
@@ -61,6 +60,8 @@
     const res = await chrome.runtime.sendMessage({
       type: "capture",
       payload,
+      html,
+      pageUrl: href,
       toNhp,
       toOwn,
       ownFiles

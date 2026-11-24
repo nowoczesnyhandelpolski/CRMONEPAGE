@@ -238,6 +238,8 @@
       const issues = M.sitePublishIssues({ name: existing?.name || d.headline }, d);
       const catalog = CRM.S.trade && CRM.S.trade.products && CRM.S.trade.products.length ? CRM.S.trade.products : CRM.arr("products");
       const products = catalog.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pl"));
+      const groupFilter = CRM.UI.genGroup || "";
+      const groupNames = [...new Set(products.map((p) => String(p.product_group || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pl"));
       const b = (i) => d.bundles[i] || {};
       const img = (i) => d.images[i] || {};
       const bundleBox = (i) => `<div class="mini"><b>Zestaw ${i + 1}</b>
@@ -271,7 +273,13 @@
           <details class="card gen-sec" open><summary>Adres i powiązanie</summary><div class="body gen-grid">
             ${inp("p-name", "Nazwa wewnętrzna", existing?.name || d.headline || "")}
             ${inp("p-slug", "Adres (slug)", existing?.slug || "", 'placeholder="kalendarz-adwentowy"')}
-            <div class="f"><label for="p-product">Produkt w CRM (opcjonalnie)</label><select id="p-product"><option value="">— brak —</option>${products.map((p) => `<option value="${CRM.esc(p.id)}" ${existing && existing.product_id === p.id ? "selected" : ""}>${CRM.esc(p.name || p.id)}</option>`).join("")}</select></div>
+            <div class="f"><label for="p-group-filter">Grupa produktów</label><select id="p-group-filter"><option value="">Wszystkie grupy</option>${groupNames.map((name) => `<option value="${CRM.esc(name)}" ${groupFilter === name ? "selected" : ""}>${CRM.esc(name)}</option>`).join("")}</select><p class="small muted">Lista obok pokazuje tylko produkty z wybranej grupy.</p></div>
+            <div class="f"><label for="p-product">Produkt w CRM (opcjonalnie)</label><select id="p-product"><option value="">— brak —</option>${products.map((p) => {
+              const group = String(p.product_group || "").trim();
+              const keep = existing && existing.product_id === p.id;
+              const hidden = groupFilter && group !== groupFilter && !keep ? "hidden" : "";
+              return `<option value="${CRM.esc(p.id)}" data-group="${CRM.esc(group)}" ${hidden} ${existing && existing.product_id === p.id ? "selected" : ""}>${CRM.esc(p.name || p.id)}${group ? ` · ${CRM.esc(group)}` : ""}</option>`;
+            }).join("")}</select></div>
             ${inp("p-accent", "Kolor akcentu", d.theme.accent || "#ff5a00", 'type="color"')}
             <label class="row" style="grid-column:1/-1"><input type="checkbox" id="p-example" ${d.example ? "checked" : ""}> To tylko przykład (blokuje publikację, dopóki nie odznaczysz)</label>
             <div class="f" style="grid-column:1/-1"><label for="p-template">Szablon</label><select id="p-template">
@@ -534,6 +542,19 @@
       CRM.toast("Usunięto stronę");
       CRM.scheduleRender();
     }
+
+    document.addEventListener("change", (e) => {
+      if (e.target.id !== "p-group-filter") return;
+      const group = e.target.value;
+      CRM.UI.genGroup = group;
+      const select = document.getElementById("p-product");
+      if (!select) return;
+      for (const opt of select.options) {
+        if (!opt.value) { opt.hidden = false; continue; }
+        opt.hidden = !!(group && (opt.dataset.group || "") !== group);
+      }
+      if (select.selectedOptions[0]?.hidden) select.value = "";
+    });
 
     document.addEventListener("click", (e) => {
       const tierBtn = e.target.closest("[data-tier]");
