@@ -1,9 +1,11 @@
 import { json, readJson } from "../../_util.js";
 import { applyCopyToPage, copyPrompt, COPY_SCHEMA, photoPrompt, scenesForTier } from "../../../lib/copy-prompt.mjs";
+import { applyPageEdit, describePageDiff, EDIT_SCHEMA, editPrompt } from "../../../lib/page-editor.mjs";
 import { resolveOpenAIConfig, scrubSecrets } from "../../../lib/openai-secret.mjs";
 import { cleanSiteData } from "../../../lib/site-model.mjs";
 import { supabaseProject, supabaseRest, teamUser } from "../../../lib/supabase-rest.mjs";
 import { tierById } from "../../../lib/tiers.mjs";
+import { ensureShopifyDraft, readShopifyAutoDraft } from "../../../lib/shopify-sync.mjs";
 
 function parts(context) {
   const p = context.params?.path;
@@ -165,7 +167,7 @@ async function attachCopy(env, job, copy, model) {
     const rows = await supabaseRest(env, `pages?id=eq.${encodeURIComponent(job.page_id)}&select=data&limit=1`);
     const prev = rows?.[0]?.data || {};
     const overwrite = job.payload?.overwrite === true;
-    const merged = cleanSiteData(applyCopyToPage(prev, copy, { overwrite }));
+    const merged = cleanSiteData(applyCopyToPage(prev, copy, { overwrite, tier: job.tier }));
     merged.generated = { ...(merged.generated || {}), tier: job.tier, model };
     await supabaseRest(env, `pages?id=eq.${encodeURIComponent(job.page_id)}`, {
       method: "PATCH",
@@ -196,7 +198,7 @@ export async function onRequest(context) {
     if (!user) return json({ ok: false, error: "Zaloguj się na konto zespołu." }, 401);
     const path = parts(context);
 
-    if (request.method === "POST" && path.length === 1) {
+    if (request.method === "POST" && path.length === 1 && path[0] !== "revise") {
       const jobId = path[0];
       const rows = await supabaseRest(env, `generation_jobs?id=eq.${encodeURIComponent(jobId)}&select=*&limit=1`);
       const job = rows?.[0];
@@ -243,6 +245,34 @@ export async function onRequest(context) {
       }
     }
 
+    if (request.method === "POST" && path[0] === "revise") {
+      const body = await readJson(request, 120_000);
+      const instruction = String(body.instruction || "").trim().slice(0, 1000);
+      if (instruction.length < 3) return json({ ok: false, error: "Napisz, co zmienić." }, 400);
+      const ai = await resolveOpenAIConfig(env, request);
+      held.push(ai.apiKey);
+      const res = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: { authorization: `Bearer ${ai.apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          model: ai.textModel,
+          input: editPrompt(body.data || {}, instruction),
+          text: { format: { type: "json_schema", name: "page_edit", strict: true, schema: EDIT_SCHEMA } }
+        })
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = new Error(scrubSecrets(payload.error?.message || "OpenAI nie zwróciło zmian.", [ai.apiKey]));
+        err.status = 502;
+        throw err;
+      }
+      let edit;
+      try { edit = JSON.parse(textFrom(payload)); }
+      catch { const err = new Error("Model nie zwrócił JSON."); err.status = 502; throw err; }
+      const next = applyPageEdit(body.data || {}, edit, instruction);
+      return json({ ok: true, data: next, diff: describePageDiff(body.data || {}, next) });
+    }
+
     if (request.method === "POST" && path.length === 0) {
       const body = await readJson(request, 80_000);
       const tier = tierById(body.tier);
@@ -274,6 +304,12 @@ export async function onRequest(context) {
       });
       const job = rows?.[0];
       await attachCopy(env, job, copy, model);
+      if (job?.product_id && await readShopifyAutoDraft(env)) {
+        try { await ensureShopifyDraft(env, job.product_id); }
+        catch (err) {
+          console.log(JSON.stringify({ msg: "shopify_draft", error: String(err?.message || err).slice(0, 240) }));
+        }
+      }
       return json({ ok: true, job: publicJob(job) });
     }
 

@@ -6,10 +6,11 @@ import path from "node:path";
 import { createMemoryStore } from "../lib/memory-store.mjs";
 import { placeLead, placeMessage, placeOrder } from "../lib/intake.mjs";
 import { cleanSiteData } from "../lib/site-model.mjs";
-import { notFoundHtml, renderLightPage, sitemapXml } from "../lib/render.mjs";
+import { notFoundHtml, renderPage, sitemapXml } from "../lib/render.mjs";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const store = createMemoryStore();
+const tables = new Map();
 let version = 1;
 const bump = () => { version += 1; };
 const port = Number(process.env.PORT || 4173);
@@ -68,6 +69,37 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: true });
       }
     }
+    const tableMatch = pathname.match(/^\/__sandbox\/table\/([a-z0-9_]+)$/);
+    if (tableMatch) {
+      const name = tableMatch[1];
+      if (!tables.has(name)) tables.set(name, []);
+      const rows = tables.get(name);
+      if (req.method === "GET") return json(res, 200, rows);
+      if (req.method === "POST") {
+        const row = await readBody(req);
+        if (!row.id) row.id = crypto.randomUUID();
+        const index = rows.findIndex((item) => item.id === row.id);
+        if (index >= 0) rows[index] = { ...rows[index], ...row };
+        else rows.unshift(row);
+        bump();
+        return json(res, 200, rows.find((item) => item.id === row.id));
+      }
+      if (req.method === "PATCH") {
+        const body = await readBody(req);
+        const [key, value] = body.match || [];
+        const index = rows.findIndex((item) => item[key] === value);
+        if (index >= 0) rows[index] = { ...rows[index], ...(body.row || {}) };
+        bump();
+        return json(res, 200, index >= 0 ? rows[index] : null);
+      }
+      if (req.method === "DELETE") {
+        const body = await readBody(req);
+        const id = (body.filters || []).find((f) => f[0] === "id");
+        if (id) tables.set(name, rows.filter((item) => item.id !== id[1]));
+        bump();
+        return json(res, 200, { ok: true });
+      }
+    }
     if (pathname === "/__sandbox/pages") {
       if (req.method === "GET") return json(res, 200, store.allPages());
       if (req.method === "POST") {
@@ -101,7 +133,7 @@ const server = http.createServer(async (req, res) => {
     if (pub && (req.method === "GET" || req.method === "HEAD") && !pub[2]) {
       const page = await store.getPage(pub[1], { publishedOnly: true });
       if (!page) return send(res, 404, notFoundHtml(), { "content-type": "text/html; charset=utf-8", "x-robots-tag": "noindex" });
-      const html = renderLightPage(page, cleanSiteData(page.data || {}), { origin: `http://127.0.0.1:${port}` });
+      const html = renderPage(page, cleanSiteData(page.data || {}), { origin: `http://127.0.0.1:${port}` });
       return send(res, 200, req.method === "HEAD" ? "" : html, {
         "content-type": "text/html; charset=utf-8",
         "x-robots-tag": "index, follow"

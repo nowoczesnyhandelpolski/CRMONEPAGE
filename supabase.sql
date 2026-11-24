@@ -1499,3 +1499,6 @@ execute function public.nhp_config_push_seller();
 -- Social: platformy youtube i x, dostawcy google i x — migracja social_youtube_x. Kod funkcji: supabase/functions/social-connect, social-autopilot.
 
 -- Dane spółki (krs, regon, court, capital) w nhp_public_seller i wyzwalaczach sprzedawcy — migracja seller_company_fields.
+
+-- Ostatnie wersje karty (edytor strony). Skrypt można puścić ponownie.
+alter table public.pages add column if not exists history jsonb not null default '[]'::jsonb;

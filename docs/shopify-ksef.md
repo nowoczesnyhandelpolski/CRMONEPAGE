@@ -55,7 +55,27 @@ Podpis jest sprawdzany przed jakimkolwiek zapisem. Zły HMAC dostaje HTTP 401. P
 
 ### Co synchronizujemy
 
-Do Shopify idzie: nazwa, opis (z opublikowanej karty, a gdy jej nie ma — z opisu produktu), cena (pierwszy zestaw na stronie albo cena z bazy), SKU, EAN jako kod kreskowy, zdjęcia `https://`, status.
+Do Shopify idzie: nazwa, opis, cena (pierwszy zestaw na stronie albo cena z bazy), cena przekreślona, SKU, EAN jako kod kreskowy na pierwszym wariancie, zdjęcia `https://`, status.
+
+Gdy karta ma co najmniej dwa zestawy, każdy zestaw jest osobnym wariantem opcji „Zestaw” (etykieta, cena, cena przekreślona, dopisek zostaje w opisie). SKU kolejnych zestawów dostaje końcówkę `-2`, `-3`. EAN zostaje przy pierwszym, bo kod kreskowy jest na sztukę, nie na pakiet.
+
+Szablon **Konwersja** wstawia w opis HTML ze stylami w atrybutach (bez `<script>` i bez cudzych logo): baner, trzy korzyści, pasek nazw, zestawy, porównanie, opinie ze źródłem i pytania. Dodatkowo idą metadane `nhp.template` i `nhp.blocks`. Sekcja motywu `shopify/sections/nhp-konwersja.liquid` składa nad tym opisem galerię, cenę i prawdziwy koszyk Shopify. Sam opis nie udaje przycisku „dodaj”, bo bez id wariantu nie dodałby towaru.
+
+Dlaczego opis, a nie osobna strona Online Store ani aplikacja z rozszerzeniem motywu: karta produktu musi zostać produktem (warianty, checkout, webhook zamówienia). Strona CMS nie ma wariantów. Rozszerzenie aplikacji wymaga konta Partner i wdrożenia poza tym repozytorium. Opis działa w każdym motywie od razu, a sekcja jest opcjonalna, gdy sklep ma wyglądać bliżej `/p/<slug>`.
+
+### Sekcja motywu (opcjonalnie, bliżej naszego szablonu)
+
+1. W adminie: Sklep online → Motywy → Edytuj kod.
+2. Dodaj plik `sections/nhp-konwersja.liquid` z repozytorium (`shopify/sections/nhp-konwersja.liquid`).
+3. W szablonie produktu dodaj sekcję „NHP Konwersja”.
+4. Jeśli motyw już pokazuje własną kartę zakupu, w ustawieniach sekcji wyłącz „Karta zakupu”, żeby nie dublować galerii i przycisku. Zostaje opis z Centrali.
+5. Zakresy API bez zmian: `read_products`, `write_products`, `read_orders`. Metadane `nhp.*` powstają przy zapisie produktu. Gdy sklep odrzuci metadane, wysyłka ponawia się bez nich — opis i warianty zostają.
+
+Nowa migracja SQL nie jest potrzebna. Szablon i sekcje siedzą w `pages.data`. Przełącznik Shopify jest w `records` (`col = config`, `id = main`, pole `shopify_auto_draft`). Ponowne uruchomienie `supabase.sql` nic tu nie kasuje.
+
+### Szkic po generacji, aktywny po publikacji
+
+W Ustawieniach i w generatorze jest **Automatycznie wysyłaj do Shopify po wygenerowaniu**. Brak zapisu oznacza włączone. Wtedy generacja i zapis strony podnoszą lejek co najwyżej do „strona gotowa” i wysyłają **szkic**. Przycisk **Opublikuj** ustawia „opublikowany w Shopify”, czyli **ACTIVE**. Wycofanie strony z generatora cofa aktywny produkt do „wstrzymany” (z powrotem szkic). Ręczny **Wyślij do Shopify** zostaje.
 
 Status lejka → status Shopify:
 
@@ -120,6 +140,9 @@ NIP nabywcy bierzemy z firmy, notatki albo atrybutu `nip` / `vat`, po sumie kont
 - wysyłki faktury mailem do klienta,
 - sesji i widoków z analityki Shopify,
 - przenoszenia zamówień Shopify do widoku paczek w Centrali,
-- osobnego statusu „wstrzymany” w Shopify — to szkic, archiwum to `archived`.
+- osobnego statusu „wstrzymany” w Shopify — to szkic, archiwum to `archived`,
+- koszyka Shopify wewnątrz samego opisu (przycisk dodania jest w motywie albo w sekcji `nhp-konwersja`),
+- opinii i nagrań wymyślonych przez model — do opisu wchodzą tylko te wpisane na karcie, z linkiem do źródła,
+- ilościowych rabatów Shopify (quantity breaks) obok wariantów — zestaw jest wariantem, nie regułą rabatową.
 
 Zdjęcia przy każdej wysyłce są ustawiane przez `productSet`. Shopify może dociągnąć plik ponownie, jeśli nie mamy id istniejącego media.
