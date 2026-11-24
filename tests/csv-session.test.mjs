@@ -154,6 +154,10 @@ test("baza i generator filtrują grupę, a SQL dokłada kolumnę bez kasowania",
   assert.match(offers, /product_group/);
   assert.match(offers, /Zrób strony/);
   assert.match(generator, /id="p-group-filter"/);
+  assert.match(generator, /id="baza-group"/);
+  assert.match(generator, /data-g="baza-pages"/);
+  assert.match(generator, /Wybierz z Bazy produktów/);
+  assert.match(offers, /pageFromProduct/);
   assert.match(generator, /data-group=/);
   for (const label of ["Zacznij sesję CSV", "Wstrzymaj", "Zakończ i pobierz CSV", "Wyślij sesję do NHP", "Wyczyść sesję"]) {
     assert.match(popup, new RegExp(label));

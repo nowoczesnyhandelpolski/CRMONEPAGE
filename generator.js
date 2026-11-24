@@ -14,7 +14,13 @@
       .gen-sec .body{padding:0 16px 16px;display:grid;gap:12px}
       .mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;padding:10px;border:1px dashed var(--line);border-radius:12px}
       .mini b{grid-column:1/-1;font-size:13px}
-      @media(max-width:800px){.gen-grid{grid-template-columns:1fr}}
+      .baza-list{display:grid;gap:8px}
+      .baza-row{display:grid;grid-template-columns:54px 1fr auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+      .baza-row img,.baza-ph{width:54px;height:54px;object-fit:cover;border-radius:8px;background:var(--line)}
+      .photo-row{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+      .photo-row img{width:72px;height:72px;object-fit:cover;border-radius:8px;background:var(--line)}
+      .prep-copy{max-height:180px;overflow:auto;white-space:pre-wrap;margin:0}
+      @media(max-width:800px){.gen-grid{grid-template-columns:1fr}.baza-row,.photo-row{grid-template-columns:54px 1fr}}
       .sample-frame{width:100%;height:min(78vh,920px);border:1px solid var(--line);border-radius:16px;background:#faf8f5}
     `;
     document.head.appendChild(css);
@@ -55,9 +61,11 @@
 
     let M = null;
     let WF = null;
+    let FromProduct = null;
     CRM.readyFns.push(async () => {
       M = await import("./lib/site-model.mjs");
       WF = await import("./lib/workflow.mjs");
+      FromProduct = await import("./lib/page-from-product.mjs");
       await loadPages();
       if (!CRM.S.pagesChannel && CRM.SB.channel) {
         CRM.S.pagesChannel = CRM.SB.channel("pages-live")
@@ -102,6 +110,8 @@
       if (!M) return top("Generator stron", "Wczytuję moduł…", "") + `<div class="card pad">Chwila…</div>`;
       if (CRM.UI.sampleDemo) return sampleDemoView();
       if (CRM.UI.pageEditor && CRM.pageEditorHtml) return CRM.pageEditorHtml();
+      if (CRM.UI.productPrep) return productPrepView();
+      if (CRM.UI.bazaPicker) return bazaPickerView();
       if (CRM.UI.genId) return editor();
       const list = CRM.S.pagesList || [];
       const cards = list.map((p) => {
@@ -117,7 +127,7 @@
         </article>`;
       }).join("");
       return top("Generator stron", "Karty produktów one-page. Po publikacji adres to /p/nazwa, a sklep sam pojawia się na liście sklepów.",
-        `<button class="btn" data-g="import-csv" type="button">Importuj CSV</button><button class="btn" data-g="sample" type="button">Przykładowa strona</button><button class="btn" data-g="example" type="button">Wstaw przykład</button><button class="btn primary" data-g="new" type="button">${CRM.ic("plus", 16)} Nowa strona</button>`) +
+        `<button class="btn" data-g="import-csv" type="button">Importuj CSV</button><button class="btn" data-g="baza-open" type="button">Wybierz z Bazy produktów</button><button class="btn" data-g="sample" type="button">Przykładowa strona</button><button class="btn" data-g="example" type="button">Wstaw przykład</button><button class="btn primary" data-g="new" type="button">${CRM.ic("plus", 16)} Nowa strona</button>`) +
         (CRM.sharklyImportBar ? CRM.sharklyImportBar() : "") +
         (CRM.S.pagesError ? `<div class="banner">${CRM.esc(CRM.S.pagesError)}</div>` : "") +
         (list.length ? `<section class="grid cards">${cards}</section>` : `<div class="card"><div class="empty"><b>Nie masz jeszcze stron</b>Utwórz kartę produktu albo wstaw przykład kalendarza, żeby zobaczyć szablon.</div></div>`);
@@ -224,6 +234,168 @@
       return `<div class="f" style="grid-column:1/-1"><label for="${id}">${label}</label><textarea id="${id}">${CRM.esc(value ?? "")}</textarea></div>`;
     }
 
+    function tradeProducts() {
+      return (CRM.S.trade && Array.isArray(CRM.S.trade.products) ? CRM.S.trade.products : []).slice();
+    }
+    function pageForProduct(id) {
+      const pages = [].concat(CRM.S.pagesList || [], (CRM.S.trade && CRM.S.trade.pages) || []);
+      return pages.find((page) => String(page.product_id || "") === String(id)) || null;
+    }
+    function productThumb(product) {
+      const photos = FromProduct ? FromProduct.listProductPhotos(product) : [];
+      if (photos[0]) return photos[0].url;
+      const img = (product.images || [])[0];
+      return typeof img === "string" ? img : (img?.url || "");
+    }
+    function bazaPickerView() {
+      const products = tradeProducts().sort((a, b) => String(a.catalog_name || a.name || "").localeCompare(String(b.catalog_name || b.name || ""), "pl"));
+      const groupFilter = CRM.UI.bazaGroup || "";
+      const groupNames = [...new Set(products.map((product) => String(product.product_group || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pl"));
+      const pending = groupFilter
+        ? products.filter((product) => String(product.product_group || "") === groupFilter && !pageForProduct(product.id)).length
+        : 0;
+      const rows = products.map((product) => {
+        const page = pageForProduct(product.id);
+        const name = product.catalog_name || product.name || "Bez nazwy";
+        const group = String(product.product_group || "").trim();
+        const thumb = productThumb(product);
+        const key = `${name} ${product.ean || ""} ${group}`.toLowerCase();
+        const hidden = groupFilter && group !== groupFilter ? "hidden" : "";
+        return `<article class="baza-row" data-baza-row="${CRM.esc(key)}" data-baza-group="${CRM.esc(group)}" ${hidden}>
+          ${thumb ? `<img src="${CRM.esc(thumb)}" alt="">` : `<span class="baza-ph"></span>`}
+          <div><b>${CRM.esc(name)}</b><div class="small muted">EAN ${CRM.esc(product.ean || "—")}${group ? ` · ${CRM.esc(group)}` : ""}${product.producer ? ` · ${CRM.esc(product.producer)}` : ""}</div></div>
+          ${page
+            ? `<button class="btn sm" type="button" data-g="baza-open-page" data-id="${CRM.esc(page.id)}">Otwórz stronę</button>`
+            : `<button class="btn sm primary" type="button" data-g="baza-choose" data-id="${CRM.esc(product.id)}">Wybierz</button>`}
+        </article>`;
+      }).join("");
+      const groupSelect = `<select id="baza-group" aria-label="Grupa"><option value="">Wszystkie grupy</option>${groupNames.map((name) => `<option value="${CRM.esc(name)}" ${groupFilter === name ? "selected" : ""}>${CRM.esc(name)}</option>`).join("")}</select>`;
+      return top("Wybierz z Bazy produktów", "Szukaj po nazwie, EAN albo grupie. Wiersz bez strony otwiera przygotowanie karty.",
+        `<button class="btn" type="button" data-g="baza-close">Wróć do listy</button>`) +
+        `<div class="card pad"><div class="row" style="flex-wrap:wrap;align-items:center">
+          <label class="search">${CRM.ic("search", 16)}<input id="baza-q" placeholder="Nazwa, EAN albo grupa" autocomplete="off"></label>
+          ${groupSelect}
+          <button class="btn sm primary" type="button" data-g="baza-pages" ${groupFilter && pending ? "" : "disabled"}>Zrób strony${groupFilter ? ` (${pending})` : ""}</button>
+        </div>
+        <div class="baza-list" style="margin-top:12px">${rows || `<p class="muted">Baza produktów jest pusta. Najpierw zapisz ofertę wtyczką.</p>`}</div></div>`;
+    }
+    function productPrepView() {
+      const prep = CRM.UI.productPrep;
+      const product = tradeProducts().find((item) => item.id === prep?.productId);
+      if (!prep || !product || !FromProduct) {
+        return top("Przygotowanie strony", "Nie udało się otworzyć produktu.", `<button class="btn" type="button" data-g="baza-close">Wróć</button>`) +
+          `<div class="card pad"><p>Wróć do Bazy produktów i spróbuj ponownie.</p></div>`;
+      }
+      const name = product.catalog_name || product.name || "Produkt";
+      const text = FromProduct.descriptionText(product);
+      const specs = FromProduct.factSpecs(product);
+      const packs = M.packBundles(product.price, prep.price2, prep.price3);
+      const savings = packs.map((pack) => `${pack.label}: ${pack.price} zł${pack.badge ? ` (${pack.badge})` : ""}`).join(" · ");
+      const auto = !WF || WF.shopifyAutoDraftEnabled(CRM.S.settings);
+      const shopLine = auto
+        ? "Automatyczne wysyłanie do Shopify jest włączone. Po utworzeniu strony powstanie szkic produktu, a zestawy będą wariantami."
+        : "Automatyczne wysyłanie do Shopify jest wyłączone. Szkic w sklepie powstanie, gdy włączysz wysyłkę na karcie albo naciśniesz „Wyślij do Shopify”.";
+      const photos = (prep.images || []).map((photo, index) => `<div class="photo-row">
+          <img src="${CRM.esc(photo.url)}" alt="">
+          <label class="row"><input type="checkbox" data-photo-include data-i="${index}" ${photo.include !== false ? "checked" : ""}> Pokaż na stronie${index === 0 && photo.include !== false ? " · zdjęcie główne" : ""}</label>
+          <span class="row">
+            <button class="btn sm" type="button" data-g="photo-up" data-i="${index}" ${index ? "" : "disabled"}>Wyżej</button>
+            <button class="btn sm" type="button" data-g="photo-down" data-i="${index}" ${index < prep.images.length - 1 ? "" : "disabled"}>Niżej</button>
+          </span>
+        </div>`).join("");
+      return top("Strona z Bazy produktów", CRM.esc(name),
+        `<button class="btn" type="button" data-g="baza-close">Wróć</button>`) +
+        `<div class="banner">Zdjęcia muszą być Wasze albo mieć licencję od producenta. Cudze zdjęcia z oferty innego sprzedawcy i cudze logotypy nie wchodzą na stronę. Odznacz zdjęcie, którego nie chcesz użyć.</div>` +
+        `<section class="card pad"><p class="muted small">EAN ${CRM.esc(product.ean || "—")} · ${CRM.esc(product.producer || product.brand || "brak producenta")} · cena 1 szt. ${CRM.esc(String(product.price ?? "—"))} zł</p>
+          <label class="row"><input type="checkbox" id="keep-original" ${prep.keepOriginal !== false ? "checked" : ""}> Zostaw oryginalny opis</label>
+          <p class="small muted">Włączone: nagłówek i opis z wtyczki trafiają na stronę bez zmian. Później poprawisz je w Edytorze strony. Parametry, EAN i producent zostają jako fakty.</p>
+          <div class="row">
+            <button class="btn" type="button" data-g="rewrite-ai">Przepisz opis przez AI</button>
+            <button class="btn primary" type="button" data-g="create-from-baza">Utwórz stronę</button>
+          </div>
+          <p class="small muted">„Przepisz opis przez AI” pisze własny tekst na podstawie faktów. Nie kopiuje zdań i nie dopisuje opinii ani nagrań. Na tym komputerze, bez wdrożenia, zostaje oryginał.</p>
+        </section>` +
+        `<section class="card pad"><h2>Zestawy</h2>
+          <div class="gen-grid">
+            <div class="f"><label for="price-1">Cena 1 szt. (zł)</label><input id="price-1" value="${CRM.esc(product.price ?? "")}" readonly></div>
+            <div class="f"><label for="price-2">Cena 2 szt. (zł, puste = brak zestawu)</label><input id="price-2" inputmode="decimal" value="${CRM.esc(prep.price2 ?? "")}"></div>
+            <div class="f"><label for="price-3">Cena 3 szt. (zł, puste = brak zestawu)</label><input id="price-3" inputmode="decimal" value="${CRM.esc(prep.price3 ?? "")}"></div>
+          </div>
+          <p class="small" id="bundle-preview">${CRM.esc(savings || "Brak ceny jednej sztuki.")}</p>
+          <p class="small muted">Oszczędność liczy się od ceny jednej sztuki. Puste 2 albo 3 szt. nie tworzy zestawu.</p>
+          <p class="small muted">${shopLine}</p>
+        </section>` +
+        `<section class="card pad"><h2>Zdjęcia</h2>
+          <p class="small muted">Pierwsze zaznaczone zdjęcie jest główne. Kolejność zmienisz przyciskami. Logotypy są już pominięte.${(prep.images || []).length > 12 ? " Na stronę wchodzi 12 pierwszych zaznaczonych zdjęć." : ""}</p>
+          ${photos || `<p class="muted">Wtyczka nie zapisała zdjęć produktu.</p>`}
+          <label class="row" style="margin-top:10px"><input type="checkbox" id="photo-rights" ${prep.rights ? "checked" : ""}> Potwierdzam, że zaznaczone zdjęcia są nasze albo mamy licencję producenta</label>
+          <p class="small muted">Bez tego zdjęcia widać w podglądzie, ale nie wejdą na opublikowaną stronę.</p>
+        </section>` +
+        `<section class="card pad"><h2>Opis z wtyczki</h2><pre class="prep-copy">${CRM.esc(text || "Brak opisu.")}</pre>
+          ${specs.length ? `<h3 class="small">Parametry</h3><div class="tbl-wrap"><table><tbody>${specs.map((spec) => `<tr><th>${CRM.esc(spec.name)}</th><td>${CRM.esc(spec.value)}</td></tr>`).join("")}</tbody></table></div>` : ""}
+        </section>`;
+    }
+    function readPrep() {
+      const prep = CRM.UI.productPrep;
+      if (!prep) return null;
+      const keep = document.getElementById("keep-original");
+      if (keep) prep.keepOriginal = keep.checked;
+      const price2 = document.getElementById("price-2");
+      const price3 = document.getElementById("price-3");
+      const rights = document.getElementById("photo-rights");
+      if (price2) prep.price2 = price2.value;
+      if (price3) prep.price3 = price3.value;
+      if (rights) prep.rights = rights.checked;
+      document.querySelectorAll("[data-photo-include]").forEach((box) => {
+        const index = Number(box.dataset.i);
+        if (prep.images[index]) prep.images[index].include = box.checked;
+      });
+      return prep;
+    }
+    function movePrepPhoto(index, direction) {
+      const prep = readPrep();
+      if (!prep) return;
+      const next = index + direction;
+      if (next < 0 || next >= prep.images.length) return;
+      const [item] = prep.images.splice(index, 1);
+      prep.images.splice(next, 0, item);
+      CRM.scheduleRender();
+    }
+    async function createFromPrep(rewrite) {
+      const prep = readPrep();
+      if (!prep || !FromProduct) return;
+      const product = tradeProducts().find((item) => item.id === prep.productId);
+      if (!product) { CRM.toast("Nie ma tego produktu w bazie."); return; }
+      const existing = pageForProduct(product.id);
+      if (existing) {
+        CRM.UI.productPrep = null;
+        CRM.UI.genId = existing.id;
+        CRM.toast("Ten produkt ma już stronę. Otwieram istniejącą kartę.");
+        CRM.scheduleRender();
+        return;
+      }
+      const wantRewrite = rewrite === true || prep.keepOriginal === false;
+      const draft = FromProduct.pageFromProduct(product, {
+        keepOriginal: true,
+        images: prep.images,
+        bundle2: prep.price2,
+        bundle3: prep.price3,
+        rights: prep.rights
+      });
+      if (!wantRewrite) draft.data.source.keep_original = prep.keepOriginal !== false;
+      CRM.UI.productPrep = null;
+      CRM.UI.bazaPicker = false;
+      if (!CRM.makePageFrom) { CRM.toast("Moduł bazy jeszcze się wczytuje."); return; }
+      await CRM.makePageFrom(product, product.id, {
+        data: draft.data,
+        name: draft.name,
+        rewrite: wantRewrite,
+        savePacks: true,
+        bundle2: prep.price2,
+        bundle3: prep.price3
+      });
+    }
+
     function editor() {
       const existing = CRM.UI.genId === "new" ? null : pageById(CRM.UI.genId);
       const d = existing ? M.cleanSiteData(existing.data || {}) : (CRM.UI.genExample ? M.exampleSiteData() : M.emptySiteData());
@@ -251,11 +423,14 @@
         ${inp(`b-badge-${i}`, "Badge oszczędności", b(i).badge || "", 'placeholder="Oszczędzasz 10%"')}
         ${inp(`b-note-${i}`, "Gratis (notatka)", b(i).note || "")}
       </div>`;
-      const imageBox = (i) => `<div class="mini"><b>Zdjęcie ${i + 1}</b>
+      const imageSlots = Math.min(12, Math.max(6, (d.images || []).length));
+      const imageBox = (i) => `<div class="mini"><b>Zdjęcie ${i + 1}${i === 0 ? " · główne" : ""}</b>
         ${inp(`img-url-${i}`, "Adres pliku (https albo /ścieżka)", img(i).url || "")}
         ${inp(`img-alt-${i}`, "Opis alternatywny", img(i).alt || "")}
-        <label class="row" style="grid-column:1/-1"><input type="checkbox" id="img-rights-${i}" ${img(i).rights ? "checked" : ""}> Mam prawo użyć tego zdjęcia</label>
+        <label class="row" style="grid-column:1/-1"><input type="checkbox" id="img-rights-${i}" ${img(i).rights ? "checked" : ""}> Pokaż na stronie — mam prawo użyć tego zdjęcia</label>
       </div>`;
+      const fromOffer = !!(d.source && d.source.description);
+      const keepOn = fromOffer && d.source.keep_original !== false;
       const feat = (i) => d.features[i] || {};
       const ben = (i) => d.benefits[i] || {};
       const cmp = (i) => d.compare[i] || {};
@@ -268,7 +443,7 @@
       return top(existing ? "Edycja strony" : "Nowa strona", "Pola oznaczone w makiecie. Puste wiersze są pomijane.",
         `<button class="btn" type="button" data-g="back">Wróć do listy</button><button class="btn" type="button" data-g="simple" data-id="${CRM.esc(existing?.id || "")}">Edytor strony</button>`) +
         (issues.length ? `<ol class="issues">${issues.map((x) => `<li>${CRM.esc(x)}</li>`).join("")}</ol>` : `<div class="banner" style="border-color:color-mix(in srgb,var(--good) 40%,var(--line));background:color-mix(in srgb,var(--good) 10%,var(--surface))">Dane wystarczą do publikacji.</div>`) +
-        `<section class="card pad"><h2>Generacja</h2>${CRM.tierHtml ? CRM.tierHtml() : ""}<div class="row"><button class="btn primary" type="button" data-g="ai">Generuj treść</button><button class="btn" type="button" data-g="video">Złóż wideo w panelu</button></div><p class="small muted">S1 — tekst, szablon klasyczny. S1 Pro — tekst i 1 zdjęcie AI. S1 Max — tekst, 5 zdjęć AI, wideo w tej przeglądarce i domyślnie szablon Konwersja. Najpierw zapisz szkic. Model nie dopisuje opinii ani nagrań.</p></section>` +
+        `<section class="card pad"><h2>Generacja</h2>${CRM.tierHtml ? CRM.tierHtml() : ""}<div class="row"><button class="btn primary" type="button" data-g="ai">Generuj treść</button><button class="btn" type="button" data-g="rewrite">Przepisz opis przez AI</button><button class="btn" type="button" data-g="video">Złóż wideo w panelu</button></div><p class="small muted">S1 — tekst, szablon klasyczny. S1 Pro — tekst i 1 zdjęcie AI. S1 Max — tekst, 5 zdjęć AI, wideo w tej przeglądarce i domyślnie szablon Konwersja. Najpierw zapisz szkic. „Przepisz opis przez AI” zmienia tylko tekst i nie dopisuje opinii ani nagrań.</p></section>` +
         `<form id="pageForm">
           <details class="card gen-sec" open><summary>Adres i powiązanie</summary><div class="body gen-grid">
             ${inp("p-name", "Nazwa wewnętrzna", existing?.name || d.headline || "")}
@@ -308,6 +483,7 @@
             <p class="small muted">Domyślnie włączone. Zapis i generacja tworzą szkic produktu. Aktywny produkt powstaje dopiero po „Opublikuj”. Wycofanie strony wraca w sklepie do szkicu.</p>
           </div></details>
           <details class="card gen-sec" open><summary>Nagłówek</summary><div class="body gen-grid">
+            ${fromOffer ? `<label class="row" style="grid-column:1/-1"><input type="checkbox" id="p-keep-original" ${keepOn ? "checked" : ""}> Zostaw oryginalny opis</label><p class="small muted" style="grid-column:1/-1">Włączone: nagłówek i opis z wtyczki zostają. Wyłącz i naciśnij „Przepisz opis przez AI”, jeśli tekst ma być napisany od nowa. Parametry, EAN i producent zostają.</p>` : ""}
             ${inp("p-brand", "Marka w nagłówku", d.brand)}
             ${inp("p-kicker", "Nadtytuł", d.kicker)}
             ${inp("p-headline", "Nagłówek", d.headline)}
@@ -320,7 +496,7 @@
             ${inp("p-stock", "Stan magazynu (puste = nie pokazuj liczby)", d.stock ?? "", 'inputmode="numeric" placeholder="np. 14"')}
           </div></details>
           <details class="card gen-sec" open><summary>Zestawy 1 / 2 / 3</summary><div class="body">${[0, 1, 2].map(bundleBox).join("")}</div></details>
-          <details class="card gen-sec"><summary>Zdjęcia i podpisy na zdjęciu</summary><div class="body">${[0, 1, 2, 3, 4, 5].map(imageBox).join("")}
+          <details class="card gen-sec"><summary>Zdjęcia i podpisy na zdjęciu</summary><div class="body"><p class="small muted">Zdjęcia muszą być Wasze albo mieć licencję od producenta. Odznacz zdjęcie, którego nie wolno użyć. Cudzych logotypów nie wstawiamy. Pierwsze zdjęcie jest główne.</p>${Array.from({ length: imageSlots }, (_, i) => imageBox(i)).join("")}
             <div class="gen-grid">${[0, 1, 2].map((i) => inp(`call-${i}`, `Podpis ${i + 1} na pierwszym zdjęciu`, call(i).label || "")).join("")}</div>
           </div></details>
           <details class="card gen-sec"><summary>Wariant / kolor</summary><div class="body gen-grid">
@@ -403,7 +579,12 @@
         compare_at: gv(`b-was-${i}`), omnibus: gv(`b-om-${i}`), badge: gv(`b-badge-${i}`), note: gv(`b-note-${i}`)
       }));
       const priced = M.fillBundleSavings ? M.fillBundleSavings(bundles) : bundles;
-      const images = [0, 1, 2, 3, 4, 5].map((i) => ({ url: gv(`img-url-${i}`), alt: gv(`img-alt-${i}`), rights: gc(`img-rights-${i}`) })).filter((i) => i.url);
+      const images = [];
+      for (let i = 0; i < 12; i++) {
+        if (!document.getElementById(`img-url-${i}`)) continue;
+        const url = gv(`img-url-${i}`);
+        if (url) images.push({ url, alt: gv(`img-alt-${i}`), rights: gc(`img-rights-${i}`) });
+      }
       const raw = {
         brand: gv("p-brand"), kicker: gv("p-kicker"), headline: gv("p-headline"), subheadline: gv("p-lead"),
         announcement: gv("p-ann"), price: gv("p-price"), compare_at: gv("p-compare"), omnibus_price: gv("p-omni"),
@@ -442,7 +623,9 @@
         contact: { enabled: true },
         checkout: { bump: true, gift: true, reminder: true }
       };
-      return M.mergeSiteData(prev, raw);
+      const data = M.mergeSiteData(prev, raw);
+      if (document.getElementById("p-keep-original") && data.source) data.source.keep_original = gc("p-keep-original");
+      return data;
     }
 
     async function persist(status, intent) {
@@ -543,7 +726,29 @@
       CRM.scheduleRender();
     }
 
+    function applyBazaFilter() {
+      const group = CRM.UI.bazaGroup || "";
+      const q = String(document.getElementById("baza-q")?.value || "").toLowerCase();
+      let pending = 0;
+      document.querySelectorAll("[data-baza-row]").forEach((row) => {
+        const groupMiss = group && (row.dataset.bazaGroup || "") !== group;
+        const textMiss = q && !String(row.dataset.bazaRow || "").includes(q);
+        row.hidden = !!(groupMiss || textMiss);
+        if (!groupMiss && row.querySelector("[data-g='baza-choose']")) pending += 1;
+      });
+      const bulk = document.querySelector("[data-g='baza-pages']");
+      if (bulk) {
+        bulk.disabled = !(group && pending);
+        bulk.textContent = group ? `Zrób strony (${pending})` : "Zrób strony";
+      }
+    }
+
     document.addEventListener("change", (e) => {
+      if (e.target.id === "baza-group") {
+        CRM.UI.bazaGroup = e.target.value;
+        applyBazaFilter();
+        return;
+      }
       if (e.target.id !== "p-group-filter") return;
       const group = e.target.value;
       CRM.UI.genGroup = group;
@@ -565,9 +770,23 @@
       const t = e.target.closest("[data-g]");
       if (!t) return;
       const g = t.dataset.g;
-      if (g === "new") { CRM.UI.genId = "new"; CRM.UI.genExample = false; CRM.UI.genDraftId = null; CRM.UI.sampleDemo = null; CRM.UI.pageEditor = null; CRM.scheduleRender(); }
+      if (g === "new") { CRM.UI.genId = "new"; CRM.UI.genExample = false; CRM.UI.genDraftId = null; CRM.UI.sampleDemo = null; CRM.UI.pageEditor = null; CRM.UI.productPrep = null; CRM.UI.bazaPicker = false; CRM.scheduleRender(); }
       else if (g === "simple") { if (CRM.openPageEditor) CRM.openPageEditor(t.dataset.id); }
       else if (g === "import-csv") { if (CRM.openSharklyImport) CRM.openSharklyImport(); else CRM.toast("Import CSV jest w bazie produktów."); }
+      else if (g === "baza-open") { CRM.UI.bazaPicker = true; CRM.UI.productPrep = null; CRM.UI.genId = null; CRM.UI.pageEditor = null; CRM.UI.sampleDemo = null; CRM.scheduleRender(); }
+      else if (g === "baza-close") { CRM.UI.bazaPicker = false; CRM.UI.productPrep = null; CRM.scheduleRender(); }
+      else if (g === "baza-choose") { openProductPrep(t.dataset.id); }
+      else if (g === "baza-open-page") { CRM.UI.bazaPicker = false; CRM.UI.productPrep = null; CRM.UI.genId = t.dataset.id; CRM.scheduleRender(); }
+      else if (g === "baza-pages") {
+        const group = CRM.UI.bazaGroup || "";
+        if (!group) { CRM.toast("Wybierz grupę."); return; }
+        if (CRM.makePagesForGroup) CRM.makePagesForGroup(group);
+        else CRM.toast("Moduł bazy jeszcze się wczytuje.");
+      }
+      else if (g === "photo-up") movePrepPhoto(Number(t.dataset.i), -1);
+      else if (g === "photo-down") movePrepPhoto(Number(t.dataset.i), 1);
+      else if (g === "create-from-baza") createFromPrep(false);
+      else if (g === "rewrite-ai") { const prep = readPrep(); if (prep) prep.keepOriginal = false; createFromPrep(true); }
       else if (g === "example") { CRM.UI.genId = "new"; CRM.UI.genExample = true; CRM.UI.genDraftId = null; CRM.UI.sampleDemo = null; CRM.scheduleRender(); }
       else if (g === "sample") {
         CRM.UI.genId = null;
@@ -578,15 +797,21 @@
       else if (g === "sample-save") saveSampleDraft();
       else if (g === "sample-tier") { /* poziom ustawia data-tier */ }
       else if (g === "edit") { CRM.UI.genId = t.dataset.id; CRM.scheduleRender(); }
-      else if (g === "back") { CRM.UI.genId = null; CRM.scheduleRender(); }
+      else if (g === "back") { CRM.UI.genId = null; CRM.UI.productPrep = null; CRM.scheduleRender(); }
       else if (g === "preview") preview();
       else if (g === "publish") persist("published", "active");
       else if (g === "unpublish") unpublish();
       else if (g === "delete") removePage();
       else if (g === "ai") generateHere();
+      else if (g === "rewrite") rewriteHere();
       else if (g === "video") videoHere();
     });
 
+    async function rewriteHere() {
+      const existing = pageById(CRM.UI.genId);
+      if (!existing) { CRM.toast("Najpierw zapisz szkic strony."); return; }
+      if (CRM.startGeneration) await CRM.startGeneration({ tier: "s1", page_id: existing.id, product_id: existing.product_id || undefined, overwrite: true });
+    }
     async function generateHere() {
       const existing = pageById(CRM.UI.genId);
       if (!existing) { CRM.toast("Najpierw zapisz szkic strony."); return; }
@@ -610,6 +835,47 @@
         rights: data.images.every((i) => i.rights)
       });
     }
+    document.addEventListener("input", (e) => {
+      if (e.target.id === "baza-q") applyBazaFilter();
+      if ((e.target.id === "price-2" || e.target.id === "price-3") && M && CRM.UI.productPrep) {
+        const packs = M.packBundles(document.getElementById("price-1")?.value, document.getElementById("price-2")?.value, document.getElementById("price-3")?.value);
+        const el = document.getElementById("bundle-preview");
+        if (el) el.textContent = packs.map((pack) => `${pack.label}: ${pack.price} zł${pack.badge ? ` (${pack.badge})` : ""}`).join(" · ") || "Brak ceny jednej sztuki.";
+      }
+    });
+    async function openProductPrep(productId, extra = {}) {
+      if (!FromProduct) FromProduct = await import("./lib/page-from-product.mjs");
+      const product = tradeProducts().find((item) => item.id === productId);
+      if (!product) { CRM.toast("Nie ma tego produktu w bazie."); return; }
+      const existing = pageForProduct(productId);
+      if (existing) {
+        CRM.UI.productPrep = null;
+        CRM.UI.bazaPicker = false;
+        CRM.UI.genId = existing.id;
+        CRM.toast("Ten produkt ma już stronę. Otwieram istniejącą kartę.");
+        if (location.hash !== "#generator") location.hash = "generator";
+        else CRM.scheduleRender();
+        return;
+      }
+      const price2 = extra.price2 != null && extra.price2 !== "" ? extra.price2 : (product.raw?.cena_2 ?? "");
+      const price3 = extra.price3 != null && extra.price3 !== "" ? extra.price3 : (product.raw?.cena_3 ?? "");
+      CRM.UI.productPrep = {
+        productId,
+        keepOriginal: true,
+        images: FromProduct.listProductPhotos(product).map((photo) => ({ url: photo.url, alt: photo.alt || "", include: true })),
+        price2,
+        price3,
+        rights: false
+      };
+      CRM.UI.bazaPicker = false;
+      CRM.UI.genId = null;
+      CRM.UI.genExample = false;
+      CRM.UI.sampleDemo = null;
+      CRM.UI.pageEditor = null;
+      if (location.hash !== "#generator") location.hash = "generator";
+      else CRM.scheduleRender();
+    }
+    CRM.openProductPrep = openProductPrep;
     document.addEventListener("submit", (e) => {
       if (e.target.id !== "pageForm") return;
       e.preventDefault();
