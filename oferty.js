@@ -374,7 +374,13 @@
       const q = (ui.q || "").toLowerCase();
       const split = WF ? WF.partitionProducts(CRM.S.trade.products, CRM.S.trade.pages) : { pobrane: CRM.S.trade.products, gotowe: [] };
       const tab = ui.tab === "gotowe" ? "gotowe" : "pobrane";
-      const rows = (tab === "gotowe" ? split.gotowe : split.pobrane).filter((product) => !q || `${product.catalog_name} ${product.name} ${product.ean} ${product.producer} ${product.sku}`.toLowerCase().includes(q));
+      const group = ui.group || "";
+      const groups = productGroups();
+      const rows = (tab === "gotowe" ? split.gotowe : split.pobrane).filter((product) => {
+        if (group && String(product.product_group || "") !== group) return false;
+        return !q || `${product.catalog_name} ${product.name} ${product.ean} ${product.producer} ${product.sku} ${product.product_group || ""}`.toLowerCase().includes(q);
+      });
+      const pendingInGroup = group ? (CRM.S.trade.products || []).filter((product) => String(product.product_group || "") === group && !mainPage(product.id)).length : 0;
       const shop = ui.shopify?.configured
         ? `<div class="banner">Shopify podłączony: <b>${CRM.esc(ui.shopify.domain || "")}</b>.${ui.shopify.webhook_secret ? "" : " Brakuje sekretu SHOPIFY_WEBHOOK_SECRET — zmiany ze sklepu nie wrócą."}</div>`
         : `<div class="banner">Shopify nie jest podłączony. W Cloudflare ustaw sekrety SHOPIFY_STORE_DOMAIN i SHOPIFY_ADMIN_TOKEN. Instrukcja jest w docs/shopify-ksef.md.</div>`;
@@ -390,6 +396,7 @@
         return `<tr data-nhp="open" data-kind="product" data-id="${product.id}">
           <td data-stop><input type="checkbox" data-pick-product="${product.id}" ${ui.picked[product.id] ? "checked" : ""} aria-label="Zaznacz"></td>
           <td class="strong">${CRM.esc(product.catalog_name || product.name)}</td>
+          <td>${CRM.esc(product.product_group || "—")}</td>
           <td>${CRM.esc(product.ean || "—")}</td>
           <td class="num">${money(product.price)}</td>
           <td>${pageCell(product)}</td>
@@ -401,6 +408,8 @@
         </tr>`;
       }).join("");
       const headStats = tab === "gotowe" ? "<th>Zamówienia</th><th>Szt.</th><th>Przychód</th><th>Wyświetlenia</th>" : "";
+      const groupFilter = `<select id="product-group" aria-label="Grupa"><option value="">Wszystkie grupy</option>${groups.map((name) => `<option value="${CRM.esc(name)}" ${group === name ? "selected" : ""}>${CRM.esc(name)}</option>`).join("")}</select>
+          <button class="btn sm primary" type="button" data-nhp="pages-group" ${group && pendingInGroup ? "" : "disabled"} title="${group ? `Zrób strony dla grupy ${CRM.esc(group)}` : "Najpierw wybierz grupę"}">Zrób strony${group ? ` (${pendingInGroup})` : ""}</button>`;
       const picked = Object.keys(ui.picked).filter((id) => ui.picked[id]);
       const bulk = `<div class="row">
           <button class="btn sm primary" type="button" data-nhp="bulk-pages" ${picked.length ? "" : "disabled"}>Zrób strony (${picked.length})</button>
@@ -420,8 +429,8 @@
           <button class="chip" type="button" data-nhp="tab" data-tab="pobrane" aria-pressed="${tab === "pobrane"}">Pobrane produkty <span class="num">${split.pobrane.length}</span></button>
           <button class="chip" type="button" data-nhp="tab" data-tab="gotowe" aria-pressed="${tab === "gotowe"}">Gotowe strony <span class="num">${split.gotowe.length}</span></button>
         </div>
-        <div class="toolbar"><label class="search">${CRM.ic("search", 16)}<input id="q-trade" data-trade-q placeholder="Nazwa, EAN, producent, SKU" value="${CRM.esc(ui.q || "")}"></label>${bulk}</div>` +
-        (rows.length ? `<div class="card tbl-wrap"><table><thead><tr><th></th><th>Nazwa katalogowa</th><th>EAN</th><th>Cena</th><th>Strona</th><th>Status</th><th>Shopify</th><th></th><th></th>${headStats}</tr></thead><tbody>${body}</tbody></table></div>` : empty) +
+        <div class="toolbar"><label class="search">${CRM.ic("search", 16)}<input id="q-trade" data-trade-q placeholder="Nazwa, EAN, producent, SKU, grupa" value="${CRM.esc(ui.q || "")}"></label>${groupFilter}${bulk}</div>` +
+        (rows.length ? `<div class="card tbl-wrap"><table><thead><tr><th></th><th>Nazwa katalogowa</th><th>Grupa</th><th>EAN</th><th>Cena</th><th>Strona</th><th>Status</th><th>Shopify</th><th></th><th></th>${headStats}</tr></thead><tbody>${body}</tbody></table></div>` : empty) +
         `<p class="small muted">Zmiana statusu, ceny, opisu albo treści strony idzie do Shopify sama, gdy produkt jest już w sklepie albo ma status od „Strona gotowa” w górę. Ustawienie „Automatycznie wysyłaj do Shopify po wygenerowaniu” (domyślnie włączone) zakłada szkic już przy zapisie strony. Aktywny produkt powstaje po „Opublikuj” w generatorze. Pobrany bez tego ustawienia nie zakłada karty, dopóki nie naciśniesz „Wyślij do Shopify”. Wyświetlenia liczy nasza strona /p/ (jedno na sesję przeglądarki). Sesje z panelu analitycznego Shopify nie są w Admin API.</p>`;
     }
 
@@ -439,7 +448,7 @@
           : `<p class="small muted">Brak historii statusu.</p>`;
         return `<section class="card pad" style="margin-bottom:14px">
           <div class="sec-h"><h2>${CRM.esc(p.catalog_name || p.name)}</h2><button class="btn sm" type="button" data-nhp="close">Zamknij</button></div>
-          <p class="muted small">EAN ${CRM.esc(p.ean || "—")} · SKU ${CRM.esc(p.sku || "—")} · ${CRM.esc(p.category || "bez kategorii")} · dostawa ${money(p.delivery_cost)} · bazowa ${money(p.base_price)}</p>
+          <p class="muted small">EAN ${CRM.esc(p.ean || "—")} · SKU ${CRM.esc(p.sku || "—")} · grupa ${CRM.esc(p.product_group || "bez grupy")} · ${CRM.esc(p.category || "bez kategorii")} · dostawa ${money(p.delivery_cost)} · bazowa ${money(p.base_price)}</p>
           <p class="small">Strona: ${pageCell(p)} · Shopify: ${shopifyCell(p)}${p.shopify_synced_at ? ` · sync ${CRM.esc(new Date(p.shopify_synced_at).toLocaleString("pl-PL"))}` : ""}</p>
           ${p.shopify_sync_error ? `<p class="small" style="color:var(--bad)">${CRM.esc(p.shopify_sync_error)}</p>` : ""}
           <div class="kv"><div><span>Zamówienia Shopify</span><strong class="num">${sales.orders_count || 0}</strong></div><div><span>Sztuki</span><strong class="num">${sales.units_sold || 0}</strong></div><div><span>Przychód</span><strong class="num">${money(sales.revenue)}</strong></div><div><span>Wyświetlenia strony</span><strong class="num">${viewsOf(p.id)}</strong></div></div>
@@ -653,7 +662,7 @@
         <label class="row"><input type="checkbox" data-csv-pages ${pages ? "checked" : ""}> Utwórz karty Konwersja</label>
         <label class="row"><input type="checkbox" data-csv-rights ${rights ? "checked" : ""}> Mam prawo do zdjęć z pliku</label>
       </div>
-      <p class="small muted">Eksport wtyczki (średnik): tytul, cena, ean, opis1–10, zdj i zdj_opis, param. Opcjonalnie cena_2 i cena_3. Cena sprzedaży jest tylko w kolumnie „cena”. Pusta nie jest uzupełniana z cena_zrodlowa. Zestaw 2 i 3 powstaje tylko z własnej ceny. Zaznaczone karty idą jako szkic do Shopify, gdy automatyczne wysyłanie jest włączone.</p></div>`;
+      <p class="small muted">Eksport wtyczki (średnik): tytul, cena, ean, opis1–10, zdj i zdj_opis, param, grupa. Opcjonalnie cena_2 i cena_3. Cena sprzedaży jest tylko w kolumnie „cena”. Pusta nie jest uzupełniana z cena_zrodlowa. Zestaw 2 i 3 powstaje tylko z własnej ceny. Kolumna grupa zapisuje się przy produkcie. Zaznaczone karty idą jako szkic do Shopify, gdy automatyczne wysyłanie jest włączone.</p></div>`;
     }
     CRM.sharklyImportBar = sharklyBar;
     CRM.openSharklyImport = () => openSharklyFile();
@@ -823,6 +832,7 @@
       if (act === "del-comm") { await CRM.SB.from("category_commissions").delete().eq("id", t.dataset.id); await reload(); CRM.scheduleRender(); return; }
       if (act === "export") return downloadExport();
       if (act === "import-csv") return openSharklyFile();
+      if (act === "pages-group") return makePagesForGroup();
       if (act === "save-packs") return savePacks(t.dataset.id);
       if (act === "new-key") return newKey();
       if (act === "revoke") return revokeKey(t.dataset.id);
@@ -847,6 +857,7 @@
         setWorkflow([e.target.dataset.workflow], e.target.value);
         return;
       }
+      if (e.target.id === "product-group") { T().group = e.target.value; CRM.scheduleRender(); return; }
       if (e.target.id === "auc-status") { T().status = e.target.value; CRM.scheduleRender(); }
       if (e.target.id === "auc-cat") { T().category = e.target.value; CRM.scheduleRender(); }
       if (e.target.id === "vid-format") T().videoFormat = e.target.value;
@@ -858,6 +869,24 @@
       if (e.target.dataset?.tradeQ !== undefined) { T().q = e.target.value; CRM.scheduleRender(); }
     });
 
+    function productGroups() {
+      const names = new Set();
+      for (const product of CRM.S.trade.products || []) {
+        const name = String(product.product_group || "").trim();
+        if (name) names.add(name);
+      }
+      return [...names].sort((a, b) => a.localeCompare(b, "pl"));
+    }
+    async function makePagesForGroup(groupName) {
+      const group = groupName || T().group || "";
+      if (!group) { CRM.toast("Wybierz grupę."); return; }
+      const ids = (CRM.S.trade.products || [])
+        .filter((product) => String(product.product_group || "") === group && !mainPage(product.id))
+        .map((product) => product.id);
+      if (!ids.length) { CRM.toast("W tej grupie każda pozycja ma już kartę."); return; }
+      await bulkPages(ids);
+    }
+    CRM.makePagesForGroup = (groupName) => makePagesForGroup(groupName);
     function pickedIds() {
       return Object.keys(T().picked).filter((id) => T().picked[id]);
     }

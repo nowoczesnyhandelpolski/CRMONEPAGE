@@ -125,6 +125,7 @@ Na pulpicie (do zamknięcia, wraca przy nowej wersji) i na stałe w **Kluczach A
 2. Chrome → rozszerzenia → tryb dewelopera → **Załaduj rozpakowane**.
 3. W panelu: **Klucze API** → wystaw klucz (`nhp_…`) i wklej go w okienku wtyczki.
 4. Na karcie `allegro.pl/oferta/…` naciśnij **E** (poza polem tekstowym) albo **Zapisz w Centrali**. Szkic ląduje od razu w Imporcie. Brak ceny oznacza pozycję, nie jest uzupełniany.
+5. **Zacznij sesję CSV** zbiera kolejne oferty (Allegro i sklep) do jednej listy. Lista zostaje po odświeżeniu strony. **Zakończ i pobierz CSV** ściąga plik UTF-8 z BOM, te same kolumny co import generatora (`cena`, `cena_2`, `cena_3`, `ean`, `producent`, `param: …`, `zdj…`, `grupa`). **Wyślij sesję do NHP** zapisuje je w Bazie produktów razem z grupą.
 
 Skrypt treści jest klasyczny: Chrome nie uruchamia `type: module` w `content_scripts`. Selektory (`extension/selectors.mjs` i `extract.mjs`) doczytuje w locie, więc da się je podmienić bez przebudowy. Po zmianie plików w `extension/` uruchom `npm run pack:extension`, żeby ZIP był zgodny ze źródłem.
 
@@ -154,7 +155,7 @@ Nowa karta startuje z szablonem „auto”: pierwsza generacja S1 Max zapisuje *
 
 Na liście stron jest **Edytor strony**: sekcje po ludzku (włącz, ukryj, przesuń), podgląd komputera i telefonu, pole „Opisz, co zmienić” (OpenAI, najpierw lista zmian, opinii nie dopisuje) i 10 ostatnich zapisów. Zapis powiązanej karty idzie do Shopify tak jak dotychczas. Kolumna `pages.history` powstaje po ponownym uruchomieniu `supabase.sql`.
 
-W Bazie produktów i w Generatorze jest **Importuj CSV**. Przyjmuje eksport wtyczki (średnik, kolumny `tytul`, `cena`, `ean`, `opis1`–`opis10`, `zdj*`, `zdj_opis*`, `param: …`). Cena sprzedaży jest tylko z `cena`. `cena_zrodlowa` nie uzupełnia braków i nie staje się ceną przekreśloną. Opcjonalne `cena_2` i `cena_3` dokładają zestawy 2 i 3 szt.; oszczędność liczy się od ceny jednej sztuki. Bez tych kolumn karta ma sam zestaw „1 szt.”. Opinie i nagrania z pliku nie powstają. Przy włączonym automatycznym Shopify szkic idzie po zapisie karty, o ile cena jest w pliku.
+W Bazie produktów i w Generatorze jest **Importuj CSV**. Przyjmuje eksport wtyczki (średnik, kolumny `tytul`, `cena`, `ean`, `opis1`–`opis10`, `zdj*`, `zdj_opis*`, `param: …`, opcjonalnie `grupa`). Cena sprzedaży jest tylko z `cena`. `cena_zrodlowa` nie uzupełnia braków i nie staje się ceną przekreśloną. Opcjonalne `cena_2` i `cena_3` dokładają zestawy 2 i 3 szt.; oszczędność liczy się od ceny jednej sztuki. Bez tych kolumn karta ma sam zestaw „1 szt.”. Kolumna `grupa` zapisuje się w `products.product_group` (po ponownym uruchomieniu `supabase.sql`). W Pobranych produktach, na liście „Wybierz z Bazy produktów” i przy produkcie w generatorze da się filtrować po grupie. **Zrób strony** dla grupy idzie tą samą drogą co hurtowe Zrób strony: oryginalny opis z bazy, zdjęcia bez potwierdzenia prawa nie wchodzą na opublikowaną stronę. Pozycje, które kartę już mają, są pomijane. Opinie i nagrania z pliku nie powstają. Przy włączonym automatycznym Shopify szkic idzie po zapisie karty, o ile cena jest w pliku.
 
 ## Sekrety
 

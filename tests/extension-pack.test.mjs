@@ -86,6 +86,10 @@ test("okienko wtyczki ma tokeny panelu, lokalny Poppins i karty eksportu", () =>
   assert.match(popup, /class="flag"/);
   assert.match(popup, /width: 22px/);
   assert.match(popup, /width: 360px/);
+  assert.match(popup, /Zacznij sesję CSV/);
+  assert.match(popup, /Zakończ i pobierz CSV/);
+  assert.match(popup, /Wyślij sesję do NHP/);
+  assert.match(popup, /Wyczyść sesję/);
   assert.match(popup, /Zapisz w NHP/);
   assert.match(popup, /Wyślij na własny serwer/);
   assert.match(popup, /Testuj połączenie/);

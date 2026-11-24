@@ -465,6 +465,10 @@ end;
 $$;
 revoke all on function public.nhp_num(text) from public, anon, authenticated;
 
+-- Grupa z sesji CSV wtyczki. Puste istniejące wiersze dostają ''. Skrypt można puścić ponownie.
+alter table public.products add column if not exists product_group text not null default '';
+create index if not exists products_product_group on public.products (product_group) where product_group <> '';
+
 -- Import z wtyczki. Anon woła funkcję skrótem klucza; nie czyta tabeli api_keys.
 create or replace function public.import_offer_export(p_key_hash text, p_batch jsonb)
 returns jsonb
@@ -485,6 +489,7 @@ declare
   v_now timestamptz := now();
   v_price numeric;
   v_status text;
+  v_group text;
 begin
   if p_key_hash is null or p_key_hash !~ '^[0-9a-f]{64}$' then
     raise exception 'Nieprawidłowy klucz API.' using errcode = '28000';
@@ -523,6 +528,7 @@ begin
       v_flagged := v_flagged + 1;
     end if;
     v_price := public.nhp_num(v_data->>'price');
+    v_group := left(btrim(coalesce(v_data->>'product_group', v_data->>'grupa', '')), 80);
 
     v_product := null;
     if coalesce(v_data->>'ean', '') <> '' then
@@ -539,7 +545,7 @@ begin
       insert into public.products (
         catalog_id, sku, ean, name, catalog_name, producer, brand, category_id, category,
         price, base_price, price_before_promo, delivery_cost, shipping_time,
-        images, description, description_sections, params, source_link, allegro_product_id, status, updated_at
+        images, description, description_sections, params, source_link, allegro_product_id, status, product_group, updated_at
       ) values (
         v_catalog,
         coalesce(nullif(v_data->>'sku', ''), nullif(v_data->>'ean', '')),
@@ -562,6 +568,7 @@ begin
         nullif(v_data->>'source_link', ''),
         nullif(v_data->>'allegro_product_id', ''),
         case when v_price is null then 'flagged' else 'active' end,
+        coalesce(v_group, ''),
         v_now
       ) returning id into v_product;
     else
@@ -584,6 +591,7 @@ begin
         params = case when jsonb_typeof(v_data->'parameters') = 'array' and jsonb_array_length(v_data->'parameters') > 0 then v_data->'parameters' else params end,
         source_link = coalesce(nullif(v_data->>'source_link', ''), source_link),
         allegro_product_id = coalesce(nullif(v_data->>'allegro_product_id', ''), allegro_product_id),
+        product_group = case when coalesce(v_group, '') <> '' then v_group else product_group end,
         updated_at = v_now
       where id = v_product;
     end if;

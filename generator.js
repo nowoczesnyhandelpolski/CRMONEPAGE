@@ -249,22 +249,34 @@
     }
     function bazaPickerView() {
       const products = tradeProducts().sort((a, b) => String(a.catalog_name || a.name || "").localeCompare(String(b.catalog_name || b.name || ""), "pl"));
+      const groupFilter = CRM.UI.bazaGroup || "";
+      const groupNames = [...new Set(products.map((product) => String(product.product_group || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pl"));
+      const pending = groupFilter
+        ? products.filter((product) => String(product.product_group || "") === groupFilter && !pageForProduct(product.id)).length
+        : 0;
       const rows = products.map((product) => {
         const page = pageForProduct(product.id);
         const name = product.catalog_name || product.name || "Bez nazwy";
+        const group = String(product.product_group || "").trim();
         const thumb = productThumb(product);
-        const key = `${name} ${product.ean || ""}`.toLowerCase();
-        return `<article class="baza-row" data-baza-row="${CRM.esc(key)}">
+        const key = `${name} ${product.ean || ""} ${group}`.toLowerCase();
+        const hidden = groupFilter && group !== groupFilter ? "hidden" : "";
+        return `<article class="baza-row" data-baza-row="${CRM.esc(key)}" data-baza-group="${CRM.esc(group)}" ${hidden}>
           ${thumb ? `<img src="${CRM.esc(thumb)}" alt="">` : `<span class="baza-ph"></span>`}
-          <div><b>${CRM.esc(name)}</b><div class="small muted">EAN ${CRM.esc(product.ean || "—")}${product.producer ? ` · ${CRM.esc(product.producer)}` : ""}</div></div>
+          <div><b>${CRM.esc(name)}</b><div class="small muted">EAN ${CRM.esc(product.ean || "—")}${group ? ` · ${CRM.esc(group)}` : ""}${product.producer ? ` · ${CRM.esc(product.producer)}` : ""}</div></div>
           ${page
             ? `<button class="btn sm" type="button" data-g="baza-open-page" data-id="${CRM.esc(page.id)}">Otwórz stronę</button>`
             : `<button class="btn sm primary" type="button" data-g="baza-choose" data-id="${CRM.esc(product.id)}">Wybierz</button>`}
         </article>`;
       }).join("");
-      return top("Wybierz z Bazy produktów", "Szukaj po nazwie albo EAN. Wiersz bez strony otwiera przygotowanie karty.",
+      const groupSelect = `<select id="baza-group" aria-label="Grupa"><option value="">Wszystkie grupy</option>${groupNames.map((name) => `<option value="${CRM.esc(name)}" ${groupFilter === name ? "selected" : ""}>${CRM.esc(name)}</option>`).join("")}</select>`;
+      return top("Wybierz z Bazy produktów", "Szukaj po nazwie, EAN albo grupie. Wiersz bez strony otwiera przygotowanie karty.",
         `<button class="btn" type="button" data-g="baza-close">Wróć do listy</button>`) +
-        `<div class="card pad"><label class="search">${CRM.ic("search", 16)}<input id="baza-q" placeholder="Nazwa albo EAN" autocomplete="off"></label>
+        `<div class="card pad"><div class="row" style="flex-wrap:wrap;align-items:center">
+          <label class="search">${CRM.ic("search", 16)}<input id="baza-q" placeholder="Nazwa, EAN albo grupa" autocomplete="off"></label>
+          ${groupSelect}
+          <button class="btn sm primary" type="button" data-g="baza-pages" ${groupFilter && pending ? "" : "disabled"}>Zrób strony${groupFilter ? ` (${pending})` : ""}</button>
+        </div>
         <div class="baza-list" style="margin-top:12px">${rows || `<p class="muted">Baza produktów jest pusta. Najpierw zapisz ofertę wtyczką.</p>`}</div></div>`;
     }
     function productPrepView() {
@@ -398,6 +410,8 @@
       const issues = M.sitePublishIssues({ name: existing?.name || d.headline }, d);
       const catalog = CRM.S.trade && CRM.S.trade.products && CRM.S.trade.products.length ? CRM.S.trade.products : CRM.arr("products");
       const products = catalog.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pl"));
+      const groupFilter = CRM.UI.genGroup || "";
+      const groupNames = [...new Set(products.map((p) => String(p.product_group || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pl"));
       const b = (i) => d.bundles[i] || {};
       const img = (i) => d.images[i] || {};
       const bundleBox = (i) => `<div class="mini"><b>Zestaw ${i + 1}</b>
@@ -434,7 +448,13 @@
           <details class="card gen-sec" open><summary>Adres i powiązanie</summary><div class="body gen-grid">
             ${inp("p-name", "Nazwa wewnętrzna", existing?.name || d.headline || "")}
             ${inp("p-slug", "Adres (slug)", existing?.slug || "", 'placeholder="kalendarz-adwentowy"')}
-            <div class="f"><label for="p-product">Produkt w CRM (opcjonalnie)</label><select id="p-product"><option value="">— brak —</option>${products.map((p) => `<option value="${CRM.esc(p.id)}" ${existing && existing.product_id === p.id ? "selected" : ""}>${CRM.esc(p.name || p.id)}</option>`).join("")}</select></div>
+            <div class="f"><label for="p-group-filter">Grupa produktów</label><select id="p-group-filter"><option value="">Wszystkie grupy</option>${groupNames.map((name) => `<option value="${CRM.esc(name)}" ${groupFilter === name ? "selected" : ""}>${CRM.esc(name)}</option>`).join("")}</select><p class="small muted">Lista obok pokazuje tylko produkty z wybranej grupy.</p></div>
+            <div class="f"><label for="p-product">Produkt w CRM (opcjonalnie)</label><select id="p-product"><option value="">— brak —</option>${products.map((p) => {
+              const group = String(p.product_group || "").trim();
+              const keep = existing && existing.product_id === p.id;
+              const hidden = groupFilter && group !== groupFilter && !keep ? "hidden" : "";
+              return `<option value="${CRM.esc(p.id)}" data-group="${CRM.esc(group)}" ${hidden} ${existing && existing.product_id === p.id ? "selected" : ""}>${CRM.esc(p.name || p.id)}${group ? ` · ${CRM.esc(group)}` : ""}</option>`;
+            }).join("")}</select></div>
             ${inp("p-accent", "Kolor akcentu", d.theme.accent || "#ff5a00", 'type="color"')}
             <label class="row" style="grid-column:1/-1"><input type="checkbox" id="p-example" ${d.example ? "checked" : ""}> To tylko przykład (blokuje publikację, dopóki nie odznaczysz)</label>
             <div class="f" style="grid-column:1/-1"><label for="p-template">Szablon</label><select id="p-template">
@@ -706,6 +726,41 @@
       CRM.scheduleRender();
     }
 
+    function applyBazaFilter() {
+      const group = CRM.UI.bazaGroup || "";
+      const q = String(document.getElementById("baza-q")?.value || "").toLowerCase();
+      let pending = 0;
+      document.querySelectorAll("[data-baza-row]").forEach((row) => {
+        const groupMiss = group && (row.dataset.bazaGroup || "") !== group;
+        const textMiss = q && !String(row.dataset.bazaRow || "").includes(q);
+        row.hidden = !!(groupMiss || textMiss);
+        if (!groupMiss && row.querySelector("[data-g='baza-choose']")) pending += 1;
+      });
+      const bulk = document.querySelector("[data-g='baza-pages']");
+      if (bulk) {
+        bulk.disabled = !(group && pending);
+        bulk.textContent = group ? `Zrób strony (${pending})` : "Zrób strony";
+      }
+    }
+
+    document.addEventListener("change", (e) => {
+      if (e.target.id === "baza-group") {
+        CRM.UI.bazaGroup = e.target.value;
+        applyBazaFilter();
+        return;
+      }
+      if (e.target.id !== "p-group-filter") return;
+      const group = e.target.value;
+      CRM.UI.genGroup = group;
+      const select = document.getElementById("p-product");
+      if (!select) return;
+      for (const opt of select.options) {
+        if (!opt.value) { opt.hidden = false; continue; }
+        opt.hidden = !!(group && (opt.dataset.group || "") !== group);
+      }
+      if (select.selectedOptions[0]?.hidden) select.value = "";
+    });
+
     document.addEventListener("click", (e) => {
       const tierBtn = e.target.closest("[data-tier]");
       if (tierBtn && CRM.UI.sampleDemo) {
@@ -722,6 +777,12 @@
       else if (g === "baza-close") { CRM.UI.bazaPicker = false; CRM.UI.productPrep = null; CRM.scheduleRender(); }
       else if (g === "baza-choose") { openProductPrep(t.dataset.id); }
       else if (g === "baza-open-page") { CRM.UI.bazaPicker = false; CRM.UI.productPrep = null; CRM.UI.genId = t.dataset.id; CRM.scheduleRender(); }
+      else if (g === "baza-pages") {
+        const group = CRM.UI.bazaGroup || "";
+        if (!group) { CRM.toast("Wybierz grupę."); return; }
+        if (CRM.makePagesForGroup) CRM.makePagesForGroup(group);
+        else CRM.toast("Moduł bazy jeszcze się wczytuje.");
+      }
       else if (g === "photo-up") movePrepPhoto(Number(t.dataset.i), -1);
       else if (g === "photo-down") movePrepPhoto(Number(t.dataset.i), 1);
       else if (g === "create-from-baza") createFromPrep(false);
@@ -775,12 +836,7 @@
       });
     }
     document.addEventListener("input", (e) => {
-      if (e.target.id === "baza-q") {
-        const q = String(e.target.value || "").toLowerCase();
-        document.querySelectorAll("[data-baza-row]").forEach((row) => {
-          row.hidden = !!(q && !String(row.dataset.bazaRow || "").includes(q));
-        });
-      }
+      if (e.target.id === "baza-q") applyBazaFilter();
       if ((e.target.id === "price-2" || e.target.id === "price-3") && M && CRM.UI.productPrep) {
         const packs = M.packBundles(document.getElementById("price-1")?.value, document.getElementById("price-2")?.value, document.getElementById("price-3")?.value);
         const el = document.getElementById("bundle-preview");

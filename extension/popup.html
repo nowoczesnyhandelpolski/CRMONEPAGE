@@ -253,6 +253,39 @@
   .note:empty { display: none; }
   #shop-errors { margin: 0; color: var(--red); font-size: 12px; font-weight: 600; white-space: pre-wrap; }
   #shop-errors:empty { display: none; }
+  select {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 9px 11px;
+    font: 500 13px/1.3 Poppins, sans-serif;
+    color: var(--ink);
+    background: var(--surface-2);
+    width: 100%;
+  }
+  .sec { width: 100%; }
+  .count {
+    margin-left: auto;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--red);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .count[data-live="0"] { background: var(--muted); }
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  .session-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 168px; overflow: auto; }
+  .session-list:empty { display: none; }
+  .session-list li { display: flex; gap: 4px; align-items: center; }
+  .session-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .session-list select { width: 104px; padding: 6px; font-size: 11px; }
+  .session-list button { border: 0; background: transparent; color: var(--red); font: 700 11px/1 Poppins, sans-serif; cursor: pointer; padding: 4px; }
+  #session-new-group { flex: 1; }
 </style>
 </head>
 <body>
@@ -277,6 +310,37 @@
   <p id="hero-lead">Na karcie oferty naciśnij E albo przycisk „Zapisz w Centrali”.</p>
 </section>
 <main>
+  <section class="card" id="csv-session">
+    <h2 class="sec">Sesja CSV <span class="count" id="session-count" data-live="0" aria-live="polite">0</span></h2>
+    <p id="session-state">Sesja wyłączona. Nowe oferty nie trafiają do pliku.</p>
+    <label>Grupa przy zapisie
+      <select id="session-group" aria-label="Grupa przy zapisie"></select>
+    </label>
+    <div class="row">
+      <input id="session-new-group" placeholder="np. Skrobaczki" maxlength="80" autocomplete="off">
+      <button class="btn" id="session-add-group" type="button">Dodaj</button>
+    </div>
+    <div class="stack" id="session-actions">
+      <button class="btn primary" id="session-start" type="button">Zacznij sesję CSV</button>
+      <div class="stack" id="session-live" hidden>
+        <button class="btn" id="session-pause" type="button">Wstrzymaj</button>
+        <button class="btn" id="session-finish" type="button">Zakończ i pobierz CSV</button>
+      </div>
+      <button class="btn primary" id="session-send" type="button">Wyślij sesję do NHP</button>
+      <button class="btn" id="session-add-page" type="button">Dodaj otwartą stronę</button>
+      <button class="btn" id="session-add-shop" type="button" hidden>Dodaj skan sklepu</button>
+      <button class="btn ghost" id="session-clear" type="button">Wyczyść sesję</button>
+    </div>
+    <div class="row" id="session-bulk" hidden>
+      <label class="check"><input type="checkbox" id="session-all"> Zaznacz</label>
+      <select id="session-bulk-group" aria-label="Grupa dla zaznaczonych"></select>
+      <button class="btn" id="session-assign" type="button">Przypisz</button>
+    </div>
+    <ul class="session-list" id="session-list"></ul>
+    <p class="hint">Klawisz E i skan sklepu dokładają produkt, gdy sesja trwa. Plik ma te same kolumny co import w generatorze, łącznie z ceną, ceną 2 i 3, EAN, producentem, parametrami, adresami zdjęć i grupą.</p>
+    <p class="note" id="session-msg"></p>
+  </section>
+
   <div class="tabs">
     <button type="button" id="tab-allegro" aria-pressed="true">Allegro</button>
     <button type="button" id="tab-shop" aria-pressed="false">Eksport sklepu</button>
