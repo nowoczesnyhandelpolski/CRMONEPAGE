@@ -71,6 +71,19 @@ export async function onRequest(context) {
       return json({ ok: true, label: data?.label || "" }, 200, CORS);
     }
     if (context.request.method === "POST" && path[0] === "media") return await uploadMedia(context.request, context.env);
+    if (context.request.method === "POST" && path[0] === "catalog-lookup") {
+      if (!rawKey) return json({ ok: false, error: "Nieprawidłowy klucz API." }, 401, CORS);
+      const body = await readJson(context.request, 200_000);
+      const hash = await sha256Hex(rawKey);
+      const data = await anonRpc(context.env, "lookup_catalog_keys", {
+        p_key_hash: hash,
+        p_query: {
+          eans: Array.isArray(body.eans) ? body.eans.slice(0, 500) : [],
+          urls: Array.isArray(body.urls) ? body.urls.slice(0, 500) : []
+        }
+      });
+      return json(data || { ok: true, matches: [] }, 200, CORS);
+    }
     if (context.request.method === "POST" && path[0] === "offer-export") {
       if (!rawKey) return json({ ok: false, error: "Nieprawidłowy klucz API." }, 401, CORS);
       const body = await readJson(context.request, 1_500_000);

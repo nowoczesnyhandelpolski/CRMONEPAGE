@@ -18,10 +18,13 @@ const imageDomain = document.getElementById("image-domain");
 const example = document.getElementById("image-example");
 
 if (docked) {
+  document.documentElement.classList.add("dock");
   document.body.classList.add("dock");
   document.getElementById("collapse").hidden = false;
+  document.getElementById("close-panel").hidden = false;
   document.getElementById("capture-offer").hidden = false;
   document.getElementById("show-panel").hidden = true;
+  document.body.classList.add("is-collapsed");
 }
 
 const settings = globalThis.chrome?.storage?.local;
@@ -36,25 +39,42 @@ const settings = globalThis.chrome?.storage?.local;
   ownFiles.checked = stored.ownFiles === "1";
   showExample();
   if (stored.shopMode === "shop") showTab("shop");
-  if (docked && stored.nhpPanelCollapsed === "1") setCollapsed(true);
 });
 
 let csvSession = { status: "idle", currentGroup: "", groups: [], items: [] };
 const sessionPicked = new Set();
 
-function setCollapsed(on) {
-  document.body.classList.toggle("is-collapsed", !!on);
+function applyDockMode(mode) {
+  const collapsed = mode !== "open";
+  document.body.classList.toggle("is-collapsed", collapsed);
+  document.body.classList.toggle("is-closed", mode === "closed");
   const button = document.getElementById("collapse");
   const n = csvSession.items?.length || 0;
-  button.textContent = on ? (n ? String(n) : "NHP") : "Zwiń";
-  button.setAttribute("aria-label", on ? "Rozwiń panel" : "Zwiń panel");
+  button.textContent = collapsed ? (n ? String(n) : "NHP") : "Zwiń";
+  button.setAttribute("aria-label", collapsed ? "Rozwiń panel" : "Zwiń panel");
+}
+
+function setCollapsed(on) {
+  applyDockMode(on ? "collapsed" : "open");
 }
 
 document.getElementById("collapse").addEventListener("click", () => {
-  const on = !document.body.classList.contains("is-collapsed");
-  setCollapsed(on);
-  settings?.set({ nhpPanelCollapsed: on ? "1" : "0" });
-  parent.postMessage({ source: "nhp-panel", type: "collapsed", on }, "*");
+  const next = document.body.classList.contains("is-collapsed") ? "open" : "collapsed";
+  applyDockMode(next);
+  parent.postMessage({ source: "nhp-panel", type: "mode", mode: next }, "*");
+});
+
+document.getElementById("close-panel").addEventListener("click", () => {
+  applyDockMode("closed");
+  parent.postMessage({ source: "nhp-panel", type: "mode", mode: "closed" }, "*");
+});
+
+document.addEventListener("keydown", (event) => {
+  if (!docked || event.key !== "Escape") return;
+  if (document.body.classList.contains("is-collapsed")) return;
+  event.preventDefault();
+  applyDockMode("collapsed");
+  parent.postMessage({ source: "nhp-panel", type: "mode", mode: "collapsed" }, "*");
 });
 
 function rememberDest() {
@@ -74,6 +94,7 @@ ownToken.addEventListener("change", rememberDest);
 
 window.addEventListener("message", (event) => {
   if (event.data?.source !== "nhp-host") return;
+  if (event.data.type === "mode") applyDockMode(event.data.mode);
   if (event.data.type === "status") {
     msg.textContent = event.data.text || "";
     if (event.data.bad) msg.classList.add("bad");
@@ -202,6 +223,7 @@ async function deliverChosen() {
 (async () => {
   const tab = await activeHttpTab();
   latestTab = tab;
+  if (!docked && tab?.id) chrome.tabs.sendMessage(tab.id, { type: "nhp-show-panel" }).catch(() => {});
   if (tab) domainEl.textContent = new URL(tab.url).hostname;
   const state = await chrome.runtime.sendMessage({ type: "shop-state" });
   paint(state);
@@ -355,7 +377,9 @@ function paintSession(session) {
     <select data-session-group="${esc(item.id)}" aria-label="Grupa produktu">${groupOptions(item.group, true)}</select>
     <button type="button" data-session-remove="${esc(item.id)}">Usuń</button>
   </li>`).join("");
-  if (document.body.classList.contains("is-collapsed")) setCollapsed(true);
+  if (document.body.classList.contains("is-collapsed")) {
+    applyDockMode(document.body.classList.contains("is-closed") ? "closed" : "collapsed");
+  }
 }
 
 async function sessionCall(type, extra) {
@@ -487,6 +511,192 @@ document.getElementById("capture-offer").addEventListener("click", async () => {
   }, "*");
 });
 
+let pageReport = null;
+
+function paintPageJob(job) {
+  const node = document.getElementById("page-job");
+  if (!node || !job) return;
+  const bits = [`Gotowe ${job.done || 0}`, `błędy ${job.failed || 0}`, `bez EAN ${job.missingEan || 0}`, `już w bazie ${job.duplicates || 0}`];
+  node.textContent = [job.message, job.queued ? `Zebrane ${job.queued}, pobrane ${job.fetched || 0}.` : "", bits.join(" · ")].filter(Boolean).join(" ");
+  document.getElementById("page-pause").textContent = job.status === "paused" ? "Wznów" : "Wstrzymaj";
+}
+
+function paintPagePreview(report) {
+  pageReport = report;
+  const kind = document.getElementById("page-kind");
+  const preview = document.getElementById("page-preview");
+  const listing = document.getElementById("page-listing");
+  if (!report || report.kind === "other") {
+    kind.textContent = "Na tej stronie nie widać produktu ani listingu.";
+    preview.hidden = true;
+    listing.hidden = true;
+    return;
+  }
+  if (report.kind === "listing") {
+    kind.textContent = `Listing. Produktów na stronie: ${report.listingCount || 0}.`;
+    preview.hidden = true;
+    listing.hidden = false;
+    return;
+  }
+  const product = report.product || {};
+  kind.textContent = "To karta produktu. Sprawdź podgląd i zapisz.";
+  listing.hidden = true;
+  preview.hidden = false;
+  document.getElementById("page-preview-name").textContent = product.name || "Bez nazwy";
+  const price = product.price ? `${product.price}${product.currency ? ` ${product.currency}` : ""}` : "Brak ceny";
+  const old = product.old_price ? ` · przed promocją ${product.old_price}` : "";
+  document.getElementById("page-preview-price").textContent = price + old;
+  document.getElementById("page-preview-counts").textContent = `Zdjęcia: ${(product.images || []).length}. Parametry: ${(product.parameters || []).length}. Warianty: ${(product.variants || []).length}.`;
+  const missing = document.getElementById("page-preview-missing");
+  missing.textContent = (report.missing || []).length ? `Brakuje: ${report.missing.join(", ")}. Tego nie dopisujemy.` : "";
+}
+
+async function readActivePage() {
+  const tab = await activeHttpTab();
+  if (!tab?.id || !tab.url) return null;
+  const origin = `${new URL(tab.url).origin}/*`;
+  const granted = await chrome.permissions.request({ origins: [origin] });
+  if (!granted) {
+    document.getElementById("page-msg").textContent = "Bez zgody na tę stronę nie odczytam oferty.";
+    return null;
+  }
+  if (/(^|\.)allegro\.pl$/i.test(new URL(tab.url).hostname)) {
+    try { await chrome.tabs.sendMessage(tab.id, { type: "nhp-capture", toNhp: destNhp.checked, toOwn: destOwn.checked, ownFiles: ownFiles.checked }); }
+    catch { document.getElementById("page-msg").textContent = "Odśwież kartę Allegro i naciśnij E albo „Zapisz tę ofertę”."; }
+    document.getElementById("page-kind").textContent = "To Allegro. Zapis idzie od razu do Centrali.";
+    return null;
+  }
+  try { await chrome.tabs.sendMessage(tab.id, { type: "nhp-open-preview" }); } catch { /* przycisk na stronie wstanie po odświeżeniu */ }
+  const [got] = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: () => ({ href: location.href, html: String(document.documentElement?.outerHTML || "").slice(0, 1500000) })
+  });
+  const page = got?.result;
+  if (!page?.href) return null;
+  return chrome.runtime.sendMessage({ type: "preview-page", html: page.html, pageUrl: page.href });
+}
+
+document.getElementById("save-page").addEventListener("click", async () => {
+  document.getElementById("page-msg").textContent = "Czytam stronę…";
+  const report = await readActivePage();
+  if (!report) return;
+  paintPagePreview(report);
+  document.getElementById("page-msg").textContent = report.kind === "product" ? "Podgląd jest gotowy." : "";
+});
+
+async function sendPage(toSession) {
+  if (!pageReport?.product) {
+    document.getElementById("page-msg").textContent = "Najpierw otwórz podgląd.";
+    return;
+  }
+  document.getElementById("page-msg").textContent = toSession ? "Dodaję do sesji…" : "Zapisuję…";
+  const res = await chrome.runtime.sendMessage({
+    type: toSession ? "session-add-product" : "save-product",
+    product: pageReport.product,
+    group: document.getElementById("page-group").value,
+    pageUrl: pageReport.product.url,
+    toNhp: !toSession,
+    autostart: !!toSession
+  });
+  if (res?.session) paintSession(res.session);
+  document.getElementById("page-msg").textContent = res?.message || res?.error || "";
+}
+
+document.getElementById("page-save").addEventListener("click", () => sendPage(false));
+document.getElementById("page-csv").addEventListener("click", () => sendPage(true));
+
+async function listingStart(mode) {
+  const tab = await activeHttpTab();
+  if (!tab?.url) { document.getElementById("page-msg").textContent = "Otwórz listing sklepu."; return; }
+  const origin = `${new URL(tab.url).origin}/*`;
+  const granted = await chrome.permissions.request({ origins: [origin] });
+  if (!granted) { document.getElementById("page-msg").textContent = "Bez zgody na tę stronę nie pobiorę listingu."; return; }
+  let urls = [];
+  if (mode === "selected") {
+    try {
+      const [got] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => [...document.querySelectorAll(".nhp-tick input:checked")].map((input) => input.closest(".nhp-tick")?.dataset?.nhpUrl).filter(Boolean)
+      });
+      urls = got?.result || [];
+    } catch { urls = []; }
+    if (!urls.length) { document.getElementById("page-msg").textContent = "Zaznacz produkty na stronie."; return; }
+  }
+  document.getElementById("page-msg").textContent = "Zaczynam pobieranie. Możesz zamknąć to okienko.";
+  await chrome.runtime.sendMessage({
+    type: "listing-start",
+    startUrl: tab.url,
+    mode,
+    urls,
+    limit: mode === "selected" ? urls.length : document.getElementById("page-limit").value
+  });
+}
+
+document.getElementById("page-select").addEventListener("click", async () => {
+  const tab = await activeHttpTab();
+  if (!tab?.id) return;
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        const boxes = [...document.querySelectorAll(".nhp-tick input")];
+        const on = boxes.some((box) => !box.checked);
+        for (const box of boxes) box.checked = on;
+      }
+    });
+    document.getElementById("page-msg").textContent = "Zaznaczenie na stronie jest zmienione.";
+  } catch {
+    document.getElementById("page-msg").textContent = "Odśwież listing i spróbuj ponownie.";
+  }
+});
+document.getElementById("page-crawl").addEventListener("click", () => listingStart("all"));
+document.getElementById("page-pause").addEventListener("click", async () => {
+  const state = await chrome.runtime.sendMessage({ type: "listing-state" });
+  const type = state?.job?.status === "paused" ? "listing-resume" : "listing-pause";
+  const res = await chrome.runtime.sendMessage({ type });
+  paintPageJob(res?.job);
+});
+document.getElementById("page-cancel").addEventListener("click", async () => {
+  const res = await chrome.runtime.sendMessage({ type: "listing-cancel" });
+  paintPageJob(res?.job);
+});
+async function listingSave(toSession) {
+  document.getElementById("page-msg").textContent = toSession ? "Dodaję listing do sesji…" : "Zapisuję listing…";
+  const res = await chrome.runtime.sendMessage({
+    type: "listing-save",
+    toNhp: !toSession,
+    toSession: !!toSession,
+    group: document.getElementById("page-group").value
+  });
+  document.getElementById("page-msg").textContent = res?.message || res?.error || "";
+}
+document.getElementById("page-save-all").addEventListener("click", () => listingSave(false));
+document.getElementById("page-csv-all").addEventListener("click", () => listingSave(true));
+async function listingFile(kind) {
+  const pack = await chrome.runtime.sendMessage({ type: "listing-files" });
+  if (!pack?.ok) { document.getElementById("page-msg").textContent = pack?.error || "Nie ma pliku."; return; }
+  if (kind === "csv") downloadBlob(new Blob([pack.csv], { type: "text/csv;charset=utf-8" }), "NHP-listing.csv");
+  else downloadBlob(new Blob([new Uint8Array(pack.xlsx)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), "NHP-listing.xlsx");
+}
+document.getElementById("page-csv-file").addEventListener("click", () => listingFile("csv"));
+document.getElementById("page-xlsx-file").addEventListener("click", () => listingFile("xlsx"));
+document.getElementById("page-unhide").addEventListener("click", async () => {
+  const tab = await activeHttpTab();
+  if (!tab?.id) return;
+  try { await chrome.tabs.sendMessage(tab.id, { type: "nhp-unhide" }); } catch { /* strona bez przycisku */ }
+  const host = new URL(tab.url).hostname;
+  const stored = await chrome.storage.local.get("nhpHiddenHosts");
+  const map = stored.nhpHiddenHosts || {};
+  delete map[host];
+  await chrome.storage.local.set({ nhpHiddenHosts: map });
+  document.getElementById("page-unhide").hidden = true;
+  document.getElementById("page-msg").textContent = "Przycisk wróci na tę stronę.";
+});
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type === "listing-progress") paintPageJob(message.job);
+});
+chrome.runtime.sendMessage({ type: "listing-state" }).then((res) => { if (res?.job) paintPageJob(res.job); }).catch(() => {});
+
 document.getElementById("show-panel").addEventListener("click", async () => {
   if (!latestTab?.id || !latestTab.url || !/^https?:/i.test(latestTab.url)) {
     msg.textContent = "Otwórz kartę sklepu albo oferty (adres http lub https).";
@@ -496,5 +706,6 @@ document.getElementById("show-panel").addEventListener("click", async () => {
   const granted = await chrome.permissions.request({ origins: [origin] });
   if (!granted) { msg.textContent = "Bez zgody na tę stronę panel się nie przypnie."; return; }
   await chrome.scripting.executeScript({ target: { tabId: latestTab.id }, files: ["content.js"] });
-  msg.textContent = "Panel jest przy prawej krawędzi. Możesz go zwinąć do zakładki.";
+  try { await chrome.tabs.sendMessage(latestTab.id, { type: "nhp-show-panel" }); } catch { /* panel wstanie po odświeżeniu */ }
+  msg.textContent = "Panel jest przy krawędzi. Zwiń zostawia zakładkę, Zamknij chowa go do ikonki.";
 });
