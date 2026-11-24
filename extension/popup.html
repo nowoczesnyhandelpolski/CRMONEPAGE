@@ -21,7 +21,7 @@
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  html, body { margin: 0; width: 360px; }
+  html, body { margin: 0; width: 360px; max-width: 100%; overflow-x: hidden; }
   body {
     max-height: 560px;
     overflow: auto;
@@ -31,15 +31,16 @@
     font-size: 12px;
     line-height: 1.35;
   }
-  body.dock { width: 100%; max-height: none; min-height: 100%; }
+  html.dock, body.dock { width: 100%; max-width: 100%; max-height: none; min-height: 100%; overflow-x: hidden; }
   body.dock .vbanner, body.dock .vb-art { display: none; }
   body.dock .brandbar { padding: 8px 8px 12px; }
   body.dock .brandbar img { width: min(150px, 70%); }
   body.dock.is-collapsed .brandbar img,
   body.dock.is-collapsed .flag,
+  body.dock.is-collapsed #close-panel,
   body.dock.is-collapsed main { display: none; }
-  body.dock.is-collapsed { width: 48px; background: var(--navy); }
-  body.dock.is-collapsed #collapse { writing-mode: vertical-rl; height: 112px; margin: 0; }
+  body.dock.is-collapsed { width: 52px; background: var(--navy); overflow: hidden; }
+  body.dock.is-collapsed #collapse { writing-mode: vertical-rl; height: 112px; margin: 0; width: 52px; }
   .brandbar {
     display: flex;
     align-items: center;
@@ -55,8 +56,9 @@
     flex: none;
     background: linear-gradient(#fff 0 50%, var(--red) 50%);
   }
-  .brandbar img { width: min(168px, 100%); height: auto; display: block; }
-  #collapse { margin-left: auto; border: 0; background: transparent; color: #fff; font: 700 11px/1 Poppins, sans-serif; cursor: pointer; padding: 6px; }
+  .brandbar img { width: min(148px, 46%); height: auto; display: block; min-width: 0; }
+  #collapse, #close-panel { flex: none; border: 0; background: transparent; color: #fff; font: 700 12px/1 Poppins, sans-serif; cursor: pointer; padding: 8px 6px; }
+  #collapse { margin-left: auto; }
   .brandbar::after {
     content: "";
     position: absolute;
@@ -210,7 +212,8 @@
   .btn.primary:hover { background: var(--red); border-color: var(--red); box-shadow: inset 0 -4px 0 rgba(255, 255, 255, .35); }
   .btn.ghost { background: var(--surface); color: var(--ink); box-shadow: none; }
   .btn:disabled { opacity: .45; cursor: not-allowed; }
-  .row { display: flex; gap: 8px; align-items: center; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 100%; }
+  .row > * { min-width: 0; max-width: 100%; }
   .row .btn { flex: 1; }
   .limits { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .check { flex-direction: row; align-items: center; gap: 8px; font-weight: 600; color: var(--ink); }
@@ -285,7 +288,9 @@
   .session-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
   .session-list select { width: 104px; padding: 6px; font-size: 11px; }
   .session-list button { border: 0; background: transparent; color: var(--red); font: 700 11px/1 Poppins, sans-serif; cursor: pointer; padding: 4px; }
-  #session-new-group { flex: 1; }
+  #session-new-group { flex: 1 1 120px; min-width: 0; max-width: 100%; }
+  .session-list li { flex-wrap: wrap; }
+  .session-list select { width: auto; max-width: 100%; flex: 1 1 96px; }
 </style>
 </head>
 <body>
@@ -293,6 +298,7 @@
   <span class="flag" aria-hidden="true"></span>
   <img src="logo-white.svg" alt="Nowoczesny Handel Polski">
   <button type="button" id="collapse" hidden>Zwiń</button>
+  <button type="button" id="close-panel" hidden>Zamknij</button>
 </header>
 <section class="vbanner">
   <div class="vb-grid"></div>
@@ -339,6 +345,45 @@
     <ul class="session-list" id="session-list"></ul>
     <p class="hint">Klawisz E i skan sklepu dokładają produkt, gdy sesja trwa. Plik ma te same kolumny co import w generatorze, łącznie z ceną, ceną 2 i 3, EAN, producentem, parametrami, adresami zdjęć i grupą.</p>
     <p class="note" id="session-msg"></p>
+  </section>
+
+  <section class="card" id="page-card">
+    <h2 class="sec">Ta strona</h2>
+    <p id="page-kind">Otwórz kartę produktu albo listingu.</p>
+    <button class="btn primary" id="save-page" type="button">Zapisz tę ofertę w NHP</button>
+    <label>Grupa przy zapisie<input id="page-group" maxlength="80" placeholder="np. Zegarki" autocomplete="off"></label>
+    <div id="page-preview" hidden>
+      <p id="page-preview-name" class="domain"></p>
+      <p id="page-preview-price"></p>
+      <p id="page-preview-counts" class="hint"></p>
+      <p id="page-preview-missing" class="note"></p>
+      <button class="btn primary" id="page-save" type="button">Zapisz w NHP</button>
+      <button class="btn" id="page-csv" type="button">Dodaj do sesji CSV</button>
+    </div>
+    <div id="page-listing" hidden>
+      <label>Ile produktów
+        <select id="page-limit" aria-label="Limit produktów">
+          <option value="50">50</option>
+          <option value="200">200</option>
+          <option value="0">Wszystkie</option>
+        </select>
+      </label>
+      <button class="btn" id="page-select" type="button">Zaznacz wszystkie na stronie</button>
+      <button class="btn primary" id="page-crawl" type="button">Cały listing (wszystkie strony)</button>
+      <p id="page-job" class="hint"></p>
+      <div class="row">
+        <button class="btn" id="page-pause" type="button">Wstrzymaj</button>
+        <button class="btn" id="page-cancel" type="button">Anuluj</button>
+      </div>
+      <button class="btn primary" id="page-save-all" type="button">Zapisz wszystkie w NHP</button>
+      <button class="btn" id="page-csv-all" type="button">Dodaj do sesji CSV</button>
+      <div class="row">
+        <button class="btn" id="page-csv-file" type="button">Pobierz CSV</button>
+        <button class="btn" id="page-xlsx-file" type="button">Pobierz XLSX</button>
+      </div>
+    </div>
+    <button class="btn" id="page-unhide" type="button" hidden>Pokaż przycisk na tej stronie</button>
+    <p class="note" id="page-msg"></p>
   </section>
 
   <div class="tabs">

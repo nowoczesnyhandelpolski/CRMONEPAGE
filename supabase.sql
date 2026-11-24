@@ -1510,3 +1510,65 @@ execute function public.nhp_config_push_seller();
 
 -- Ostatnie wersje karty (edytor strony). Skrypt można puścić ponownie.
 alter table public.pages add column if not exists history jsonb not null default '[]'::jsonb;
+
+-- Wtyczka sprawdza, czy EAN albo adres jest już w Bazie produktów. Skrypt można puścić ponownie.
+create or replace function public.lookup_catalog_keys(p_key_hash text, p_query jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_label text;
+  v_eans text[];
+  v_urls text[];
+begin
+  if p_key_hash is null or p_key_hash !~ '^[0-9a-f]{64}$' then
+    raise exception 'Nieprawidłowy klucz API.' using errcode = '28000';
+  end if;
+  update public.api_keys set last_used_at = now()
+   where key_hash = p_key_hash and revoked_at is null
+   returning label into v_label;
+  if v_label is null then
+    raise exception 'Nieprawidłowy klucz API.' using errcode = '28000';
+  end if;
+
+  select coalesce(array_agg(x), '{}') into v_eans
+  from (
+    select left(btrim(value), 32) as x
+    from jsonb_array_elements_text(coalesce(p_query->'eans', '[]'::jsonb)) as t(value)
+    where btrim(value) <> ''
+    limit 500
+  ) s;
+
+  select coalesce(array_agg(x), '{}') into v_urls
+  from (
+    select left(btrim(value), 1000) as x
+    from jsonb_array_elements_text(coalesce(p_query->'urls', '[]'::jsonb)) as t(value)
+    where btrim(value) <> ''
+    limit 500
+  ) s;
+
+  return jsonb_build_object(
+    'ok', true,
+    'matches', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'ean', coalesce(p.ean, ''),
+        'source_link', coalesce(p.source_link, ''),
+        'sku', coalesce(p.sku, ''),
+        'name', coalesce(p.name, '')
+      ))
+      from (
+        select ean, source_link, sku, name
+        from public.products
+        where (cardinality(v_eans) > 0 and ean = any(v_eans))
+           or (cardinality(v_urls) > 0 and source_link = any(v_urls))
+        limit 500
+      ) p
+    ), '[]'::jsonb)
+  );
+end;
+$$;
+
+revoke all on function public.lookup_catalog_keys(text, jsonb) from public;
+grant execute on function public.lookup_catalog_keys(text, jsonb) to anon, authenticated, service_role;

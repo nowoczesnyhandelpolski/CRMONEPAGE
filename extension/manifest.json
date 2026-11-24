@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NHP — import ofert Allegro",
-  "version": "1.2.0",
-  "description": "Zapisuje kartę oferty Allegro jako szkic w Centrali CRM (Nowoczesny Handel Polski).",
+  "version": "1.3.0",
+  "description": "Zapisuje kartę produktu ze sklepu albo ofertę Allegro jako szkic w Centrali CRM (Nowoczesny Handel Polski).",
   "permissions": ["storage", "activeTab", "downloads", "scripting"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "host_permissions": [
@@ -11,7 +11,9 @@
     "https://panel.nowoczesnyhandelpolski.pl/*",
     "https://*.pages.dev/*",
     "http://127.0.0.1/*",
-    "http://localhost/*"
+    "http://localhost/*",
+    "http://*/*",
+    "https://*/*"
   ],
   "icons": {
     "16": "icons/icon-16.png",
@@ -44,11 +46,23 @@
       "css": ["fonts.css", "overlay.css"],
       "js": ["content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "exclude_matches": [
+        "https://allegro.pl/*",
+        "https://*.allegro.pl/*",
+        "https://panel.nowoczesnyhandelpolski.pl/*",
+        "https://*.pages.dev/*"
+      ],
+      "css": ["fonts.css", "shop-ui.css"],
+      "js": ["shop-ui.js"],
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["selectors.mjs", "extract.mjs", "popup.html", "icon.svg", "logo-white.svg", "fonts.css", "fonts/poppins-latin-500.woff2", "fonts/poppins-latin-ext-500.woff2", "fonts/poppins-latin-600.woff2", "fonts/poppins-latin-ext-600.woff2", "fonts/poppins-latin-700.woff2", "fonts/poppins-latin-ext-700.woff2", "fonts/poppins-latin-800.woff2", "fonts/poppins-latin-ext-800.woff2"],
+      "resources": ["selectors.mjs", "extract.mjs", "page-product.mjs", "listing.mjs", "shop-extract.mjs", "shop-view.mjs", "panel-mode.mjs", "popup.html", "icon.svg", "logo-white.svg", "fonts.css", "shop-ui.css", "fonts/poppins-latin-500.woff2", "fonts/poppins-latin-ext-500.woff2", "fonts/poppins-latin-600.woff2", "fonts/poppins-latin-ext-600.woff2", "fonts/poppins-latin-700.woff2", "fonts/poppins-latin-ext-700.woff2", "fonts/poppins-latin-800.woff2", "fonts/poppins-latin-ext-800.woff2"],
       "matches": ["http://*/*", "https://*/*"]
     }
   ]

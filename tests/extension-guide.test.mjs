@@ -86,7 +86,12 @@ test("instrukcja mówi po ludzku, skąd brać oferty i jak zrobić strony", () =
     "Grupy",
     "Zrób stronę",
     "Zrób strony",
-    "Baza produktów"
+    "Baza produktów",
+    "Zapisz tę ofertę w NHP",
+    "Zaznacz wszystkie na stronie",
+    "Cały listing (wszystkie strony)",
+    "Zapisz wszystkie w NHP",
+    "Dodaj do sesji CSV"
   ]) {
     assert.match(html, new RegExp(bit.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }

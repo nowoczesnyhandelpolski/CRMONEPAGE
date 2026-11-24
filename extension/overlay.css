@@ -1,10 +1,10 @@
-/* Panel na stronie: wąski pasek przy prawej krawędzi. Nie zasłania reszty strony. */
+/* Panel na stronie: wąski pasek przy prawej krawędzi. Poza prostokątem panelu strona łapie kliknięcia i scroll. */
 #nhp-frame {
   position: fixed !important;
-  right: 0 !important;
-  top: 10vh !important;
-  width: min(360px, 30vw) !important;
-  height: 80vh !important;
+  right: 12px !important;
+  top: 12vh !important;
+  width: min(340px, calc(100vw - 16px)) !important;
+  height: min(80vh, 640px) !important;
   max-height: 80vh !important;
   border: 0 !important;
   z-index: 2147483646 !important;
@@ -12,11 +12,20 @@
   color-scheme: light;
   box-shadow: inset 0 -4px 0 #C8102E;
   background-color: #13294B !important;
+  overflow: hidden !important;
+  pointer-events: auto !important;
 }
 #nhp-frame.nhp-collapsed {
   top: auto !important;
   bottom: 16px !important;
-  width: 48px !important;
-  height: 132px !important;
-  max-height: 132px !important;
+  width: 52px !important;
+  height: 128px !important;
+  max-height: 128px !important;
+  overflow: hidden !important;
+}
+#nhp-frame.nhp-closed {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  pointer-events: none !important;
 }

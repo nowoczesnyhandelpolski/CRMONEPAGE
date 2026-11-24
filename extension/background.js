@@ -4,6 +4,9 @@ import {
   sessionToSharklyCsv, setCurrentGroup, startSession
 } from "./csv-session.mjs";
 import { assertHttpEndpoint } from "./dest.mjs";
+import { createListingRunner } from "./listing-job.mjs";
+import { partitionKnown } from "./listing.mjs";
+import { analyzePage, productToPayload } from "./page-product.mjs";
 import { extractProduct } from "./shop-extract.mjs";
 import { crawlShop } from "./shop-scan.mjs";
 import { exportRow, fullExportZip, imageFileName, productsToCsv, productsToJson, productsToXlsx, toOfferItems } from "./shop-export.mjs";
@@ -111,9 +114,10 @@ function payloadFromPage(payload, html, pageUrl) {
     category: base.category || shop.category || "",
     parameters: base.parameters?.length ? base.parameters : (shop.parameters || []),
     images: haveImages ? base.images : shopImages,
-    description: base.description || shop.description_text || "",
-    source_link: base.source_link || shop.url || pageUrl || ""
-  };
+        description: base.description || shop.description_text || "",
+        description_sections: base.description_sections?.length ? base.description_sections : (shop.description_sections || []),
+        source_link: base.source_link || shop.url || pageUrl || ""
+      };
 }
 
 function sessionLine(result) {
@@ -204,6 +208,14 @@ async function fetchText(url) {
   const res = await fetch(url, { credentials: "omit", redirect: "follow" });
   const type = String(res.headers.get("content-type") || "");
   if (!res.ok || !/html|xml|text/i.test(type)) return "";
+  return res.text();
+}
+
+async function fetchPage(url) {
+  const res = await fetch(url, { credentials: "omit", redirect: "follow" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const type = String(res.headers.get("content-type") || "");
+  if (type && !/html|xml|text|json/i.test(type)) throw new Error("To nie jest strona produktu.");
   return res.text();
 }
 
@@ -441,11 +453,91 @@ async function runScan({ startUrl, maxPages, maxProducts }) {
   return { ok: !shop.error, ...snapshot() };
 }
 
+function publicJob(snap) {
+  const trim = (product) => ({ ...product, description_html: "" });
+  return {
+    ...snap,
+    products: (snap.products || []).map(trim),
+    held: (snap.held || []).map(trim),
+    failures: (snap.failures || []).slice(-20)
+  };
+}
+
+const listingRunner = createListingRunner({ fetchText: fetchPage });
+let listingLookup = 0;
+
+function broadcastJob(snap) {
+  const job = publicJob(snap);
+  chrome.storage.local.set({ nhpListingJob: job }).catch(() => {});
+  chrome.runtime.sendMessage({ type: "listing-progress", job }).catch(() => {});
+}
+
+listingRunner.subscribe((snap) => broadcastJob(snap));
+
+async function lookupCatalog(eans, urls) {
+  const { apiBase, apiKey } = await settings();
+  if (!apiKey) return { ok: false, error: "Wpisz klucz API w oknie wtyczki.", matches: [] };
+  try {
+    const res = await fetch(`${apiBase}/api/nhp/catalog-lookup`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-nhp-key": apiKey,
+        "x-nhp-version": chrome.runtime.getManifest().version
+      },
+      body: JSON.stringify({ eans: (eans || []).slice(0, 500), urls: (urls || []).slice(0, 500) })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) return { ok: false, error: data.error || `HTTP ${res.status}`, matches: [] };
+    return { ok: true, matches: Array.isArray(data.matches) ? data.matches : [] };
+  } catch {
+    return { ok: false, error: "Brak połączenia z Centralą.", matches: [] };
+  }
+}
+
+async function markListingDuplicates(snap) {
+  const products = snap.products || [];
+  if (!products.length) return;
+  const found = await lookupCatalog(products.map((p) => p.ean), products.map((p) => p.url));
+  const known = found.ok
+    ? { eans: found.matches.map((m) => m.ean), urls: found.matches.map((m) => m.source_link) }
+    : { eans: [], urls: [] };
+  const parts = partitionKnown(products, known);
+  listingRunner.applyLookup({
+    products: parts.fresh,
+    held: parts.dupes,
+    duplicates: parts.dupes.length,
+    lookupNote: found.ok
+      ? (parts.dupes.length ? `Już w bazie: ${parts.dupes.length}. Zapis ich pominie, chyba że zaznaczysz nadpisanie.` : "W bazie nie ma tych produktów.")
+      : "Nie sprawdziłem bazy. Zapis i tak podmieni kartę o tym samym EAN albo adresie."
+  });
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!message?.type) return;
+  if (message.type === "save-product") {
+    message.payload = productToPayload(message.product, message.group || "");
+    message.pageUrl = message.pageUrl || message.product?.url || "";
+    message.type = "capture";
+  }
+  if (message.type === "session-add-product") {
+    message.payload = productToPayload(message.product, message.group || "");
+    message.pageUrl = message.pageUrl || message.product?.url || "";
+    message.autostart = true;
+    message.type = "session-add-page";
+  }
   if (message.type === "capture" || message.type === "session-add-page") {
     (async () => {
       const payload = payloadFromPage(message.payload, message.html, message.pageUrl);
+      if (message.group) payload.product_group = message.group;
+      if (message.group || message.autostart) {
+        await withSession(async (session) => {
+          let next = session;
+          if (message.autostart && next.status !== "active") next = startSession(next);
+          if (message.group) next = setCurrentGroup(next, message.group);
+          return { session: next };
+        });
+      }
       if (!payload.catalog_name && !payload.price && !payload.ean && !payload.sku) {
         sendResponse({ ok: false, error: "Nie widzę produktu na tej stronie. Otwórz kartę oferty albo produktu." });
         return;
@@ -491,7 +583,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         }
         const hosted = (product.hosted || []).map((h) => h.url).filter(Boolean);
         if (hosted.length) payload.images = hosted;
-        const part = await postItems([{ ...payload, product_group: kept.group || "" }]);
+        const part = await postItems([{ ...payload, product_group: kept.group || payload.product_group || "" }]);
         if (!part.ok) ok = false;
         lines.push(part.ok
           ? `NHP: zapisano ofertę, wgrane zdjęcia: ${up.images}${up.failed ? `, błędy zdjęć: ${up.failed}` : ""}.`
@@ -660,8 +752,126 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     })();
     return true;
   }
+  if (message.type === "preview-page") {
+    const report = analyzePage(message.html || "", message.pageUrl || "");
+    sendResponse({
+      ok: true,
+      kind: report.kind,
+      missing: report.missing,
+      product: report.product,
+      listingCount: report.listing.products.length
+    });
+    return;
+  }
+  if (message.type === "catalog-check") {
+    lookupCatalog(message.eans || [], message.urls || []).then(sendResponse);
+    return true;
+  }
+  if (message.type === "listing-start") {
+    const token = ++listingLookup;
+    listingRunner.start({
+      startUrl: message.startUrl,
+      urls: message.urls,
+      mode: message.mode,
+      limit: message.limit
+    }).then(async (snap) => {
+      if (token !== listingLookup) return;
+      if (snap.status === "done" || snap.status === "cancelled") await markListingDuplicates(snap);
+    }).catch((err) => {
+      broadcastJob({ ...listingRunner.state(), status: "done", error: String(err?.message || err), message: "Pobieranie nie doszło do końca." });
+    });
+    sendResponse({ ok: true });
+    return true;
+  }
+  if (message.type === "listing-pause") {
+    sendResponse({ ok: true, job: publicJob(listingRunner.pause()) });
+    return;
+  }
+  if (message.type === "listing-resume") {
+    sendResponse({ ok: true, job: publicJob(listingRunner.resume()) });
+    return;
+  }
+  if (message.type === "listing-cancel") {
+    listingLookup += 1;
+    sendResponse({ ok: true, job: publicJob(listingRunner.cancel()) });
+    return;
+  }
+  if (message.type === "listing-state") {
+    sendResponse({ ok: true, job: publicJob(listingRunner.state()) });
+    return;
+  }
+  if (message.type === "listing-files") {
+    const snap = listingRunner.state();
+    const products = message.includeDuplicates ? snap.products.concat(snap.held || []) : snap.products;
+    sendResponse({
+      ok: products.length > 0,
+      error: products.length ? "" : "Nie ma jeszcze pobranych kart.",
+      csv: productsToCsv(products, ""),
+      xlsx: Array.from(productsToXlsx(products, ""))
+    });
+    return;
+  }
+  if (message.type === "listing-save") {
+    (async () => {
+      const snap = listingRunner.state();
+      const products = message.includeDuplicates ? snap.products.concat(snap.held || []) : snap.products;
+      if (!products.length) {
+        sendResponse({ ok: false, error: "Nie ma produktów do zapisu." });
+        return;
+      }
+      const lines = [];
+      let ok = true;
+      if (message.toSession) {
+        const added = await withSession(async (session) => {
+          let next = session.status === "active" ? session : startSession(session);
+          if (message.group) next = setCurrentGroup(next, message.group);
+          let fresh = 0;
+          for (const product of products) {
+            const step = addItem(next, itemFromOffer(productToPayload(product, next.currentGroup), next.currentGroup));
+            if (step.added && !step.updated) fresh += 1;
+            next = step.session;
+          }
+          return { session: next, fresh, count: next.items.length };
+        });
+        lines.push(`W sesji jest ${added.count} produktów. Nowych: ${added.fresh}.`);
+      }
+      if (message.toNhp) {
+        broadcastJob({ ...listingRunner.state(), message: "Wgrywam zdjęcia i zapisuję w NHP…" });
+        const shaped = products.map((product) => asProduct(productToPayload(product, message.group || "")));
+        const up = await uploadList(shaped);
+        if (up.error) {
+          broadcastJob({ ...listingRunner.state(), message: up.error });
+          sendResponse({ ok: false, error: up.error });
+          return;
+        }
+        const items = products.map((product, index) => {
+          const payload = productToPayload(product, message.group || "");
+          const hosted = (shaped[index].hosted || []).map((entry) => entry.url).filter(Boolean);
+          if (hosted.length) payload.images = hosted;
+          return payload;
+        });
+        const sent = await sendItems(items, snap.origin ? `Listing ${snap.origin}` : "Listing");
+        if (!sent.ok) ok = false;
+        lines.push(sent.ok
+          ? `NHP: zapisano ${sent.saved} z ${sent.total}. Zdjęcia: ${up.images}${up.failed ? `, błędy zdjęć: ${up.failed}` : ""}.`
+          : (sent.error || "NHP nie zapisało produktów."));
+      }
+      const messageText = lines.join(" ") || "Gotowe.";
+      broadcastJob({ ...listingRunner.state(), message: messageText });
+      sendResponse({ ok, message: messageText, error: ok ? "" : messageText });
+    })();
+    return true;
+  }
 });
 
+async function restoreListing() {
+  const stored = await chrome.storage.local.get("nhpListingJob");
+  const job = stored.nhpListingJob;
+  if (!job || job.status === "idle") return;
+  if (typeof listingRunner.hydrate === "function") listingRunner.hydrate(job);
+}
+
 loadSession().then(paintBadge).catch(() => {});
+restoreListing().catch(() => {});
 chrome.runtime.onInstalled.addListener(() => { loadSession().then(paintBadge).catch(() => {}); });
-chrome.runtime.onStartup.addListener(() => { loadSession().then(paintBadge).catch(() => {}); });
+chrome.runtime.onStartup.addListener(() => { loadSession().then(paintBadge).catch(() => {}); restoreListing().catch(() => {}); });
