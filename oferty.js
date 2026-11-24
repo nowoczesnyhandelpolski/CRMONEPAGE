@@ -142,21 +142,52 @@
       return { ...sourceOfProduct(a), origin: a.origin };
     }
 
-    async function makePage(source, productId) {
+    async function makePage(source, productId, options = {}) {
       const { draftFromSource } = await import("./lib/page-draft.mjs");
       const { uniqueSlug } = await import("./lib/site-model.mjs");
-      const draft = draftFromSource(source, { own: source.origin === "own" });
+      const draft = options.data
+        ? { name: options.name || options.data.headline || source.catalog_name || source.name || "Szkic strony", status: "draft", data: options.data }
+        : draftFromSource(source, { own: source.origin === "own" });
       if (CRM.loadPages) await CRM.loadPages();
+      const existing = productId ? mainPage(productId) : null;
+      if (existing && !options.force) {
+        if (!options.quiet) {
+          openGenerator(existing.id);
+          CRM.toast("Ten produkt ma już stronę. Otwieram istniejącą kartę.");
+        }
+        return existing.id;
+      }
       const slug = uniqueSlug(draft.name, (CRM.S.pagesList || []).map((p) => p.slug));
       const id = CRM.uid("pg");
       const { error } = await CRM.SB.from("pages").insert({ id, slug, name: draft.name, status: "draft", product_id: productId || null, data: draft.data });
-      if (error) { CRM.toast("Nie udało się utworzyć szkicu strony."); return; }
+      if (error) { CRM.toast("Nie udało się utworzyć szkicu strony."); return null; }
+      const stub = { id, slug, name: draft.name, status: "draft", product_id: productId || null };
+      CRM.S.pagesList = [stub, ...(CRM.S.pagesList || [])];
+      if (CRM.S.trade) CRM.S.trade.pages = [stub, ...(CRM.S.trade.pages || [])];
+      if (options.savePacks && productId) {
+        const product = (CRM.S.trade.products || []).find((item) => item.id === productId);
+        const raw = { ...(product?.raw || {}) };
+        raw.cena_2 = options.bundle2 === "" || options.bundle2 == null ? null : options.bundle2;
+        raw.cena_3 = options.bundle3 === "" || options.bundle3 == null ? null : options.bundle3;
+        if (product) product.raw = raw;
+        await CRM.SB.from("products").update({ raw, updated_at: new Date().toISOString() }).eq("id", productId);
+      }
       if (productId) await advanceWorkflow(productId, "draft");
-      if (CRM.loadPages) await CRM.loadPages();
       try { await call("/api/shopify/flush", "POST", { product_ids: productId ? [productId] : [] }); } catch { /* Shopify opcjonalny */ }
-      CRM.UI.genId = id;
-      location.hash = "generator";
-      CRM.toast("Szkic strony zapisany. Publikacja zostaje ręczna.");
+      if (options.rewrite) await startGeneration({ tier: "s1", page_id: id, product_id: productId || undefined, overwrite: true });
+      if (!options.quiet) {
+        if (CRM.loadPages) await CRM.loadPages();
+        await reload();
+        CRM.UI.productPrep = null;
+        CRM.UI.bazaPicker = false;
+        CRM.UI.pageEditor = null;
+        CRM.UI.sampleDemo = null;
+        CRM.UI.genId = id;
+        if (location.hash !== "#generator") location.hash = "generator";
+        else CRM.scheduleRender();
+        if (!options.rewrite) CRM.toast("Szkic strony zapisany. Produkt jest w zakładce Gotowe strony. Publikacja zostaje ręczna.");
+      }
+      return id;
     }
 
     async function advanceWorkflow(productId, pageStatus, intent) {
@@ -183,24 +214,41 @@
       await reload();
     };
 
-    async function startGeneration({ tier, page_id, product_id }) {
-      if (window.NHP_LOCAL) { CRM.toast("Generowanie AI działa na Cloudflare, nie w lokalnej piaskownicy."); return; }
+    async function markRewritten(pageId) {
+      if (!pageId || !CRM.loadPages) return;
+      await CRM.loadPages();
+      const page = (CRM.S.pagesList || []).find((item) => item.id === pageId);
+      if (!page?.data) return;
+      const data = { ...page.data, source: { ...(page.data.source || {}), keep_original: false } };
+      await CRM.SB.from("pages").update({ data, updated_at: new Date().toISOString() }).eq("id", pageId);
+    }
+
+    async function startGeneration({ tier, page_id, product_id, overwrite } = {}) {
+      if (window.NHP_LOCAL) {
+        CRM.toast(overwrite
+          ? "Na tym komputerze zostawiam oryginalny opis. Przepisanie przez AI działa po wdrożeniu."
+          : "Generowanie AI działa na Cloudflare, nie w lokalnej piaskownicy.");
+        return { local: true };
+      }
       try {
-        CRM.toast("Piszę tekst…");
-        let res = await call("/api/generate", "POST", { tier, page_id, product_id });
+        CRM.toast(overwrite ? "Przepisuję opis własnymi zdaniami…" : "Piszę tekst…");
+        let res = await call("/api/generate", "POST", { tier, page_id, product_id, overwrite: overwrite === true });
         let guard = 0;
         while (res.job?.status === "running" && guard < 8) {
           CRM.toast(`Zdjęcie AI ${guard + 1}…`);
           res = await call(`/api/generate/${res.job.id}`, "POST", {});
           guard++;
         }
+        if (overwrite && page_id && res.job && !res.job.error) await markRewritten(page_id);
         const video = res.job?.result?.video === "panel" ? " Możesz teraz złożyć wideo w panelu." : "";
-        CRM.toast((res.job?.status === "ready" ? "Generacja gotowa." : (res.job?.error || "Generacja częściowa.")) + video);
+        CRM.toast((res.job?.status === "ready" ? (overwrite ? "Opis przepisany. Opinie nie zostały dopisane." : "Generacja gotowa.") : (res.job?.error || "Generacja częściowa.")) + video);
         if (CRM.loadPages) await CRM.loadPages();
         await reload();
         CRM.scheduleRender();
+        return res;
       } catch (err) {
         CRM.toast(err.message || "Generacja nie powiodła się.");
+        return { error: true };
       }
     }
 
@@ -332,9 +380,13 @@
         : `<div class="banner">Shopify nie jest podłączony. W Cloudflare ustaw sekrety SHOPIFY_STORE_DOMAIN i SHOPIFY_ADMIN_TOKEN. Instrukcja jest w docs/shopify-ksef.md.</div>`;
       const body = rows.map((product) => {
         const sales = salesOf(product.id);
+        const page = mainPage(product.id);
         const stats = tab === "gotowe"
           ? `<td class="num">${sales.orders_count || 0}</td><td class="num">${sales.units_sold || 0}</td><td class="num">${money(sales.revenue)}</td><td class="num">${viewsOf(product.id)}</td>`
           : "";
+        const action = page
+          ? `<button class="btn sm" type="button" data-nhp="open-page" data-id="${CRM.esc(page.id)}">Otwórz stronę</button>`
+          : `<button class="btn sm primary" type="button" data-nhp="page" data-kind="product" data-id="${CRM.esc(product.id)}">Zrób stronę</button>`;
         return `<tr data-nhp="open" data-kind="product" data-id="${product.id}">
           <td data-stop><input type="checkbox" data-pick-product="${product.id}" ${ui.picked[product.id] ? "checked" : ""} aria-label="Zaznacz"></td>
           <td class="strong">${CRM.esc(product.catalog_name || product.name)}</td>
@@ -344,15 +396,17 @@
           <td data-stop>${workflowSelect(product)}</td>
           <td>${shopifyCell(product)}</td>
           <td>${product.status === "flagged" ? '<span class="pill" style="--c:var(--bad)">Brak ceny</span>' : ""}</td>
+          <td data-stop>${action}</td>
           ${stats}
         </tr>`;
       }).join("");
       const headStats = tab === "gotowe" ? "<th>Zamówienia</th><th>Szt.</th><th>Przychód</th><th>Wyświetlenia</th>" : "";
       const picked = Object.keys(ui.picked).filter((id) => ui.picked[id]);
       const bulk = `<div class="row">
+          <button class="btn sm primary" type="button" data-nhp="bulk-pages" ${picked.length ? "" : "disabled"}>Zrób strony (${picked.length})</button>
           <select id="bulk-workflow" aria-label="Status dla zaznaczonych">${workflowList().map((item) => `<option value="${item.id}">${CRM.esc(item.label)}</option>`).join("")}</select>
           <button class="btn sm" type="button" data-nhp="bulk-status" ${picked.length ? "" : "disabled"}>Ustaw status (${picked.length})</button>
-          <button class="btn sm primary" type="button" data-nhp="bulk-shopify" ${picked.length ? "" : "disabled"}>Wyślij do Shopify</button>
+          <button class="btn sm" type="button" data-nhp="bulk-shopify" ${picked.length ? "" : "disabled"}>Wyślij do Shopify</button>
         </div>`;
       const sourceCount = tab === "gotowe" ? split.gotowe.length : split.pobrane.length;
       const empty = sourceCount
@@ -367,7 +421,7 @@
           <button class="chip" type="button" data-nhp="tab" data-tab="gotowe" aria-pressed="${tab === "gotowe"}">Gotowe strony <span class="num">${split.gotowe.length}</span></button>
         </div>
         <div class="toolbar"><label class="search">${CRM.ic("search", 16)}<input id="q-trade" data-trade-q placeholder="Nazwa, EAN, producent, SKU" value="${CRM.esc(ui.q || "")}"></label>${bulk}</div>` +
-        (rows.length ? `<div class="card tbl-wrap"><table><thead><tr><th></th><th>Nazwa katalogowa</th><th>EAN</th><th>Cena</th><th>Strona</th><th>Status</th><th>Shopify</th><th></th>${headStats}</tr></thead><tbody>${body}</tbody></table></div>` : empty) +
+        (rows.length ? `<div class="card tbl-wrap"><table><thead><tr><th></th><th>Nazwa katalogowa</th><th>EAN</th><th>Cena</th><th>Strona</th><th>Status</th><th>Shopify</th><th></th><th></th>${headStats}</tr></thead><tbody>${body}</tbody></table></div>` : empty) +
         `<p class="small muted">Zmiana statusu, ceny, opisu albo treści strony idzie do Shopify sama, gdy produkt jest już w sklepie albo ma status od „Strona gotowa” w górę. Ustawienie „Automatycznie wysyłaj do Shopify po wygenerowaniu” (domyślnie włączone) zakłada szkic już przy zapisie strony. Aktywny produkt powstaje po „Opublikuj” w generatorze. Pobrany bez tego ustawienia nie zakłada karty, dopóki nie naciśniesz „Wyślij do Shopify”. Wyświetlenia liczy nasza strona /p/ (jedno na sesję przeglądarki). Sesje z panelu analitycznego Shopify nie są w Admin API.</p>`;
     }
 
@@ -749,6 +803,7 @@
       if (act === "tab") { T().tab = t.dataset.tab === "gotowe" ? "gotowe" : "pobrane"; CRM.scheduleRender(); return; }
       if (act === "open-page") { e.preventDefault(); openGenerator(t.dataset.id); return; }
       if (act === "bulk-status") return setWorkflow(pickedIds(), document.getElementById("bulk-workflow")?.value);
+      if (act === "bulk-pages") return bulkPages(pickedIds());
       if (act === "bulk-shopify") return pushShopify(pickedIds());
       if (act === "shopify-one") return pushShopify([t.dataset.id]);
       if (act === "shopify-webhooks") return registerWebhooks();
@@ -866,12 +921,41 @@
         CRM.scheduleRender();
       } catch (err) { CRM.toast(err.message); }
     }
+    async function bulkPages(ids) {
+      if (!ids.length) { CRM.toast("Zaznacz produkty."); return; }
+      const { pageFromProduct } = await import("./lib/page-from-product.mjs");
+      let made = 0;
+      let skipped = 0;
+      for (const id of ids) {
+        if (mainPage(id)) { skipped += 1; continue; }
+        const product = CRM.S.trade.products.find((item) => item.id === id);
+        if (!product) continue;
+        const draft = pageFromProduct(product, { keepOriginal: true, rights: false });
+        const saved = await makePage(sourceOfProduct(product), product.id, { data: draft.data, name: draft.name, quiet: true });
+        if (saved) made += 1;
+      }
+      await reload();
+      if (CRM.loadPages) await CRM.loadPages();
+      CRM.toast(made
+        ? `Zrobiono ${made} ${made === 1 ? "stronę" : "stron"}. Opis zostaje oryginalny. Zdjęcia bez potwierdzenia prawa nie wejdą na opublikowaną stronę.${skipped ? ` Pominięto ${skipped}, bo karta już jest.` : ""}`
+        : "Zaznaczone produkty mają już strony.");
+      CRM.scheduleRender();
+    }
     async function onPage(kind, id) {
       if (kind === "product") {
         const page = mainPage(id);
         if (page) {
           openGenerator(page.id);
           CRM.toast("Ten produkt ma już stronę. Otwieram istniejącą kartę.");
+          return;
+        }
+        const price2 = document.getElementById("pack-2")?.value;
+        const price3 = document.getElementById("pack-3")?.value;
+        if (CRM.openProductPrep) {
+          await CRM.openProductPrep(id, {
+            price2: price2 == null ? undefined : price2,
+            price3: price3 == null ? undefined : price3
+          });
           return;
         }
         const p = CRM.S.trade.products.find((x) => x.id === id);

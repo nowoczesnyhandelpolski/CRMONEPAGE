@@ -148,7 +148,7 @@ Na stronie i przy produkcie są trzy kafle: **S1** (tekst, 0 zł za zdjęcia), *
 
 W Ustawieniach jest **Połączenie z OpenAI**. Klucz szyfruje Pages Function (AES-GCM, sekret `NHP_ENC_KEY`) i zapisuje szyfrogram funkcją `is_team()`. Do przeglądarki wraca tylko `sk-…` i 4 ostatnie znaki. Bez `NHP_ENC_KEY` panel pokazuje, jak go dodać (`openssl rand -base64 32`).
 
-**Zrób stronę** tworzy szkic w Generatorze stron. Cudze zdjęcia nie dostają prawa do publikacji. Cena przed promocją nie jest wstawiana jako omnibus.
+**Zrób stronę** (w wierszu Pobranych produktów i hurtowo **Zrób strony**) otwiera przygotowanie karty. W Generatorze, obok Importuj CSV, jest **Wybierz z Bazy produktów** (nazwa, miniatura, EAN). Na kartę idą nazwa, zdjęcia (pierwsze jest główne, kolejność da się zmienić), opis, parametry, EAN, producent i cena. Zestawy 2 i 3 szt. wpisuje się przed utworzeniem; oszczędność liczy się od ceny jednej sztuki. Przełącznik **Zostaw oryginalny opis** jest włączony: nagłówek i opis z wtyczki wchodzą bez zmian, a później poprawia się je w Edytorze strony. **Przepisz opis przez AI** jest osobnym wyborem i nie dopisuje opinii ani nagrań. Zdjęcia muszą być własne albo od producenta — przy każdym jest „Pokaż na stronie”, a logotypy są pomijane. Bez potwierdzenia prawa zdjęcie nie wchodzi na opublikowaną stronę. Po utworzeniu produkt jest w zakładce Gotowe strony i jest powiązany z kartą. Ustawienie „Automatycznie wysyłaj do Shopify po wygenerowaniu” decyduje, czy od razu powstaje szkic z zestawami jako wariantami.
 
 Nowa karta startuje z szablonem „auto”: pierwsza generacja S1 Max zapisuje **Konwersję**, S1 i S1 Pro zostają przy **klasycznym**. Szablon da się wybrać ręcznie. Stare karty bez pola `template` dalej renderują klasyczny układ.
 
