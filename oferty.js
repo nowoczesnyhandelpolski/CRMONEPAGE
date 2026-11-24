@@ -1,4 +1,4 @@
-/* Baza produktów, aukcje, import z wtyczki, eksport i klucze API. */
+/* Baza produktów, wtyczka, aukcje, import z wtyczki, eksport i klucze API. */
 (function () {
   window.NHP_HOOKS = window.NHP_HOOKS || [];
   window.NHP_HOOKS.push(function (CRM) {
@@ -7,6 +7,7 @@
 
     CRM.VIEWS.push(
       ["baza-produktow", "Baza produktów", "products"],
+      ["wtyczka", "Wtyczka", "plug"],
       ["faktury-ksef", "Faktury KSeF", "orders"],
       ["aukcje", "Aukcje", "orders"],
       ["import-wtyczki", "Import", "inbox"],
@@ -14,6 +15,7 @@
       ["klucze-api", "Klucze API", "key"]
     );
     CRM.VIEW_FNS["baza-produktow"] = () => viewProducts();
+    CRM.VIEW_FNS.wtyczka = () => viewWtyczka();
     CRM.VIEW_FNS["faktury-ksef"] = () => viewInvoices();
     CRM.VIEW_FNS.aukcje = () => viewAuctions();
     CRM.VIEW_FNS["import-wtyczki"] = () => viewImport();
@@ -26,6 +28,7 @@
     let P = null;
     let tiers = null;
     let Ann = null;
+    let Guide = null;
     let WF = null;
     const dash = CRM.VIEW_FNS.pulpit;
     if (dash) {
@@ -49,11 +52,12 @@
       P = await import("./lib/pricing.mjs");
       const ui = await import("./lib/tier-ui.mjs");
       Ann = await import("./lib/extension-announce.mjs");
+      Guide = await import("./lib/extension-guide.mjs");
       WF = await import("./lib/workflow.mjs");
       tiers = ui;
       ui.ensureTierCss();
       const annCss = document.getElementById("ext-ann-css");
-      if (annCss) annCss.textContent = Ann.EXT_ANN_CSS;
+      if (annCss) annCss.textContent = Ann.EXT_ANN_CSS + Guide.EXT_GUIDE_CSS;
       await reload();
       const flag = new URLSearchParams(location.search).get("allegro");
       if (flag === "ok") CRM.toast("Konto Allegro podłączone.");
@@ -610,6 +614,13 @@
         banner() + `<div class="banner">${ksef} Szczegóły sekretów: docs/shopify-ksef.md.</div>` +
         (orders.length ? `<div class="card tbl-wrap"><table><thead><tr><th>Zamówienie</th><th>Nabywca</th><th>Kwota</th><th>Płatność</th><th>Faktura</th><th>Komunikat</th><th></th></tr></thead><tbody>${body}</tbody></table></div>` : `<div class="card"><div class="empty"><b>Brak zamówień Shopify</b>Zarejestruj webhooki w Bazie produktów albo pobierz zamówienia.</div></div>`) +
         `<p class="small muted">Automat dotyczy statusów paid i partially_paid. Korekty, zaliczki, waluty inne niż PLN i wysyłka PDF do klienta nie są w tej wersji. XML zostaje przy fakturze w bazie.</p>`;
+    }
+
+    function viewWtyczka() {
+      const body = Guide
+        ? Guide.extensionPageHtml(CRM.esc, { keys: CRM.S.trade.keys || [], freshKey: T().freshKey || "" })
+        : `<section class="card pad"><p class="ext-kicker">Wtyczka</p><button class="btn primary" type="button" data-nhp="download-ext">Pobierz wtyczkę (.zip)</button></section>`;
+      return top("Wtyczka", "Pobierz wtyczkę do Chrome i zbieraj oferty do Bazy produktów.", "") + banner() + body;
     }
 
     function viewKeys() {
