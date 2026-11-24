@@ -67,6 +67,16 @@
   window.NHP_LOCAL_CLIENT = function () {
     return {
       from(table) { return chain(table); },
+      async rpc(name, args) {
+        const res = await fetch("/__sandbox/rpc/" + encodeURIComponent(name), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(args || {})
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) return { data: null, error: { message: (data && data.message) || "Nie udało się." } };
+        return { data, error: null };
+      },
       channel() { return { on() { return this; }, subscribe() { return {}; } }; },
       auth: {
         async getSession() { return { data: { session: { user: { email: "sandbox@local" } } } }; },

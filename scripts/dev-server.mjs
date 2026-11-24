@@ -117,6 +117,27 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    if (pathname === "/__sandbox/rpc/create_api_key" && req.method === "POST") {
+      const body = await readBody(req);
+      const hash = String(body.p_key_hash || "");
+      if (!/^[0-9a-f]{64}$/.test(hash)) return json(res, 400, { message: "Zły skrót klucza." });
+      // Pełny klucz nie przychodzi tutaj. Skrót sprawdzamy i nie zostawiamy go w pamięci.
+      const label = String(body.p_label || "").trim().slice(0, 80) || "Wtyczka";
+      if (!tables.has("api_keys")) tables.set("api_keys", []);
+      const row = { id: crypto.randomUUID(), label, created_at: new Date().toISOString(), last_used_at: null, revoked_at: null };
+      tables.get("api_keys").unshift(row);
+      bump();
+      return json(res, 200, row.id);
+    }
+    if (pathname === "/__sandbox/rpc/revoke_api_key" && req.method === "POST") {
+      const body = await readBody(req);
+      const rows = tables.get("api_keys") || [];
+      const row = rows.find((item) => item.id === body.p_id);
+      if (row && !row.revoked_at) row.revoked_at = new Date().toISOString();
+      bump();
+      return json(res, 200, null);
+    }
+
     const pub = pathname.match(/^\/p\/([a-z0-9-]{1,70})(?:\/(order|lead|contact))?$/);
     if (pathname === "/p/sitemap.xml" || pathname === "/sitemap.xml") {
       const xml = sitemapXml(`http://127.0.0.1:${port}`, await store.listPublished());

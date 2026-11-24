@@ -119,11 +119,11 @@ Po wgraniu SQL w Supabase powstaje też kubełek Storage `media` (zdjęcia AI i 
 
 ### Wtyczka Chrome
 
-Na pulpicie (do zamknięcia, wraca przy nowej wersji) i na stałe w **Kluczach API** jest „Pobierz wtyczkę (.zip)”. Plik oddaje `/api/extension.zip` tylko zalogowanemu zespołowi. Ten sam plik leży w `downloads/nhp-wtyczka.zip`, ale adres `/downloads/nhp-wtyczka.zip` też wymaga logowania.
+Na pulpicie (do zamknięcia, wraca przy nowej wersji), w zakładce **Wtyczka** (menu Produkty, obok Bazy produktów) i na stałe w **Kluczach API** jest „Pobierz wtyczkę (.zip)”. Zakładka Wtyczka ma też instalację, aktualizację, klucze po nazwie i krótką historię wersji. Plik oddaje `/api/extension.zip` tylko zalogowanemu zespołowi. Ten sam plik leży w `downloads/nhp-wtyczka.zip`, ale adres `/downloads/nhp-wtyczka.zip` też wymaga logowania.
 
 1. Pobierz i rozpakuj ZIP (albo użyj katalogu `extension` z repozytorium).
 2. Chrome → rozszerzenia → tryb dewelopera → **Załaduj rozpakowane**.
-3. W panelu: **Klucze API** → wystaw klucz (`nhp_…`) i wklej go w okienku wtyczki.
+3. W panelu: **Wtyczka** albo **Klucze API** → wystaw klucz (`nhp_…`) i wklej go w okienku wtyczki.
 4. Na karcie `allegro.pl/oferta/…` naciśnij **E** (poza polem tekstowym) albo **Zapisz w Centrali**. Szkic ląduje od razu w Imporcie. Brak ceny oznacza pozycję, nie jest uzupełniany.
 5. **Zacznij sesję CSV** zbiera kolejne oferty (Allegro i sklep) do jednej listy. Lista zostaje po odświeżeniu strony. **Zakończ i pobierz CSV** ściąga plik UTF-8 z BOM, te same kolumny co import generatora (`cena`, `cena_2`, `cena_3`, `ean`, `producent`, `param: …`, `zdj…`, `grupa`). **Wyślij sesję do NHP** zapisuje je w Bazie produktów razem z grupą.
 
