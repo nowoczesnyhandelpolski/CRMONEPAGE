@@ -1263,6 +1263,14 @@
     /* Update'y dopisywane przez ten moduł: zmiany w panelu (autor: Claude) i praca zrobiona z Claude w innych miejscach.
        Podbicie „v” odświeża tekst; wpisu poprawionego ręcznie w panelu (bez „seeded”) nie nadpisujemy. */
     const CLAUDE_UPDATES = {
+      "up-20261125-pomiar-reklam": {
+        v: 1, who: "p1", date: "2026-11-25", stage: "pending", cat: "reklamy", title: "Pomiar reklam Zeggo: Meta, Google Ads i sklep w jednym widoku",
+        before: "Wyniki reklam trzeba było przepisywać ręcznie z Menedżera reklam, a liczby typu CPM, CTR czy ROAS nic nie mówiły bez wiedzy marketingowej.",
+        after: "Nowa zakładka Pomiar reklam: wydatki, sprzedaż ze sklepu (UTM), ROAS z progiem opłacalności, zysk po reklamie, lejek, wykres dzień po dniu i porównanie kampanii K1–K4 z planu.\nDane z Meta Ads, Google Ads i Shopify pobierają się same co 15 minut (i co godzinę przez cron).\nKażda liczba ma objaśnienie „jak dla 5-latka”, ocenę i podpowiedź, co zrobić; lista „Co teraz zrobić” układa się sama.",
+        benefit: "Od razu widać, która kampania zarabia, a która przepala budżet — bez znajomości żargonu.",
+        plus: "Tryb przykładowych danych pokazuje działanie przed startem reklam\nSprzedaż liczona przez sklep, nie tylko przez Facebooka",
+        minus: "Wymaga jednorazowego tokenu Meta (instrukcja w zakładce) i kluczy Google Ads po założeniu konta"
+      },
       "up-20261112-yt-x": {
         v: 1, who: "p1", date: "2026-11-12", stage: "pending", cat: "social", title: "Autopilot postów: YouTube Shorts i X",
         before: "Autopilot publikował tylko na Facebooku, Instagramie i TikToku.",
