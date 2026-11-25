@@ -21,6 +21,11 @@
   const ui = createShopChrome(document);
   document.documentElement.appendChild(ui.host);
 
+  let progressView = () => ({ percent: 0, done: 0, total: 0, etaSec: 0 });
+  let etaLabel = () => "";
+  try {
+    ({ progressView, etaLabel } = await import(chrome.runtime.getURL("listing-job.mjs")));
+  } catch { /* pasek bez szacunku czasu */ }
   let dockMode = ({ sessionActive }) => (sessionActive ? "open" : "collapsed");
   let nextDockMode = (_current, action) => (action === "close" || action === "closed" ? "closed" : action === "open" ? "open" : "collapsed");
   try {
@@ -69,18 +74,28 @@
   function paintListing() {
     if (report?.kind !== "listing" || hidden) return;
     const same = !job?.origin || job.origin === location.origin;
+    const live = same ? (job || {}) : {};
+    const view = progressView(live);
     ui.paintListing({
       onPage: ticks.count(),
       selected: ticks.checkedCount(),
-      status: same ? job?.status : "idle",
-      queued: same ? job?.queued : 0,
-      fetched: same ? job?.fetched : 0,
-      done: same ? job?.done : 0,
-      failed: same ? job?.failed : 0,
-      missingEan: same ? job?.missingEan : 0,
-      duplicates: same ? job?.duplicates : 0,
-      lookupNote: same ? job?.lookupNote : "",
-      message: same ? job?.message : ""
+      status: live.status || "idle",
+      queued: live.queued || 0,
+      fetched: live.fetched || 0,
+      done: live.done || 0,
+      doneCount: view.done,
+      total: view.total,
+      percent: view.percent,
+      eta: etaLabel(view.etaSec),
+      pages: live.pages || 0,
+      phase: live.phase || "",
+      failed: live.failed || 0,
+      missingEan: live.missingEan || 0,
+      duplicates: live.duplicates || 0,
+      productsReady: live.done || 0,
+      lookupNote: live.lookupNote || "",
+      message: live.message || "",
+      forceOpen: mode === "open"
     });
   }
 
@@ -95,9 +110,19 @@
   }
 
   function scan() {
+    const keep = new Set(ticks.selected?.() || []);
     report = analyzePage(pageHtml(), location.href);
     ticks.clear();
-    if (!hidden && report.kind === "listing") ticks = mountTicks(document, report.listing.products);
+    if (!hidden && report.kind === "listing") {
+      ticks = mountTicks(document, report.listing.products);
+      if (keep.size) ticks.setAll(false);
+      for (const node of ticks.nodes || []) {
+        if (keep.has(node.dataset.nhpUrl)) {
+          const input = node.querySelector("input");
+          if (input) input.checked = true;
+        }
+      }
+    }
     showForMode();
     if (report.kind === "listing") paintListing();
   }
@@ -196,26 +221,40 @@
       paintListing();
     },
     crawl: () => {
+      rememberMode("open");
+      showForMode();
+      job = { status: "running", phase: "list", origin: location.origin, startedAt: Date.now(), queued: 0, fetched: 0, message: "Szukam produktów na kolejnych stronach…" };
+      paintListing();
       chrome.runtime.sendMessage({
         type: "listing-start",
         startUrl: location.href,
         mode: "all",
         limit: ui.listingLimit()
+      }).catch((err) => {
+        job = { ...job, status: "done", message: String(err?.message || err) };
+        paintListing();
       });
     },
     selected: () => {
       const urls = ticks.selected();
       if (!urls.length) {
-        job = { ...(job || {}), message: "Zaznacz produkty na tej stronie.", origin: location.origin };
+        job = { ...(job || {}), origin: location.origin, message: "Zaznacz produkty na tej stronie. Jeśli pól nie widać, przewiń w dół." };
         paintListing();
         return;
       }
+      rememberMode("open");
+      showForMode();
+      job = { status: "running", phase: "list", origin: location.origin, startedAt: Date.now(), queued: urls.length, fetched: 0, message: `Pobieram zaznaczone: 0 / ${urls.length}.` };
+      paintListing();
       chrome.runtime.sendMessage({
         type: "listing-start",
         startUrl: location.href,
         mode: "selected",
         urls,
         limit: urls.length
+      }).catch((err) => {
+        job = { ...job, status: "done", message: String(err?.message || err) };
+        paintListing();
       });
     },
     pause: () => chrome.runtime.sendMessage({ type: job?.status === "paused" ? "listing-resume" : "listing-pause" }),
@@ -305,9 +344,24 @@
   });
 
   scan();
-  setTimeout(() => {
-    if (!report || report.kind === "other") scan();
-  }, 1200);
+  let scans = 0;
+  let scanTimer = 0;
+  function scheduleScan() {
+    if (hidden || scans > 12) return;
+    clearTimeout(scanTimer);
+    scanTimer = setTimeout(() => { scans += 1; scan(); }, 700);
+  }
+  document.addEventListener("scroll", scheduleScan, { passive: true });
+  const observer = new MutationObserver((records) => {
+    const relevant = records.some((record) => [...record.addedNodes].some((node) => {
+      if (!node || node.nodeType !== 1) return false;
+      if (node.classList?.contains("nhp-tick") || node.id === "nhp-shop-root") return false;
+      return true;
+    }));
+    if (relevant) scheduleScan();
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+  setTimeout(() => observer.disconnect(), 20000);
   chrome.runtime.sendMessage({ type: "listing-state" }).then((res) => {
     if (res?.job) { job = res.job; paintListing(); }
   }).catch(() => {});

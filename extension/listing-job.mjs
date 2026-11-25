@@ -18,6 +18,10 @@ export function emptyListingState() {
     duplicates: 0,
     fetched: 0,
     currentUrl: "",
+    startedAt: 0,
+    phase: "",
+    saveDone: 0,
+    saveTotal: 0,
     message: "",
     error: "",
     lookupNote: "",
@@ -25,6 +29,39 @@ export function emptyListingState() {
     held: [],
     failures: []
   };
+}
+
+export function progressView(state = {}, now = Date.now()) {
+  const status = state.status || "idle";
+  const saving = status === "saving" || state.phase === "save";
+  const done = saving ? Number(state.saveDone || 0) : Number(state.fetched || 0);
+  const total = saving ? Number(state.saveTotal || 0) : Number(state.queued || 0);
+  const ratio = total > 0 ? Math.min(1, done / total) : (status === "running" ? 0.02 : 0);
+  const percent = status === "done" ? 100 : Math.max(0, Math.min(100, Math.round(ratio * 100)));
+  const started = Number(state.startedAt || 0);
+  const elapsed = started ? Math.max(0, now - started) : 0;
+  const etaSec = ratio > 0.02 && ratio < 1 && elapsed > 800
+    ? Math.round((elapsed * (1 - ratio) / ratio) / 1000)
+    : 0;
+  return {
+    percent,
+    done,
+    total,
+    etaSec,
+    status,
+    pages: Number(state.pages || 0),
+    failed: Number(state.failed || 0),
+    duplicates: Number(state.duplicates || 0),
+    missingEan: Number(state.missingEan || 0),
+    currentUrl: String(state.currentUrl || "")
+  };
+}
+
+export function etaLabel(seconds) {
+  const n = Number(seconds || 0);
+  if (!n) return "";
+  if (n < 60) return `około ${n} s`;
+  return `około ${Math.max(1, Math.round(n / 60))} min`;
 }
 
 function originOf(url) {
@@ -78,6 +115,8 @@ export function createListingRunner({
       limit: cap,
       startUrl,
       origin: originOf(startUrl),
+      startedAt: Date.now(),
+      phase: "list",
       message: "Szukam produktów…"
     };
     emit();
@@ -178,6 +217,11 @@ export function createListingRunner({
         duplicates: duplicates || 0,
         lookupNote: lookupNote || ""
       });
+      return snapshot();
+    },
+    setProgress(patch) {
+      state = { ...state, ...patch };
+      emit();
       return snapshot();
     },
     hydrate(saved) {

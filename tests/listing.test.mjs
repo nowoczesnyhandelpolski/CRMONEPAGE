@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractListing, collectListingUrls, fetchProductQueue, partitionKnown, canonicalProductUrl } from "../extension/listing.mjs";
-import { createListingRunner } from "../extension/listing-job.mjs";
+import { createListingRunner, etaLabel, progressView } from "../extension/listing-job.mjs";
 import { analyzePage } from "../extension/page-product.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -169,6 +169,46 @@ test("zadanie listingu zbiera strony i karty, da się je przerwać", async () =>
   const cancelled = await running;
   assert.equal(cancelled.status, "cancelled");
   assert.ok(calls >= 1);
+});
+
+test("Magento: karty product-item i następna strona ?p=2, nie skok", () => {
+  const html = read("listing-magento.html");
+  const page = analyzePage(html, "https://zegarownia.pl/zegarki-meskie");
+  assert.equal(page.kind, "listing");
+  assert.equal(page.listing.products.length, 4);
+  assert.equal(page.listing.products[0].url, "https://zegarownia.pl/zegarek-meski-destell-circinus");
+  assert.equal(page.listing.products[0].name, "Zegarek męski DESTELL Circinus");
+  assert.equal(page.listing.nextUrl, "https://zegarownia.pl/zegarki-meskie?p=2");
+});
+
+test("slider pod banerem: karty product-item-photo, bez paginacji", () => {
+  const html = read("listing-zegarownia-slider.html");
+  const page = analyzePage(html, "https://zegarownia.pl/bizuteria");
+  assert.equal(page.kind, "listing");
+  assert.equal(page.listing.products.length, 4);
+  assert.equal(page.listing.products[0].name, "Zawieszka Bonore Simple");
+  assert.equal(page.listing.nextUrl, "");
+});
+
+test("pasek postępu liczy procent i czas", () => {
+  const view = progressView({
+    status: "running",
+    fetched: 4,
+    queued: 10,
+    pages: 2,
+    failed: 1,
+    startedAt: 1_000,
+    currentUrl: "https://zegarownia.pl/zegarki-meskie?p=2"
+  }, 11_000);
+  assert.equal(view.percent, 40);
+  assert.equal(view.done, 4);
+  assert.equal(view.total, 10);
+  assert.equal(view.pages, 2);
+  assert.equal(view.failed, 1);
+  assert.ok(view.etaSec > 0);
+  assert.match(etaLabel(view.etaSec), /około/);
+  assert.equal(progressView({ status: "saving", phase: "save", saveDone: 1, saveTotal: 4, startedAt: 1_000 }, 2_000).percent, 25);
+  assert.equal(progressView({ status: "done", fetched: 2, queued: 2 }).percent, 100);
 });
 
 test("przycisk, podgląd i sprawdzenie bazy są w źródle wtyczki", () => {

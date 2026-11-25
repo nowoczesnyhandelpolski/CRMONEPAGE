@@ -26,6 +26,10 @@ button, input, select { font-family: Poppins, ui-sans-serif, sans-serif; }
 .fab.collapsed { width: 48px; border-radius: 14px; }
 .fab.collapsed .main, .fab.collapsed .hide, .fab.collapsed .grip { display: none; }
 .fab .mini { display: none; }
+.fab-meter { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255,255,255,.25); }
+.fab-meter span { display: block; height: 100%; background: #fff; width: 0; }
+.meter { height: 12px; border-radius: 999px; background: #E6EBF2; overflow: hidden; }
+.meter span { display: block; height: 100%; width: 0; background: #13294B; box-shadow: inset 0 -3px 0 #C8102E; }
 .fab.collapsed .mini {
   display: grid;
   place-items: center;
@@ -177,6 +181,7 @@ export function createShopChrome(doc) {
       <button type="button" class="grip" data-act="grip" aria-label="Przeciągnij">⋮⋮</button>
       <button type="button" class="main" data-act="open">Zapisz tę ofertę w NHP<small>Klawisz E · podgląd przed zapisem</small></button>
       <button type="button" class="mini" data-act="open">NHP</button>
+      <div class="fab-meter" id="fab-meter" hidden><span id="fab-meter-bar"></span></div>
       <button type="button" class="fold" data-act="collapse" aria-label="Zwiń">–</button>
       <button type="button" class="hide" data-act="hide">Zamknij</button>
     </div>
@@ -215,7 +220,9 @@ export function createShopChrome(doc) {
         <button type="button" class="act primary" data-act="crawl">Cały listing (wszystkie strony)</button>
         <button type="button" class="act" data-act="selected">Pobierz zaznaczone</button>
         <p class="status" id="ls-counter"></p>
+        <div class="meter" id="ls-meter" hidden><span id="ls-meter-bar"></span></div>
         <p class="status" id="ls-stats"></p>
+        <p class="note" id="ls-eta"></p>
         <p class="note" id="ls-note"></p>
         <div class="row" id="ls-run">
           <button type="button" class="act" data-act="pause">Wstrzymaj</button>
@@ -223,7 +230,8 @@ export function createShopChrome(doc) {
         </div>
         <label class="field">Grupa<input id="ls-group" maxlength="80" placeholder="np. Zegarki" autocomplete="off"></label>
         <label class="check"><input id="ls-overwrite" type="checkbox"> Zapisz też te, które już są w bazie</label>
-        <button type="button" class="act primary" data-act="save-all">Zapisz wszystkie w NHP</button>
+        <button type="button" class="act primary" data-act="save-all" title="Najpierw pobierz karty: zaznaczone albo cały listing.">Zapisz wszystkie w NHP</button>
+        <p class="note" id="ls-save-hint">Najpierw pobierz karty: zaznaczone albo cały listing.</p>
         <button type="button" class="act" data-act="csv-all">Dodaj do sesji CSV</button>
         <div class="row">
           <button type="button" class="act" data-act="csv-file">Pobierz CSV</button>
@@ -318,30 +326,55 @@ export function createShopChrome(doc) {
     showListing(on) { listing.hidden = !on; },
     listingOpen() { return !listing.hidden; },
     paintListing(model) {
-      listing.hidden = false;
-      el(shadow, "#ls-onpage").textContent = `Na tej stronie: ${model.onPage || 0}. Zaznaczone: ${model.selected || 0}.`;
-      el(shadow, "#ls-counter").textContent = model.queued
-        ? `Zebrane adresy: ${model.queued}. Pobrane karty: ${model.fetched || 0}.`
+      if (model.forceOpen) listing.hidden = false;
+      const found = Number(model.onPage || 0);
+      el(shadow, "#ls-onpage").textContent = found
+        ? `Wykryto ${found} produktów na tej stronie. Zaznaczone: ${model.selected || 0}.`
+        : "Wykryto 0 produktów. Przewiń stronę w dół albo kliknij „Cały listing (wszystkie strony)”.";
+      const total = Number(model.total || model.queued || 0);
+      const done = Number(model.doneCount ?? model.fetched ?? 0);
+      const running = model.status === "running" || model.status === "paused" || model.status === "saving";
+      const fetching = model.status === "running" || model.status === "paused";
+      el(shadow, "#ls-counter").textContent = running || total
+        ? `${model.phase === "save" ? "Zapis" : "Pobrano"} ${done} / ${total || "?"}.`
         : "Wybierz karty albo weź cały listing.";
+      const meter = el(shadow, "#ls-meter");
+      const bar = el(shadow, "#ls-meter-bar");
+      meter.hidden = !(running || (model.percent > 0 && model.status !== "idle"));
+      bar.style.width = `${model.percent || 0}%`;
       const bits = [];
-      if (model.done || model.failed || model.missingEan || model.duplicates) {
-        bits.push(`Gotowe ${model.done || 0}`);
-        bits.push(`błędy ${model.failed || 0}`);
-        bits.push(`bez EAN ${model.missingEan || 0}`);
-        bits.push(`już w bazie ${model.duplicates || 0}`);
-      }
-      el(shadow, "#ls-stats").textContent = bits.join(" · ");
+      if (model.pages) bits.push(`Strona listingu ${model.pages}`);
+      bits.push(`${model.percent || 0}%`);
+      if (model.failed) bits.push(`błędy ${model.failed}`);
+      if (model.missingEan) bits.push(`bez EAN ${model.missingEan}`);
+      if (model.duplicates) bits.push(`już w bazie ${model.duplicates}`);
+      el(shadow, "#ls-stats").textContent = bits.filter(Boolean).join(" · ");
+      el(shadow, "#ls-eta").textContent = model.eta ? `Zostało ${model.eta}.` : "";
       el(shadow, "#ls-note").textContent = model.lookupNote || "";
       el(shadow, "#ls-msg").textContent = model.message || "";
-      const running = model.status === "running" || model.status === "paused";
       el(shadow, "[data-act=pause]").textContent = model.status === "paused" ? "Wznów" : "Wstrzymaj";
+      el(shadow, "[data-act=pause]").disabled = !fetching;
+      el(shadow, "[data-act=cancel]").disabled = !fetching;
       el(shadow, "[data-act=crawl]").disabled = !!running;
       el(shadow, "[data-act=selected]").disabled = !!running;
-      const saveOn = model.status === "done" || model.status === "cancelled" || (model.done || 0) > 0;
-      el(shadow, "[data-act=save-all]").disabled = !saveOn || !!running;
+      const saveOn = model.status === "done" || model.status === "cancelled" || (model.productsReady || 0) > 0;
+      const saveBtn = el(shadow, "[data-act=save-all]");
+      const hint = running
+        ? "Zapis włączy się, gdy pobieranie się skończy."
+        : (saveOn ? "" : "Najpierw pobierz karty: zaznaczone albo cały listing.");
+      saveBtn.disabled = !saveOn || !!running;
+      saveBtn.title = hint;
+      el(shadow, "#ls-save-hint").textContent = hint;
       el(shadow, "[data-act=csv-all]").disabled = !saveOn || !!running;
       el(shadow, "[data-act=csv-file]").disabled = !saveOn || !!running;
       el(shadow, "[data-act=xlsx-file]").disabled = !saveOn || !!running;
+      const fabMeter = el(shadow, "#fab-meter");
+      const fabBar = el(shadow, "#fab-meter-bar");
+      fabMeter.hidden = !running;
+      fabBar.style.width = `${model.percent || 0}%`;
+      const mini = el(shadow, ".mini");
+      if (running) mini.textContent = total ? `${done}/${total}` : `${model.percent || 0}%`;
+      else if (!mini.dataset.user) mini.textContent = "NHP";
     },
     listingGroup() { return el(shadow, "#ls-group").value; },
     listingLimit() { return Number(el(shadow, "#ls-limit").value); },
@@ -396,7 +429,7 @@ export function mountTicks(doc, products) {
     const key = abs.pathname.replace(/\/$/, "") || "/";
     const canonical = [...byPath.entries()].find(([path, full]) => path === key || full === abs.href)?.[1];
     if (!canonical || used.has(canonical)) continue;
-    const card = anchor.closest("article, li, .product, .product-item, .product-grid-item") || anchor.parentElement;
+    const card = anchor.closest("article, li.product-item, li.item, .product-item, .product, .item") || anchor.parentElement;
     if (!card || card.querySelector(":scope > .nhp-tick")) continue;
     used.add(canonical);
     const view = doc.defaultView;
