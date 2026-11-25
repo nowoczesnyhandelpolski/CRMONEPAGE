@@ -836,9 +836,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         lines.push(`W sesji jest ${added.count} produktów. Nowych: ${added.fresh}.`);
       }
       if (message.toNhp) {
-        broadcastJob({ ...listingRunner.state(), message: "Wgrywam zdjęcia i zapisuję w NHP…" });
+        listingRunner.setProgress({ status: "saving", phase: "save", saveDone: 0, saveTotal: products.length, message: "Zapisuję w NHP…" });
         const shaped = products.map((product) => asProduct(productToPayload(product, message.group || "")));
-        const up = await uploadList(shaped);
+        const up = await uploadList(shaped, (step) => {
+          listingRunner.setProgress({
+            status: "saving",
+            phase: "save",
+            saveDone: step.done,
+            saveTotal: step.total,
+            message: `Zapis w NHP: ${step.done} / ${step.total}.`
+          });
+        });
         if (up.error) {
           broadcastJob({ ...listingRunner.state(), message: up.error });
           sendResponse({ ok: false, error: up.error });
@@ -857,7 +865,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           : (sent.error || "NHP nie zapisało produktów."));
       }
       const messageText = lines.join(" ") || "Gotowe.";
-      broadcastJob({ ...listingRunner.state(), message: messageText });
+      listingRunner.setProgress({ status: "done", phase: "", message: messageText });
       sendResponse({ ok, message: messageText, error: ok ? "" : messageText });
     })();
     return true;

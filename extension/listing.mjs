@@ -65,15 +65,27 @@ function skipHref(url) {
   return false;
 }
 
+function cleanName(value) {
+  return String(value || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
+}
+
+function priceOnly(value) {
+  const text = cleanName(value).replace(/zł/gi, "").trim();
+  return !!text && !/[a-ząćęłńóśźż]{3,}/i.test(text);
+}
+
 function pushProduct(list, seen, item) {
   const url = canonicalProductUrl(item.url);
-  if (!url || seen.has(url) || skipHref(url)) return;
+  if (!url || skipHref(url)) return;
+  const name = cleanName(item.name);
+  const price = String(item.price || "").trim();
+  if (seen.has(url)) {
+    const prev = list.find((row) => row.url === url);
+    if (prev && name && !priceOnly(name) && (!prev.name || priceOnly(prev.name))) prev.name = name;
+    return;
+  }
   seen.add(url);
-  list.push({
-    url,
-    name: String(item.name || "").replace(/\s+/g, " ").trim().slice(0, 300),
-    price: String(item.price || "").trim()
-  });
+  list.push({ url, name: priceOnly(name) ? "" : name, price });
 }
 
 function fromJsonLd(html, pageUrl) {
@@ -98,29 +110,37 @@ function fromJsonLd(html, pageUrl) {
   return out;
 }
 
+function anchorTags(html) {
+  return String(html || "").match(/<a\b(?:[^<>]|[\r\n]){0,1200}?>/gi) || [];
+}
+
 function fromAnchors(html, pageUrl) {
   const out = [];
   const seen = new Set();
   let base;
   try { base = new URL(pageUrl); } catch { return out; }
   const text = String(html || "");
-  const re = /<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]{0,400}?)<\/a>/gi;
+  const re = /<a\b(?:[^<>]|[\r\n]){0,1200}?>([\s\S]{0,500}?)<\/a>/gi;
   let match;
   while ((match = re.exec(text))) {
-    const abs = safeUrl(match[1], base);
+    const own = match[0].slice(0, match[0].indexOf(">") + 1);
+    const href = own.match(/\bhref=["']([^"'#]+)["']/i)?.[1] || "";
+    const abs = safeUrl(href, base);
     if (!abs) continue;
     let path = "";
     try { path = new URL(abs).pathname; } catch { continue; }
     if (path === base.pathname && !new URL(abs).search) continue;
-    const own = match[0];
-    const before = text.slice(Math.max(0, match.index - 450), match.index);
-    const inCard = /<(article|li|div)\b[^>]*class=["'][^"']*(?:product|produkt)[^"']*["'][^>]*>\s*$/i.test(before)
-      || /<(article|li|div)\b[^>]*class=["'][^"']*(?:product|produkt)[^"']*["']/i.test(before.slice(-400))
-      || /class=["'][^"']*(?:product-link|product-name|product_title|woocommerce-LoopProduct-link)[^"']*["']/i.test(own);
+    if (/[?&]p=\d+|page=\d+|\/page\/\d+/i.test(abs) && !isProductPath(path)) continue;
+    const cls = own.match(/\bclass=["']([^"']+)["']/i)?.[1] || "";
+    const before = text.slice(Math.max(0, match.index - 500), match.index);
+    const magento = /product-item(?:-link|-photo|-name)?|product-name|product_title/i.test(cls);
+    const inCard = magento
+      || /<(?:article|li|div)\b[^>]*class=["'][^"']*(?:product-item|\bproduct\b|produkt)[^"']*["']/i.test(before.slice(-500))
+      || /class=["'][^"']*products[^"']*["'][^>]*>[\s\S]{0,200}$/i.test(before);
     if (!inCard && !isProductPath(path)) continue;
-    if (/page=\d+|\/page\/\d+/i.test(abs) && !isProductPath(path)) continue;
-    const name = textOf(match[2]).slice(0, 300);
-    if (/^(następna|nastepna|next|poprzednia|prev|»|›)$/i.test(name)) continue;
+    const title = own.match(/\btitle=["']([^"']+)["']/i)?.[1] || "";
+    const name = cleanName(title || textOf(match[1]));
+    if (/^(następna|nastepna|next|poprzednia|prev|»|›|\.\.\.)$/i.test(name)) continue;
     pushProduct(out, seen, { url: abs, name, price: "" });
   }
   return out;
@@ -149,7 +169,14 @@ export function nextListingUrl(html, pageUrl) {
   const rel = relHref ? safeUrl(relHref, base) : "";
   if (rel && canonicalProductUrl(rel) !== canonicalProductUrl(base.href)) return rel;
 
-  const classTag = text.match(/<a\b[^>]*class=["'][^"']*(?:\bnext\b|pagination-next|pager-next)[^"']*["'][^>]*>/i)?.[0] || "";
+  const magentoNext = text.match(/pages-item-next[\s\S]{0,600}?href=["']([^"']+)["']/i)?.[1] || "";
+  const magentoUrl = magentoNext ? safeUrl(magentoNext, base) : "";
+  if (magentoUrl && canonicalProductUrl(magentoUrl) !== canonicalProductUrl(base.href)) return magentoUrl;
+
+  const classTag = anchorTags(text).find((tag) => {
+    const cls = tag.match(/\bclass=["']([^"']+)["']/i)?.[1] || "";
+    return /\bnext\b/i.test(cls) && !/\bjump\b/i.test(cls);
+  }) || "";
   const classHref = classTag.match(/href=["']([^"']+)["']/i)?.[1] || "";
   const classUrl = classHref ? safeUrl(classHref, base) : "";
   if (classUrl && canonicalProductUrl(classUrl) !== canonicalProductUrl(base.href)) return classUrl;
